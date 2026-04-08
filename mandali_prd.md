@@ -13,12 +13,12 @@
 1. **Home (Hub)**
 2. **Memories** (Photo module)
 3. **Groups** (Communication & Settings)
-4. **Tambola** (Gaming module - *Coming Soon*)
+4. **Housie** (Gaming module - *Coming Soon*)
 5. **More** (Profile & More)
 
 ### Key Modules
 - **Memories:** Shared photo albums organized chronologically by month.
-- **Tambola:** Integration of the popular social game for group interaction (*Planned*).
+- **Housie:** Integration of the popular social game for group interaction (*Planned*).
 - **Group Management:** Tools for managing circle members, invitations, and settings.
 - **Hosting & Themes:** Planning features for gatherings and physical meets (*Planned*).
 

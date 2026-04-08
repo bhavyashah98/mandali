@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -12,7 +13,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.101.1",
     "axios": "^1.14.0",
-    "cloudinary": "^2.9.0",
+    "cloudinary": "^1.32.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",
     "express": "^4.22.1",
@@ -20,6 +21,7 @@
     "firebase-admin": "^13.7.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
+    "multer-storage-cloudinary": "^4.0.0",
     "node-cron": "^4.2.1"
   },
   "devDependencies": {

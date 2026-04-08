@@ -6,7 +6,17 @@ import { RootNavigator } from '@/src/navigation/RootNavigator';
 import { useFonts } from 'expo-font';
 import { NotoSerif_400Regular, NotoSerif_700Bold, NotoSerif_400Regular_Italic, NotoSerif_700Bold_Italic } from '@expo-google-fonts/noto-serif';
 import { BeVietnamPro_300Light, BeVietnamPro_400Regular, BeVietnamPro_500Medium, BeVietnamPro_600SemiBold, BeVietnamPro_700Bold } from '@expo-google-fonts/be-vietnam-pro';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@/global.css';
+
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            retry: 2,
+            staleTime: 1000 * 60 * 5, // 5 minutes
+        },
+    },
+});
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -26,11 +36,13 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <GluestackUIProvider mode="light">
-        <RootNavigator />
-        <StatusBar style="auto" />
-      </GluestackUIProvider>
-    </SafeAreaProvider>
+    <QueryClientProvider client={queryClient}>
+      <SafeAreaProvider>
+        <GluestackUIProvider mode="light">
+          <RootNavigator />
+          <StatusBar style="auto" />
+        </GluestackUIProvider>
+      </SafeAreaProvider>
+    </QueryClientProvider>
   );
 }

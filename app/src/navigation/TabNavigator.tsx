@@ -5,8 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import HomeHub from '@/src/screens/home/HomeHub';
 import MemoriesModule from '@/src/screens/memories/MemoriesModule';
 import GroupSettings from '@/src/screens/group/GroupSettings';
-import TambolaScreen from '@/src/screens/TambolaScreen';
+import HousieScreen from '@/src/screens/HousieScreen';
 import MoreScreen from '@/src/screens/MoreScreen';
+import { GroupNavigator } from './GroupNavigator';
 
 const Tab = createBottomTabNavigator();
 
@@ -29,7 +30,7 @@ export const TabNavigator = () => {
                     if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
                     else if (route.name === 'Memories') iconName = focused ? 'images' : 'images-outline';
                     else if (route.name === 'Group') iconName = focused ? 'people' : 'people-outline';
-                    else if (route.name === 'Tambola') iconName = focused ? 'game-controller' : 'game-controller-outline';
+                    else if (route.name === 'Housie') iconName = focused ? 'game-controller' : 'game-controller-outline';
                     else if (route.name === 'More') iconName = focused ? 'apps' : 'apps-outline';
                     
                     return <Ionicons name={iconName} size={size} color={color} />;
@@ -38,8 +39,8 @@ export const TabNavigator = () => {
         >
             <Tab.Screen name="Home" component={HomeHub} />
             <Tab.Screen name="Memories" component={MemoriesModule} />
-            <Tab.Screen name="Group" component={GroupSettings} />
-            <Tab.Screen name="Tambola" component={TambolaScreen} />
+            <Tab.Screen name="Group" component={GroupNavigator} />
+            <Tab.Screen name="Housie" component={HousieScreen} />
             <Tab.Screen name="More" component={MoreScreen} />
         </Tab.Navigator>
     );
