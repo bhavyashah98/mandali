@@ -89,22 +89,23 @@ io.on('connection', (socket) => {
     socket.on('verify_claim', async (data) => {
         const { gameCode, prizeId, userId, ticketId, status, claimedOnIndex } = data;
         
-        if (status === 'accepted') {
-            try {
-                // Fetch current winners and prizes
-                const { data: game } = await supabase
-                    .from('housie_games')
-                    .select('id, group_id, winners, called_numbers, prizes')
-                    .eq('game_code', gameCode)
-                    .single();
-                
-                if (!game) return;
+        try {
+            // Fetch current winners and prizes
+            const { data: game } = await supabase
+                .from('housie_games')
+                .select('id, group_id, winners, called_numbers, prizes')
+                .eq('game_code', gameCode)
+                .single();
+            
+            if (!game) return;
 
-                const winners = game.winners || {};
-                const currentCalledCount = game.called_numbers?.length || 0;
-                const prizes = game.prizes || [];
-                const prize = prizes.find((p: any) => p.id === prizeId);
-                const prizeTotalAmount = prize ? (prize.amount || 0) : 0;
+            const winners = game.winners || {};
+            const currentCalledCount = game.called_numbers?.length || 0;
+            const prizes = game.prizes || [];
+            const prize = prizes.find((p: any) => p.id === prizeId);
+            const prizeTotalAmount = prize ? (prize.amount || 0) : 0;
+
+            if (status === 'accepted') {
 
                 // Check if prize was already taken on a PREVIOUS number
                 const existingWinners = Array.isArray(winners[prizeId]) ? winners[prizeId] : (winners[prizeId] ? [winners[prizeId]] : []);
@@ -158,9 +159,23 @@ io.on('connection', (socket) => {
                     }
                 }
 
-            } catch (err) {
-                console.error("Error updating winners and results:", err);
+            } else if (status === 'denied') {
+                const deniedMap = winners['__denied'] || {};
+                const ticketDeniedInfo = deniedMap[ticketId] || [];
+                
+                if (!ticketDeniedInfo.includes(prizeId)) {
+                    ticketDeniedInfo.push(prizeId);
+                }
+                deniedMap[ticketId] = ticketDeniedInfo;
+                winners['__denied'] = deniedMap;
+
+                await supabase
+                    .from('housie_games')
+                    .update({ winners })
+                    .eq('game_code', gameCode);
             }
+        } catch (err) {
+            console.error("Error updating winners and results:", err);
         }
 
         // Broadcast result to everyone in room

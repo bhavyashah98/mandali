@@ -17,7 +17,7 @@ const HousieTicketScreen = () => {
     const navigation = useNavigation<any>();
     const queryClient = useQueryClient();
     const { user } = useAuthStore();
-    
+
     // Extract both gameCode and groupId from params
     const params = route.params as { gameCode?: string, groupId?: string };
     const [gameCode, setGameCode] = useState(params?.gameCode?.trim().toUpperCase() || '');
@@ -44,10 +44,11 @@ const HousieTicketScreen = () => {
     }, [game?.status]);
 
     // 2. Fetch User's Tickets
-    const { data: ticketData } = useQuery({
+    const { data: ticketData, isLoading: isLoadingTickets } = useQuery({
         queryKey: ['housieTickets', gameCode],
         queryFn: () => fetchHousieTickets(gameCode),
-        enabled: !!gameCode && gameCode.length >= 6
+        enabled: !!gameCode && gameCode.length >= 6,
+        staleTime: 0
     });
 
     // 3. Purchase Tickets Mutation
@@ -67,7 +68,7 @@ const HousieTicketScreen = () => {
 
     const handleClaimPrize = (prizeId: string) => {
         if (!socket || !gameCode || !claimingTicketId) return;
-        
+
         if (deniedClaims[claimingTicketId]?.includes(prizeId)) {
             Alert.alert('Denied', 'Your claim for this prize on this ticket was already denied by the host.');
             return;
@@ -80,7 +81,7 @@ const HousieTicketScreen = () => {
             ticketId: claimingTicketId,
             markedNumbers: markedTickets[claimingTicketId] || []
         });
-        
+
         setPrizesModalVisible(false);
         Alert.alert('Claim Sent', 'Your claim has been sent to the host for verification.');
     };
@@ -103,12 +104,29 @@ const HousieTicketScreen = () => {
 
         const onClaimResult = (data: any) => {
             const { prizeId, userId, ticketId, status } = data;
+
+            // If any claim is accepted globally, force a refresh of the game state
+            // so everyone immediately sees the prize mapped to the winners list!
+            if (status === 'accepted') {
+                queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
+            }
+
             if (userId === user?.id) {
                 if (status === 'accepted') {
                     Alert.alert('Congratulations!', 'Your claim has been accepted!');
                 } else {
                     const msg = data.message || 'The host has denied your claim.';
-                    Alert.alert('Claim Result', msg);
+
+                    // Only mark as Boggy if the Host manually denied it (false claim), 
+                    // not if they just lost a speed-tie ("Prize already claimed")
+                    if (msg !== 'Prize already claimed') {
+                        setDeniedClaims(prev => ({
+                            ...prev,
+                            [ticketId]: [...(prev[ticketId] || []), prizeId]
+                        }));
+                    }
+
+                    Alert.alert('Claim Denied', msg);
                 }
             }
         };
@@ -142,9 +160,9 @@ const HousieTicketScreen = () => {
     useEffect(() => {
         if (game?.status === 'finished' && game?.id) {
             console.log('[Ticket] Query fallback: game finished, redirecting...');
-            navigation.replace('HousieResults', { 
-                gameId: game.id, 
-                groupId: groupId 
+            navigation.replace('HousieResults', {
+                gameId: game.id,
+                groupId: groupId
             });
         }
     }, [game?.status, game?.id]);
@@ -166,109 +184,83 @@ const HousieTicketScreen = () => {
     const calledNumbers = game?.called_numbers || [];
     const latestNumber = calledNumbers[calledNumbers.length - 1];
 
-    if (!isJoined) {
+    useEffect(() => {
+        // If query has finished fetching, and user has no tickets, bounce them to the Join screen
+        if (!isLoadingTickets && ticketData && !isJoined) {
+            navigation.replace('HousieJoinGame', {
+                gameCode,
+                groupId
+            });
+        }
+    }, [isLoadingTickets, ticketData, isJoined, navigation, gameCode, groupId]);
+
+    if (isLoadingTickets || !ticketData || !isJoined) {
         return (
-            <SafeAreaView className="flex-1 bg-background">
-                <View className="px-8 mt-12 flex-1 justify-center">
-                    <Text className="text-primary font-headline-bold text-[42px] leading-[48px] mb-4">Join the{"\n"}Gathering</Text>
-                    <Text className="text-on-surface-variant font-body-medium text-lg mb-10">Enter the code to grab your tickets and start playing.</Text>
-
-                    <View className="gap-6">
-                        <View>
-                            <Text className="text-[#594048] font-body-bold text-xs uppercase tracking-widest mb-3 ml-2">Game Code</Text>
-                            <TextInput
-                                value={gameCode}
-                                onChangeText={setGameCode}
-                                placeholder="E.g. MB-4029"
-                                placeholderTextColor="#a09d96"
-                                className="bg-white h-16 rounded-[24px] px-6 text-xl font-headline-bold text-on-surface shadow-sm border border-stone-100"
-                                autoCapitalize="characters"
-                            />
-                        </View>
-
-                        <View>
-                            <Text className="text-[#594048] font-body-bold text-xs uppercase tracking-widest mb-3 ml-2">Number of Tickets</Text>
-                            <View className="flex-row items-center bg-white h-16 rounded-[24px] px-4 shadow-sm border border-stone-100">
-                                <TouchableOpacity
-                                    onPress={() => setTicketCount(Math.max(1, parseInt(ticketCount) - 1).toString())}
-                                    className="w-10 h-10 items-center justify-center bg-stone-50 rounded-full"
-                                >
-                                    <MaterialIcons name="remove" size={20} color="#b30069" />
-                                </TouchableOpacity>
-                                <TextInput
-                                    value={ticketCount}
-                                    onChangeText={setTicketCount}
-                                    keyboardType="number-pad"
-                                    className="flex-1 text-center text-xl font-headline-bold text-on-surface"
-                                />
-                                <TouchableOpacity
-                                    onPress={() => setTicketCount((parseInt(ticketCount) + 1).toString())}
-                                    className="w-10 h-10 items-center justify-center bg-stone-50 rounded-full"
-                                >
-                                    <MaterialIcons name="add" size={20} color="#b30069" />
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </View>
-
-                    <TouchableOpacity
-                        onPress={() => buyTicketsMutation.mutate()}
-                        disabled={buyTicketsMutation.isPending || !gameCode}
-                        className="bg-primary h-16 rounded-[24px] mt-12 flex-row items-center justify-center shadow-lg shadow-primary/30"
-                    >
-                        {buyTicketsMutation.isPending ? (
-                            <ActivityIndicator color="white" />
-                        ) : (
-                            <>
-                                <MaterialIcons name="local-activity" size={24} color="white" />
-                                <Text className="text-white font-headline-bold text-lg ml-3">Buy {ticketCount} Tickets • ₹{parseInt(ticketCount) * 50}</Text>
-                            </>
-                        )}
-                    </TouchableOpacity>
-                </View>
+            <SafeAreaView className="flex-1 bg-background items-center justify-center">
+                <ActivityIndicator size="large" color="#b30069" />
             </SafeAreaView>
         );
     }
 
-    const renderTicket = ({ item: ticket }: { item: any }) => (
-        <View className="mb-6 w-full">
-            <View className="flex-row items-center justify-between mb-3 px-2">
-                <Text className="text-stone-400 font-body-bold text-[9px] uppercase tracking-widest">TICKET #{ticket.id.slice(-4).toUpperCase()}</Text>
-                <TouchableOpacity
-                    onPress={() => {
-                        setClaimingTicketId(ticket.id);
-                        setPrizesModalVisible(true);
-                    }}
-                    className="flex-row items-center bg-primary/10 px-3 py-1.5 rounded-full"
-                >
-                    <FontAwesome5 name="trophy" size={10} color="#b30069" />
-                    <Text className="text-primary font-headline-bold text-[10px] ml-2 uppercase tracking-tight">Claim Prize</Text>
-                </TouchableOpacity>
-            </View>
-            <View className="bg-white rounded-[24px] p-2.5 shadow-lg shadow-black/5 border border-black/5">
-                {ticket.ticket_data.map((row: any[], rIdx: number) => (
-                    <View key={rIdx} className="flex-row">
-                        {row.map((num: number | null, cIdx: number) => (
-                            <View key={cIdx} className="flex-1 aspect-square p-0.5">
-                                {num ? (
-                                    <TouchableOpacity
-                                        onPress={() => toggleMark(ticket.id, num)}
-                                        className={`w-full h-full rounded-md items-center justify-center border ${(markedTickets[ticket.id] || []).includes(num) ? 'bg-primary border-primary' : 'bg-stone-50 border-stone-100'}`}
-                                    >
-                                        <Text className={`font-headline-bold text-xs ${(markedTickets[ticket.id] || []).includes(num) ? 'text-white' : 'text-on-surface'}`}>
-                                            {num}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ) : (
-                                    <View className="w-full h-full rounded-md bg-stone-50/10" />
-                                )}
+    const renderTicket = ({ item: ticket }: { item: any }) => {
+        const dbDeniedList = game?.winners?.['__denied']?.[ticket.id] || [];
+        const isBoggy = (deniedClaims[ticket.id]?.length || 0) > 0 || dbDeniedList.length > 0;
+
+        return (
+            <View className={`mb-6 w-full ${isBoggy ? 'opacity-90' : ''}`}>
+                <View className="flex-row items-center justify-between mb-3 px-2">
+                    <Text className="text-stone-400 font-body-bold text-[9px] uppercase tracking-widest">TICKET #{ticket.id.slice(-4).toUpperCase()}</Text>
+                    <TouchableOpacity
+                        onPress={() => {
+                            setClaimingTicketId(ticket.id);
+                            setPrizesModalVisible(true);
+                        }}
+                        disabled={isBoggy}
+                        className={`flex-row items-center px-3 py-1.5 rounded-full ${isBoggy ? 'bg-stone-200' : 'bg-primary/10'}`}
+                    >
+                        <FontAwesome5 name="trophy" size={10} color={isBoggy ? '#a8a29e' : '#b30069'} />
+                        <Text className={`font-headline-bold text-[10px] ml-2 uppercase tracking-tight ${isBoggy ? 'text-stone-400' : 'text-primary'}`}>
+                            {isBoggy ? 'Disqualified' : 'Claim Prize'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+                <View className="relative bg-white rounded-[24px] p-2.5 shadow-lg shadow-black/5 border border-black/5 overflow-hidden">
+                    {/* The Boggy Overlay */}
+                    {isBoggy && (
+                        <View className="absolute z-10 bottom-0 top-0 left-0 right-0 bg-[#594048]/60 items-center justify-center rounded-[24px]" style={{ elevation: 5 }}>
+                            <View className="bg-primary px-6 py-2 rounded-2xl border-[3px] border-white shadow-2xl opacity-95" style={{ transform: [{ rotate: '-12deg' }] }}>
+                                <Text className="text-white font-headline-bold text-3xl tracking-widest">OOPS BOGGY</Text>
+                            </View>
+                        </View>
+                    )}
+
+                    <View className={isBoggy ? 'opacity-50' : ''}>
+                        {ticket.ticket_data.map((row: any[], rIdx: number) => (
+                            <View key={rIdx} className="flex-row">
+                                {row.map((num: number | null, cIdx: number) => (
+                                    <View key={cIdx} className="flex-1 aspect-square p-0.5">
+                                        {num ? (
+                                            <TouchableOpacity
+                                                onPress={() => toggleMark(ticket.id, num)}
+                                                disabled={isBoggy}
+                                                className={`w-full h-full rounded-md items-center justify-center border ${(markedTickets[ticket.id] || []).includes(num) ? 'bg-primary border-primary' : 'bg-stone-50 border-stone-100'}`}
+                                            >
+                                                <Text className={`font-headline-bold text-xs ${(markedTickets[ticket.id] || []).includes(num) ? 'text-white' : 'text-on-surface'}`}>
+                                                    {num}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ) : (
+                                            <View className="w-full h-full rounded-md bg-stone-50/10" />
+                                        )}
+                                    </View>
+                                ))}
                             </View>
                         ))}
                     </View>
-                ))}
+                </View>
             </View>
-        </View>
-    );
+        );
+    };
 
     return (
         <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -304,21 +296,31 @@ const HousieTicketScreen = () => {
                 )}
                 ListFooterComponent={() => (
                     <View className="mt-4 pt-10 border-t border-stone-100">
-                        <Text className="text-stone-400 font-body-bold text-[9px] uppercase tracking-[2px] mb-6 text-center">Prize Reference</Text>
+                        <Text className="text-stone-400 font-body-bold text-[9px] uppercase tracking-[2px] mb-6 text-center">Prize Reference Live Status</Text>
                         <View className="gap-2">
                             {(game?.prizes || []).map((prize: any) => {
-                                const winners = Array.isArray(game?.winners?.[prize.id]) ? game?.winners?.[prize.id] : (game?.winners?.[prize.id] ? [game?.winners?.[prize.id]] : []);
-                                const isClaimed = winners.length > 0;
-                                const individualAmount = isClaimed ? (prize.amount / winners.length).toFixed(0) : prize.amount;
+                                const winnerList = game?.winners?.[prize.id];
+                                const winners = Array.isArray(winnerList) ? winnerList : (winnerList ? [winnerList] : [])
+                                const currentCalledCount = game?.called_numbers?.length || 0;
+                                const isGlobalClosed = winners.length > 0 && winners[0].claimedOnIndex < currentCalledCount;
+                                const isPendingShare = winners.length > 0 && !isGlobalClosed;
+
+                                const individualAmount = winners.length > 0 ? (prize.amount / winners.length).toFixed(0) : prize.amount;
 
                                 return (
-                                    <View key={prize.id} className="flex-row items-center py-2 px-4 bg-white/50 rounded-xl mb-1">
-                                        <MaterialIcons name={prize.icon || 'stars'} size={16} color="#b30069" style={{ opacity: 0.6 }} />
-                                        <View className="flex-1 ml-3">
-                                            <Text className="text-[#594048] font-body-bold text-xs">{prize.name}</Text>
-                                            {winners.length > 1 && <Text className="text-stone-400 text-[8px] uppercase">Shared Win • {winners.length} Players</Text>}
+                                    <View key={prize.id} className={`flex-row items-center py-3 px-4 rounded-[20px] ${isGlobalClosed ? 'bg-stone-100' : 'bg-white shadow-sm border border-stone-100'} mb-1`}>
+                                        <View className={`w-8 h-8 rounded-full ${isGlobalClosed ? 'bg-stone-200' : isPendingShare ? 'bg-orange-50' : 'bg-stone-50'} items-center justify-center mr-3`}>
+                                            <MaterialIcons name={prize.icon || 'stars'} size={14} color={isGlobalClosed ? '#a8a29e' : isPendingShare ? '#f97316' : '#b30069'} />
                                         </View>
-                                        <Text className="text-primary font-headline-bold text-xs">₹{individualAmount}</Text>
+                                        <View className="flex-1">
+                                            <Text className={`font-headline-bold text-sm ${isGlobalClosed ? 'text-stone-400 line-through' : 'text-[#594048]'}`}>{prize.name}</Text>
+                                            {winners.length > 0 && (
+                                                <Text className={`text-[9px] uppercase font-body-bold ${isGlobalClosed ? 'text-stone-400' : 'text-orange-500'}`}>
+                                                    {isGlobalClosed ? `Claimed by ${winners.length} Player${winners.length > 1 ? 's' : ''}` : `Splitting: ${winners.length} Claim${winners.length > 1 ? 's' : ''}`}
+                                                </Text>
+                                            )}
+                                        </View>
+                                        <Text className={`font-headline-bold text-sm ${isGlobalClosed ? 'text-stone-400' : 'text-primary'}`}>₹{individualAmount}</Text>
                                     </View>
                                 );
                             })}
@@ -338,50 +340,102 @@ const HousieTicketScreen = () => {
                             </TouchableOpacity>
                         </View>
                         <View className="gap-4">
-                            {(game?.prizes || []).map((prize: any) => {
+                            {([...(game?.prizes || [])].sort((a: any, b: any) => {
+                                const currentCalledCount = game?.called_numbers?.length || 0;
+
+                                // Extract winners accurately
+                                const aWinList = game?.winners?.[a.id];
+                                const aWinners = Array.isArray(aWinList) ? aWinList : (aWinList ? [aWinList] : []);
+                                const aClosed = aWinners.length > 0 && aWinners[0].claimedOnIndex < currentCalledCount;
+
+                                const bWinList = game?.winners?.[b.id];
+                                const bWinners = Array.isArray(bWinList) ? bWinList : (bWinList ? [bWinList] : []);
+                                const bClosed = bWinners.length > 0 && bWinners[0].claimedOnIndex < currentCalledCount;
+
+                                // Prioritize Open Window (false) over Closed Window (true)
+                                if (aClosed !== bClosed) {
+                                    return aClosed ? 1 : -1;
+                                }
+
+                                // If they have the same claim status, sort sequentially by highest prize amount
+                                return parseInt(b.amount || '0') - parseInt(a.amount || '0');
+                            })).map((prize: any) => {
                                 const winnerList = game?.winners?.[prize.id];
                                 const winners = Array.isArray(winnerList) ? winnerList : (winnerList ? [winnerList] : []);
-                                const isGlobalClaimed = winners.length > 0;
-                                
-                                // Check if user is one of the winners
-                                const myWin = winners.find((w: any) => w.userId === user?.id);
+                                const currentCalledCount = game?.called_numbers?.length || 0;
+
+                                // A prize is ONLY permanently closed to the public if the NEXT number has been drawn.
+                                const isGlobalClosed = winners.length > 0 && winners[0].claimedOnIndex < currentCalledCount;
+
+                                // Pre-calculate what this active ticket has already successfully won
+                                let standardWinsOnTicket = 0;
+                                let fullHouseWinsOnTicket = 0;
+                                (game?.prizes || []).forEach((p: any) => {
+                                    const ticketWinList = game?.winners?.[p.id] || [];
+                                    const tWinners = Array.isArray(ticketWinList) ? ticketWinList : [ticketWinList];
+                                    if (tWinners.some((w: any) => w.ticketId === claimingTicketId)) {
+                                        if (p.name.toLowerCase().includes('full house')) fullHouseWinsOnTicket++;
+                                        else standardWinsOnTicket++;
+                                    }
+                                });
+
+                                // Check if active ticket is one of the winners
+                                const myWin = winners.find((w: any) => w.ticketId === claimingTicketId);
                                 const isMyWin = !!myWin;
-                                const isLocalDenied = claimingTicketId ? deniedClaims[claimingTicketId]?.includes(prize.id) : false;
+
+                                // Persist Boggy from DB
+                                const dbDeniedPrizeIds = game?.winners?.['__denied']?.[claimingTicketId as string] || [];
+                                const isLocalDenied = claimingTicketId ? (deniedClaims[claimingTicketId]?.includes(prize.id) || dbDeniedPrizeIds.includes(prize.id)) : false;
+
+                                // Enforce Strict Housie Limits for this Ticket
+                                const isFullHousePrize = prize.name.toLowerCase().includes('full house');
+                                const isLimitReached = !isMyWin && (
+                                    (isFullHousePrize && fullHouseWinsOnTicket >= 1) ||
+                                    (!isFullHousePrize && standardWinsOnTicket >= 1)
+                                );
 
                                 let status = 'Claim';
                                 let statusColor = 'text-white';
                                 let bgColor = 'bg-[#b30069]';
 
-                                if (isGlobalClaimed) {
-                                    if (isMyWin) {
-                                        status = 'You Won';
-                                        bgColor = 'bg-green-100';
-                                        statusColor = 'text-green-700';
-                                    } else {
-                                        status = 'Claimed';
-                                        bgColor = 'bg-stone-50';
-                                        statusColor = 'text-stone-400';
-                                    }
+                                if (isMyWin) {
+                                    status = 'You Won';
+                                    bgColor = 'bg-green-100';
+                                    statusColor = 'text-green-700';
+                                } else if (isGlobalClosed) {
+                                    status = 'Claimed';
+                                    bgColor = 'bg-stone-50';
+                                    statusColor = 'text-stone-400';
                                 } else if (isLocalDenied) {
                                     status = 'Rejected';
                                     bgColor = 'bg-red-50';
                                     statusColor = 'text-red-400';
+                                } else if (isLimitReached) {
+                                    status = 'Ticket Limit';
+                                    bgColor = 'bg-stone-200';
+                                    statusColor = 'text-stone-500';
+                                } else if (winners.length > 0) {
+                                    status = 'Claim Share';
+                                    bgColor = 'bg-orange-500';
+                                    statusColor = 'text-white';
                                 }
 
+                                const disableButton = isGlobalClosed || isMyWin || isLocalDenied || isLimitReached;
+
                                 return (
-                                    <TouchableOpacity 
+                                    <TouchableOpacity
                                         key={prize.id}
-                                        onPress={() => !isGlobalClaimed && !isLocalDenied && handleClaimPrize(prize.id)}
-                                        disabled={isGlobalClaimed || isLocalDenied}
-                                        className={`bg-white p-4 rounded-[24px] flex-row items-center shadow-sm border border-stone-100 ${isGlobalClaimed && !isMyWin ? 'opacity-50' : ''}`}
+                                        onPress={() => !disableButton && handleClaimPrize(prize.id)}
+                                        disabled={disableButton}
+                                        className={`bg-white p-4 rounded-[24px] flex-row items-center shadow-sm border border-stone-100 ${disableButton && !isMyWin ? 'opacity-50' : ''}`}
                                     >
-                                        <View className="w-12 h-12 rounded-full bg-stone-50 items-center justify-center mr-4">
-                                            <MaterialIcons name={prize.icon || 'stars'} size={24} color="#b30069" />
+                                        <View className={`w-12 h-12 rounded-full ${(winners.length > 0 && !isGlobalClosed && !isLimitReached) ? 'bg-orange-50' : 'bg-stone-50'} items-center justify-center mr-4`}>
+                                            <MaterialIcons name={prize.icon || 'stars'} size={24} color={(winners.length > 0 && !isGlobalClosed && !isLimitReached) ? '#f97316' : '#b30069'} />
                                         </View>
                                         <View className="flex-1">
                                             <Text className="text-[#594048] font-headline-bold text-base">{prize.name}</Text>
                                             <Text className="text-stone-400 font-body-medium text-xs">
-                                                {winners.length > 1 ? `Split: ₹${(prize.amount/winners.length).toFixed(0)}` : `Prize: ₹${prize.amount}`}
+                                                {winners.length > 1 && !isLimitReached ? `Split: ₹${(prize.amount / winners.length).toFixed(0)}` : `Prize: ₹${prize.amount}`}
                                             </Text>
                                         </View>
                                         <View className={`px-4 py-2 rounded-full ${bgColor}`}>

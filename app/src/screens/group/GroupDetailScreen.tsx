@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator, Share } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { fetchGroupDetail } from '../../lib/api';
+import { Image } from 'expo-image';
 
 const GroupDetailScreen = () => {
     const navigation = useNavigation<any>();
@@ -55,7 +56,12 @@ const GroupDetailScreen = () => {
                 <View className="flex-row items-center">
                     <View className="w-10 h-10 rounded-full bg-primary/10 overflow-hidden mr-3">
                         {group.cover_photo_url ? (
-                            <Image source={{ uri: group.cover_photo_url }} className="w-full h-full" />
+                            <Image 
+                                source={{ uri: group.cover_photo_url }} 
+                                style={{ width: '100%', height: '100%' }}
+                                contentFit="cover"
+                                transition={200}
+                            />
                         ) : (
                              <View className="w-full h-full items-center justify-center">
                                 <Text className="text-primary font-headline-bold">{group.name.charAt(0)}</Text>
@@ -96,9 +102,23 @@ const GroupDetailScreen = () => {
                     </View>
                 </View>
 
-                {/* Housie Quick Start */}
+                {/* Shared Memories Quick Access */}
                 <TouchableOpacity 
-                    onPress={() => navigation.navigate('Housie', { groupId: group.id })}
+                    onPress={() => navigation.navigate('Memories', { screen: 'MemoriesHome', params: { groupId: group.id } })}
+                    className="bg-white rounded-[40px] p-8 mt-6 flex-row items-center border border-black/5 shadow-sm"
+                >
+                    <View className="w-16 h-16 bg-blue-50 rounded-full items-center justify-center mr-5">
+                       <Ionicons name="images" size={28} color="#2b6cb0" />
+                    </View>
+                    <View className="flex-1">
+                        <Text className="text-xl font-headline-bold text-[#513c3c] mb-0.5">Shared Memories</Text>
+                        <Text className="text-stone-400 font-body-medium">Relive your circle's best moments.</Text>
+                    </View>
+                    <MaterialIcons name="chevron-right" size={24} color="#a09d96" />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    onPress={() => navigation.navigate('Housie', { screen: 'HousieLobby', params: { groupId: group.id } })}
                     className="bg-white rounded-[40px] p-8 mt-6 flex-row items-center border border-black/5 shadow-sm"
                 >
                     <View className="w-16 h-16 bg-pink-50 rounded-full items-center justify-center mr-5">
@@ -124,7 +144,12 @@ const GroupDetailScreen = () => {
                     <View key={member.id} className="flex-row items-center bg-white rounded-3xl p-4 mb-3 shadow-sm border border-black/5">
                         <View className="w-14 h-14 rounded-full bg-surface-container overflow-hidden mr-4 border border-black/5">
                             {member.users.avatar_url ? (
-                                <Image source={{ uri: member.users.avatar_url }} className="w-full h-full" />
+                                <Image 
+                                    source={{ uri: member.users.avatar_url }} 
+                                    style={{ width: '100%', height: '100%' }}
+                                    contentFit="cover"
+                                    transition={200}
+                                />
                             ) : (
                                 <View className="w-full h-full items-center justify-center">
                                     <Text className="text-lg font-headline-bold text-primary">{member.users.name.charAt(0)}</Text>
@@ -158,7 +183,10 @@ const GroupDetailScreen = () => {
                     <MaterialIcons name="grid-view" size={24} color="#a09d96" />
                     <Text className="text-[10px] font-body-bold text-[#a09d96] mt-1">Play</Text>
                 </TouchableOpacity>
-                <TouchableOpacity className="items-center px-4">
+                <TouchableOpacity 
+                    onPress={() => navigation.navigate('Memories', { screen: 'MemoriesHome', params: { groupId: group.id } })}
+                    className="items-center px-4"
+                >
                     <MaterialIcons name="photo-library" size={24} color="#a09d96" />
                     <Text className="text-[10px] font-body-bold text-[#a09d96] mt-1">Memories</Text>
                 </TouchableOpacity>

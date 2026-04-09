@@ -4,7 +4,6 @@ import {
     Text,
     TouchableOpacity,
     TextInput,
-    Image,
     ScrollView,
     Platform,
     KeyboardAvoidingView,
@@ -17,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { createGroup, uploadImage } from '../../lib/api';
+import { Image } from 'expo-image';
 
 const CreateGroupScreen = () => {
     const navigation = useNavigation();
@@ -112,7 +112,7 @@ const CreateGroupScreen = () => {
                                     }}
                                 >
                                     {groupImage ? (
-                                        <Image source={{ uri: groupImage }} className="w-full h-full" resizeMode="cover" />
+                                        <Image source={{ uri: groupImage }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={200} />
                                     ) : (
                                         <MaterialIcons name="group" size={48} color="#b30069" />
                                     )}

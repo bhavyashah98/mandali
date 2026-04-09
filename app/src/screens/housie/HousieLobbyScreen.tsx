@@ -28,7 +28,7 @@ const HousieLobbyScreen = () => {
     const queryClient = useQueryClient();
 
     // Fetch if there's an ACTIVE game for this group right now — once only
-    const { data: activeGameData } = useQuery({
+    const { data: activeGameData, isFetching: isGameFetching } = useQuery({
         queryKey: ['activeHousieGame', groupId],
         queryFn: () => fetchActiveHousieGame(groupId!),
         enabled: !!groupId && isFocused,
@@ -60,7 +60,7 @@ const HousieLobbyScreen = () => {
     React.useEffect(() => {
         // Only redirect if the screen is focused and we are the host
         // Players will handle their own navigation via socket in the waiting room
-        if (isFocused && activeGame && user && activeGame.host_id === user.id) {
+        if (isFocused && activeGame && !isGameFetching && user && activeGame.host_id === user.id) {
             const status = activeGame.status;
             
             // If we are already in a state that should be elsewhere, move there
@@ -142,14 +142,6 @@ const HousieLobbyScreen = () => {
                             <Ionicons name="ticket" size={28} color="#31302d" />
                             <Text className="text-[#31302d] font-headline-bold text-2xl ml-3">Join Game</Text>
                         </TouchableOpacity>
-
-                        <TouchableOpacity
-                            onPress={() => navigation.navigate('HousieLeaderboard', { groupId, groupName })}
-                            className="h-14 rounded-[24px] flex-row items-center justify-center border border-primary/20 bg-primary/5"
-                        >
-                            <MaterialIcons name="emoji-events" size={22} color="#b30069" />
-                            <Text className="text-primary font-headline-bold text-lg ml-2">Leaderboard</Text>
-                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -161,6 +153,15 @@ const HousieLobbyScreen = () => {
                         <Text className="text-stone-400 font-body-medium text-center">Share this code with your Mandali.</Text>
                     </View>
                 )}
+
+                {/* Leaderboard Button */}
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('HousieLeaderboard', { groupId, groupName })}
+                    className="h-20 rounded-[32px] mt-6 flex-row items-center justify-center border border-primary/20 bg-primary/5 w-full"
+                >
+                    <MaterialIcons name="emoji-events" size={28} color="#b30069" />
+                    <Text className="text-primary font-headline-bold text-2xl ml-3">Leaderboard</Text>
+                </TouchableOpacity>
             </ScrollView>
 
             {/* Back Button */}

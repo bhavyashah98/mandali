@@ -43,6 +43,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
+        console.log('[Memories] Creating memory for group:', groupId, 'by user:', userId);
         const { data, error } = await supabase
             .from('memories')
             .insert({
@@ -55,8 +56,12 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('[Memories] Supabase error:', error);
+            throw error;
+        }
 
+        console.log('[Memories] Successfully stored memory:', data.id);
         res.json(data);
     } catch (error: any) {
         res.status(500).json({ error: error.message });

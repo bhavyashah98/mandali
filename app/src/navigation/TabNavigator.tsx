@@ -2,9 +2,9 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
-import MemoriesModule from '@/src/screens/memories/MemoriesModule';
 import { GroupNavigator } from './GroupNavigator';
 import { HousieNavigator } from './HousieNavigator';
+import { MemoriesNavigator } from './MemoriesNavigator';
 import SetupProfileScreen from '@/src/screens/auth/SetupProfileScreen';
 
 const Tab = createBottomTabNavigator();
@@ -36,7 +36,7 @@ export const TabNavigator = () => {
         >
             <Tab.Screen name="Groups" component={GroupNavigator} />
             <Tab.Screen name="Housie" component={HousieNavigator} />
-            <Tab.Screen name="Memories" component={MemoriesModule} />
+            <Tab.Screen name="Memories" component={MemoriesNavigator} />
             <Tab.Screen name="Profile" component={SetupProfileScreen} />
         </Tab.Navigator>
     );

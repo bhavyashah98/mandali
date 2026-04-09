@@ -14,13 +14,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useQuery } from '@tanstack/react-query';
-import { fetchHousieGame, joinHousieGame } from '../../lib/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { fetchHousieGame, joinHousieGame, fetchHousieTickets } from '../../lib/api';
 
 const HousieJoinGameScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute();
     const { gameCode: passedGameCode, groupId } = (route.params as { gameCode?: string, groupId?: string }) || {};
+    const queryClient = useQueryClient();
 
     const [gameCode, setGameCode] = useState(passedGameCode || '');
     const [ticketCount, setTicketCount] = useState('2');
@@ -33,12 +34,30 @@ const HousieJoinGameScreen = () => {
         }
     }, [passedGameCode]);
 
-    // Fetch game to get the ticket price
+    // Fetch game to get the ticket price and status
     const { data: gameDetails } = useQuery({
         queryKey: ['housieGame', gameCode],
         queryFn: () => fetchHousieGame(gameCode),
         enabled: !!gameCode && gameCode.length >= 6
     });
+
+    // Check if user already owns tickets for this game
+    const { data: ticketData } = useQuery({
+        queryKey: ['housieTickets', gameCode],
+        queryFn: () => fetchHousieTickets(gameCode),
+        enabled: !!gameCode && gameCode.length >= 6
+    });
+
+    // Smart redirect: If user holds tickets, route them to waiting room or game screen
+    useEffect(() => {
+        if (ticketData?.tickets && ticketData.tickets.length > 0 && gameDetails) {
+            if (gameDetails.status === 'active') {
+                navigation.replace('HousieTicket', { gameCode: gameCode.toUpperCase(), groupId });
+            } else if (gameDetails.status === 'waiting') {
+                navigation.replace('HousieWaitingRoom', { gameCode: gameCode.toUpperCase(), groupId });
+            }
+        }
+    }, [ticketData, gameDetails, navigation, gameCode, groupId]);
 
     const ticketPrice = gameDetails?.ticket_price || 50; 
 
@@ -58,6 +77,9 @@ const HousieJoinGameScreen = () => {
 
             const response = await joinHousieGame(gameCode.toUpperCase(), count);
             if (response.success) {
+                // Instantly blow away any cached blank ticket state so the ticket screen loads true data
+                queryClient.invalidateQueries({ queryKey: ['housieTickets', gameCode.toUpperCase()] });
+                
                 // Navigate to waiting room
                 navigation.replace('HousieWaitingRoom', {
                     gameCode: gameCode.toUpperCase(),

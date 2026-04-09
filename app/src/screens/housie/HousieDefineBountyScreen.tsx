@@ -26,11 +26,13 @@ const HousieDefineBountyScreen = () => {
     
     // Standard Prizes
     const [prizes, setPrizes] = useState([
-        { id: 'early_five', name: 'Early Five', amount: '500', icon: 'looks-5' },
-        { id: 'top_line', name: 'Top Line', amount: '1000', icon: 'horizontal-rule' },
-        { id: 'middle_line', name: 'Middle Line', amount: '1000', icon: 'horizontal-rule' },
-        { id: 'bottom_line', name: 'Bottom Line', amount: '1000', icon: 'horizontal-rule' },
-        { id: 'full_house', name: 'Full House', amount: '5000', icon: 'grid-view', isHighlight: true }
+        { id: 'early_five', name: 'Early Five', amount: '0', icon: 'looks-5' },
+        { id: 'top_line', name: 'Top Line', amount: '0', icon: 'horizontal-rule' },
+        { id: 'middle_line', name: 'Middle Line', amount: '0', icon: 'horizontal-rule' },
+        { id: 'bottom_line', name: 'Bottom Line', amount: '0', icon: 'horizontal-rule' },
+        { id: 'full_house_1', name: 'Full House 1', amount: '0', icon: 'grid-view', isHighlight: true },
+        { id: 'full_house_2', name: 'Full House 2', amount: '0', icon: 'grid-view', isHighlight: true },
+        { id: 'full_house_3', name: 'Full House 3', amount: '0', icon: 'grid-view', isHighlight: true }
     ]);
 
     // Fetch Stats for Pool calculation
@@ -50,19 +52,21 @@ const HousieDefineBountyScreen = () => {
     // Automated Prize Distribution Logic
     useEffect(() => {
         if (totalPrizePool > 0) {
-            const linesAmount = Math.floor(totalPrizePool * 0.15); // 15% each for first 4
-            const fullHouseAmount = totalPrizePool - (linesAmount * 4); // Remainder for Full House
+            // Distribution: 8% per row (4 rows = 32%), then FH3=16%, FH2=22%, FH1=30%
+            const linesAmount = Math.floor(totalPrizePool * 0.08); 
+            const fh3Amount = Math.floor(totalPrizePool * 0.16);
+            const fh2Amount = Math.floor(totalPrizePool * 0.22);
+            const fh1Amount = totalPrizePool - (linesAmount * 4) - fh3Amount - fh2Amount; 
 
-            const standardIds = ['early_five', 'top_line', 'middle_line', 'bottom_line', 'full_house'];
+            const standardIds = ['early_five', 'top_line', 'middle_line', 'bottom_line'];
             
             setPrizes(prev => {
                 // If the user has added extra custom prizes, we shouldn't overwrite everything blindly
-                return prev.map((p, idx) => {
-                    if (p.id === 'full_house') {
-                        return { ...p, amount: fullHouseAmount.toString() };
-                    } else if (standardIds.includes(p.id)) {
-                        return { ...p, amount: linesAmount.toString() };
-                    }
+                return prev.map((p) => {
+                    if (p.id === 'full_house_1') return { ...p, amount: fh1Amount.toString() };
+                    if (p.id === 'full_house_2') return { ...p, amount: fh2Amount.toString() };
+                    if (p.id === 'full_house_3') return { ...p, amount: fh3Amount.toString() };
+                    if (standardIds.includes(p.id)) return { ...p, amount: linesAmount.toString() };
                     return p;
                 });
             });
@@ -94,6 +98,37 @@ const HousieDefineBountyScreen = () => {
             Alert.alert('Pool Mismatch', `You must allocate exactly ₹${totalPrizePool.toLocaleString()} across your prizes.`);
             return;
         }
+
+        // Validate Unique Names
+        const names = prizes.map(p => p.name.trim().toLowerCase());
+        const uniqueNames = new Set(names);
+        if (uniqueNames.size !== names.length) {
+            Alert.alert('Duplicate Prizes', 'Every prize must have a unique name to prevent confusion.');
+            return;
+        }
+
+        // Validate Amounts (FH1 > FH2 > FH3 > any row) if they all exist
+        const fh1 = prizes.find(p => p.id === 'full_house_1');
+        const fh2 = prizes.find(p => p.id === 'full_house_2');
+        const fh3 = prizes.find(p => p.id === 'full_house_3');
+        const standardRows = prizes.filter(p => ['early_five', 'top_line', 'middle_line', 'bottom_line'].includes(p.id));
+
+        const fh1Amt = parseInt(fh1?.amount || '0');
+        const fh2Amt = parseInt(fh2?.amount || '0');
+        const fh3Amt = parseInt(fh3?.amount || '0');
+        const maxRowAmt = Math.max(...standardRows.map(r => parseInt(r.amount || '0')), 0);
+
+        if (fh1 && fh2 && fh3) {
+            if (!(fh1Amt > fh2Amt && fh2Amt > fh3Amt)) {
+                Alert.alert('Invalid Bounties', 'Full House progression must be: 1st > 2nd > 3rd.');
+                return;
+            }
+            if (fh3Amt <= maxRowAmt) {
+                Alert.alert('Invalid Bounties', 'Even the 3rd Full House must be strictly greater than any individual row prize.');
+                return;
+            }
+        }
+
         try {
             setIsStarting(true);
             await activateHousieGame(gameCode, prizes);
@@ -122,13 +157,48 @@ const HousieDefineBountyScreen = () => {
                     <View className="w-12" />
                 </View>
 
+                {/* Compact Dashboard Widget (Sticky) */}
+                <View className="px-8 mt-2 mb-4">
+                    <View className="bg-white rounded-[32px] p-6 shadow-sm border border-stone-100">
+                        <View className="flex-row items-center justify-between">
+                            {/* Left Side: Allocated Prizes */}
+                            <View>
+                                <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-[2px] mb-1">Allocated So Far</Text>
+                                <Text className={`font-headline-bold text-3xl ${totalAllocated > totalPrizePool ? 'text-orange-600' : 'text-primary'}`}>
+                                    ₹{totalAllocated.toLocaleString()}
+                                </Text>
+                            </View>
+                            
+                            {/* Right Side: Pool Stats */}
+                            <View className="items-end">
+                                <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-[2px] mb-1">Total Collection</Text>
+                                <Text className="text-on-surface font-headline-bold text-xl">₹{totalPrizePool.toLocaleString()}</Text>
+                                <View className="flex-row items-center mt-1">
+                                    <View className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5" />
+                                    <Text className="text-stone-400 font-body-bold text-[10px] uppercase">{stats?.participants?.length || 0} Players</Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        {/* Error Warning (If Exceeded) */}
+                        {totalAllocated > totalPrizePool && (
+                            <View className="mt-4 bg-orange-50 p-3 rounded-2xl flex-row items-center">
+                                <MaterialIcons name="warning" size={16} color="#c2410c" />
+                                <Text className="text-orange-800 font-body-medium text-[10px] ml-2 flex-1">
+                                    Warning: Allocated prizes exceed the total collection.
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
+
                 <ScrollView 
                     className="flex-1 px-8"
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={{ paddingBottom: 150 }}
                 >
                     {/* Title Section */}
-                    <View className="mt-4 mb-10">
+                    <View className="mt-4 mb-6">
                         <Text className="text-[44px] font-headline-bold text-on-surface leading-tight">
                             Define Prizes
                         </Text>
@@ -184,34 +254,7 @@ const HousieDefineBountyScreen = () => {
                         </TouchableOpacity>
                     </View>
 
-                    {/* Summary Card */}
-                    <View className="bg-white rounded-[40px] p-8 shadow-sm border border-stone-100">
-                        <Text className="text-stone-400 font-body-bold text-xs uppercase tracking-[2px] mb-2">Total Prize Pool</Text>
-                        <View className="flex-row items-baseline">
-                            <Text className="text-primary font-headline-bold text-[48px]">₹{totalAllocated.toLocaleString()}</Text>
-                            <Text className="text-stone-400 font-body-medium text-xs ml-3">Calculated total</Text>
-                        </View>
-
-                        <View className="h-[1px] w-full bg-stone-50 my-6" />
-
-                        <View className="flex-row justify-between mb-3">
-                            <Text className="text-stone-400 font-body-medium">Active Members</Text>
-                            <Text className="text-on-surface font-body-bold">{stats?.participants?.length || 0} Players</Text>
-                        </View>
-                        <View className="flex-row justify-between">
-                            <Text className="text-stone-400 font-body-medium">Total Collection</Text>
-                            <Text className="text-on-surface font-body-bold">₹{totalPrizePool.toLocaleString()}</Text>
-                        </View>
-                        
-                        {totalAllocated > totalPrizePool && (
-                            <View className="mt-4 bg-orange-50 p-4 rounded-2xl flex-row items-center">
-                                <MaterialIcons name="warning" size={16} color="#c2410c" />
-                                <Text className="text-orange-800 font-body-medium text-[10px] ml-2 flex-1">
-                                    Heads up! Your specified prizes exceed the current collection.
-                                </Text>
-                            </View>
-                        )}
-                    </View>
+                    {/* Standard Claims Card is the last element now */}
                 </ScrollView>
 
                 {/* Footer Action */}

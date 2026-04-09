@@ -325,72 +325,81 @@ const HousieGameScreen = () => {
 
             {/* Verification Modal */}
             <Modal visible={!!activeClaim} transparent animationType="fade">
-                <View className="flex-1 justify-center bg-[#594048]/90 px-4">
-                    <View className="bg-[#FDF9F3] rounded-[40px] p-6 shadow-2xl border border-white/20">
-                        <View className="items-center mb-6">
-                            <View className="w-16 h-16 rounded-full bg-white items-center justify-center mb-4 shadow-sm">
-                                <FontAwesome5 name="trophy" size={24} color="#b30069" />
+                <View className="flex-1 justify-center py-16 bg-[#594048]/90 px-4">
+                    <View className="bg-[#FDF9F3] rounded-[40px] p-6 shadow-2xl border border-white/20 max-h-[100%]">
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            <View className="items-center mb-6">
+                                <View className="w-16 h-16 rounded-full bg-white items-center justify-center mb-4 shadow-sm">
+                                    <FontAwesome5 name="trophy" size={24} color="#b30069" />
+                                </View>
+                                <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-widest mb-1">Claim Verification</Text>
+                                {pendingCount > 1 && (
+                                    <View className="bg-orange-100 px-3 py-1 rounded-full mb-2">
+                                        <Text className="text-orange-700 font-body-bold text-xs">{pendingCount - 1} more claim{pendingCount - 1 > 1 ? 's' : ''} waiting</Text>
+                                    </View>
+                                )}
+                                <Text className="text-2xl font-headline-bold text-[#594048] text-center">{verifyingTicket?.user?.name}</Text>
+                                <Text className="text-[#b30069] font-body-bold text-center mt-1 text-sm">
+                                    {prizesArr.find((p: any) => p.id === activeClaim?.prizeId)?.name} • Ticket #{activeClaim?.ticketId?.slice(-4).toUpperCase()}
+                                </Text>
                             </View>
-                            <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-widest mb-1">Claim Verification</Text>
-                            {pendingCount > 1 && (
-                                <View className="bg-orange-100 px-3 py-1 rounded-full mb-2">
-                                    <Text className="text-orange-700 font-body-bold text-xs">{pendingCount - 1} more claim{pendingCount - 1 > 1 ? 's' : ''} waiting</Text>
-                                </View>
-                            )}
-                            <Text className="text-2xl font-headline-bold text-[#594048] text-center">{verifyingTicket?.user?.name}</Text>
-                            <Text className="text-[#b30069] font-body-bold text-center mt-1 text-sm">
-                                {prizesArr.find((p: any) => p.id === activeClaim?.prizeId)?.name} • Ticket #{activeClaim?.ticketId?.slice(-4).toUpperCase()}
-                            </Text>
-                        </View>
 
-                        <View className="bg-white rounded-[24px] p-2.5 shadow-lg shadow-black/5 border border-black/5 mb-8">
-                            {verifyingTicket?.ticket_data?.map((row: any[], ridx: number) => (
-                                <View key={ridx} className="flex-row">
-                                    {row.map((num, cidx) => {
-                                        const isMarked = num && activeClaim?.markedNumbers?.includes(num);
-                                        const isCalled = num && calledNumbers.includes(num);
-                                        let cellBg = 'bg-stone-50';
-                                        let borderColor = 'border-stone-100';
-                                        let textColor = 'text-[#594048]';
+                            <View className="bg-white rounded-[24px] p-2.5 shadow-lg shadow-black/5 border border-black/5 mb-6">
+                                {verifyingTicket?.ticket_data?.map((row: any[], ridx: number) => (
+                                    <View key={ridx} className="flex-row">
+                                        {row.map((num, cidx) => {
+                                            const isMarked = num && activeClaim?.markedNumbers?.includes(num);
+                                            const isCalled = num && calledNumbers.includes(num);
+                                            let cellBg = 'bg-stone-50';
+                                            let borderColor = 'border-stone-100';
+                                            let textColor = 'text-[#594048]';
 
-                                        if (num && isMarked) {
-                                            if (isCalled) {
-                                                cellBg = 'bg-[#b30069]';
-                                                borderColor = 'border-[#b30069]';
-                                                textColor = 'text-white';
-                                            } else {
-                                                cellBg = 'bg-red-500';
-                                                borderColor = 'border-red-500';
-                                                textColor = 'text-white';
+                                            if (num && isMarked) {
+                                                if (isCalled) {
+                                                    cellBg = 'bg-[#b30069]';
+                                                    borderColor = 'border-[#b30069]';
+                                                    textColor = 'text-white';
+                                                } else {
+                                                    cellBg = 'bg-red-500';
+                                                    borderColor = 'border-red-500';
+                                                    textColor = 'text-white';
+                                                }
                                             }
-                                        }
 
-                                        return (
-                                            <View key={cidx} className="flex-1 aspect-square p-0.5">
-                                                {num ? (
-                                                    <View className={`w-full h-full rounded-md items-center justify-center border ${cellBg} ${borderColor}`}>
-                                                        <Text className={`font-headline-bold text-[10px] ${textColor}`}>
-                                                            {num}
-                                                        </Text>
-                                                    </View>
-                                                ) : (
-                                                    <View className="w-full h-full rounded-md bg-stone-50/10" />
-                                                )}
-                                            </View>
-                                        );
-                                    })}
+                                            return (
+                                                <View key={cidx} className="flex-1 aspect-square p-0.5">
+                                                    {num ? (
+                                                        <View className={`w-full h-full rounded-md items-center justify-center border ${cellBg} ${borderColor}`}>
+                                                            <Text className={`font-headline-bold text-[10px] ${textColor}`}>
+                                                                {num}
+                                                            </Text>
+                                                        </View>
+                                                    ) : (
+                                                        <View className="w-full h-full rounded-md bg-stone-50/10" />
+                                                    )}
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
+                                ))}
+                            </View>
+
+                            <View className="mb-6">
+                                <Text className="text-center text-stone-400 font-body-bold text-[10px] uppercase tracking-[3px] mb-3">Master Board Reference</Text>
+                                <View className="items-center bg-white p-4 rounded-[24px] shadow-sm border border-stone-100 w-full">
+                                    {renderBoard()}
                                 </View>
-                            ))}
-                        </View>
-                        
-                        <View className="flex-row gap-4">
-                            <TouchableOpacity onPress={() => handleVerifyClaim('denied')} className="flex-1 h-14 rounded-[24px] bg-white border border-stone-200 items-center justify-center">
-                                <Text className="text-stone-400 font-headline-bold text-lg">Deny</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => handleVerifyClaim('accepted')} className="flex-[1.5] h-14 rounded-[24px] bg-[#b30069] items-center justify-center shadow-lg shadow-[#b30069]/30">
-                                <Text className="text-white font-headline-bold text-lg">Approve Win</Text>
-                            </TouchableOpacity>
-                        </View>
+                            </View>
+                            
+                            <View className="flex-row gap-4 mb-2">
+                                <TouchableOpacity onPress={() => handleVerifyClaim('denied')} className="flex-1 h-14 rounded-[24px] bg-white border border-stone-200 items-center justify-center">
+                                    <Text className="text-stone-400 font-headline-bold text-lg">Deny</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => handleVerifyClaim('accepted')} className="flex-[1.5] h-14 rounded-[24px] bg-[#b30069] items-center justify-center shadow-lg shadow-[#b30069]/30">
+                                    <Text className="text-white font-headline-bold text-lg">Approve Win</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </ScrollView>
                     </View>
                 </View>
             </Modal>

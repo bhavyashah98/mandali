@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { fetchGroups } from '../../lib/api';
+import { Image } from 'expo-image';
 
 const GroupListScreen = () => {
     const navigation = useNavigation<any>();
@@ -84,7 +85,12 @@ const GroupListScreen = () => {
                                     style={{ backgroundColor: iconInfo.bg }}
                                 >
                                     {group.cover_photo_url ? (
-                                        <Image source={{ uri: group.cover_photo_url }} className="w-full h-full rounded-full" />
+                                        <Image 
+                                            source={{ uri: group.cover_photo_url }} 
+                                            style={{ width: '100%', height: '100%' }}
+                                            contentFit="cover"
+                                            transition={200}
+                                        />
                                     ) : (
                                         <FontAwesome5 name={iconInfo.name} size={24} color={iconInfo.color} />
                                     )}
