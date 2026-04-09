@@ -1,92 +1,127 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+export const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-const getAuthHeaders = async () => {
+// Helper to get auth headers
+export const getAuthHeaders = async () => {
     const token = await AsyncStorage.getItem('mandali_token');
-    return { Authorization: `Bearer ${token}` };
+    return {
+        'Authorization': `Bearer ${token}`
+    };
 };
 
-export interface Group {
-    id: string;
-    name: string;
-    description?: string;
-    type?: string;
-    cover_photo_url: string | null;
-    invite_code: string;
-    admin_user_id: string;
-    memberCount: number;
-    myRole: string;
-    created_at: string;
-}
+// --- AUTH API ---
+export const fetchCurrentUser = async () => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/auth/me`, { headers });
+    return response.data;
+};
 
-export interface GroupMember {
-    id: string;
-    role: string;
-    joined_at: string;
-    user_id: string;
-    users: {
-        id: string;
-        name: string;
-        phone: string;
-        avatar_url: string | null;
-    };
-}
-
-export interface GroupDetail {
-    group: Group;
-    members: GroupMember[];
-    myRole: string;
-}
-
-// Fetch all groups for the current user
-export const fetchGroups = async (): Promise<Group[]> => {
+// --- GROUPS API ---
+export const fetchGroups = async () => {
     const headers = await getAuthHeaders();
     const response = await axios.get(`${API_URL}/groups`, { headers });
-    return response.data.groups;
+    return response.data.groups; // Extracting the array
 };
 
-// Fetch a single group with members
-export const fetchGroupDetail = async (groupId: string): Promise<GroupDetail> => {
+export const fetchGroupDetail = async (groupId: string) => {
     const headers = await getAuthHeaders();
     const response = await axios.get(`${API_URL}/groups/${groupId}`, { headers });
     return response.data;
 };
 
-// Create a new group
-export const createGroup = async (data: {
-    name: string;
-    description: string;
-    coverPhotoUrl: string | null;
-}): Promise<{ group: Group }> => {
+export const createGroup = async (groupData: any) => {
     const headers = await getAuthHeaders();
-    const response = await axios.post(`${API_URL}/groups`, data, { headers });
+    const response = await axios.post(`${API_URL}/groups`, groupData, { headers });
     return response.data;
 };
 
-// Join a group by invite code
-export const joinGroup = async (inviteCode: string): Promise<{ group: Group }> => {
+export const uploadImage = async (uri: string) => {
     const headers = await getAuthHeaders();
-    const response = await axios.post(`${API_URL}/groups/join`, { inviteCode }, { headers });
-    return response.data;
-};
-
-// Upload an image
-export const uploadImage = async (imageUri: string): Promise<string> => {
-    const headers = await getAuthHeaders();
-    
-    const filename = imageUri.split('/').pop() || 'photo.jpg';
-    const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : 'image/jpeg';
-
     const formData = new FormData();
+    
+    // Create the file object
+    const filename = uri.split('/').pop() || 'upload.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+    // @ts-ignore
     formData.append('image', {
-        uri: imageUri,
+        uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
         name: filename,
         type,
-    } as any);
+    });
 
-    const response = await axios.post(`${API_URL}/upload/image`, formData, { headers });
+    // NOTE: Backend is mounted as /upload and route is /image -> /upload/image
+    const response = await axios.post(`${API_URL}/upload/image`, formData, {
+        headers: {
+            ...headers,
+            'Content-Type': 'multipart/form-data',
+        },
+    });
     return response.data.url;
+};
+
+// --- HOUSIE API ---
+export const createHousieGame = async (groupId: string, ticketPrice: number): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/housie/create`, { groupId, ticketPrice }, { headers });
+    return response.data;
+};
+
+export const fetchHousieGame = async (gameCode: string): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/housie/${gameCode}`, { headers });
+    return response.data;
+};
+
+export const activateHousieGame = async (gameCode: string, prizes?: any[]) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.patch(`${API_URL}/housie/${gameCode}/activate`, { prizes }, { headers });
+    return response.data;
+};
+
+export const fetchTicketById = async (ticketId: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/housie/ticket/${ticketId}`, { headers });
+    return response.data?.ticket;
+};
+
+export const fetchActiveHousieGame = async (groupId: string): Promise<{ game: any }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/housie/active/${groupId}`, { headers });
+    return response.data;
+};
+
+export const joinHousieGame = async (gameCode: string, ticketCount: number): Promise<{ success: boolean, tickets: any[] }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/housie/${gameCode}/join`, { ticketCount }, { headers });
+    return response.data;
+};
+
+export const fetchHousieTickets = async (gameCode: string): Promise<{ tickets: any[] }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/housie/${gameCode}/tickets`, { headers });
+    return response.data;
+};
+
+export const updateHousieStatus = async (gameCode: string, status: string): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.patch(`${API_URL}/housie/${gameCode}/status`, { status }, { headers });
+    return response.data;
+};
+
+// --- MEMORIES API ---
+export const fetchMemories = async (groupId: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/memories/group/${groupId}`, { headers });
+    return response.data;
+};
+
+export const createMemory = async (memoryData: { groupId: string, imageUrls: string[], story?: string }) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/memories`, memoryData, { headers });
+    return response.data;
 };

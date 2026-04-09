@@ -76,8 +76,10 @@ const LoginScreen = () => {
             }
             setLoading(true);
             try {
-                await verifyOTP(verificationId, otp);
-                // On success, backend returns the JWT which is stored locally, update UI state
+                const response = await verifyOTP(verificationId, otp);
+                // On success, backend returns the JWT and user data
+                const { setUser, login } = useAuthStore.getState();
+                setUser(response.user);
                 login();
             } catch (err: any) {
                 setError(err.message || 'Invalid verification code.');

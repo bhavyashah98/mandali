@@ -94,7 +94,7 @@ const CreateGroupScreen = () => {
                 <ScrollView
                     contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
                     showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
+                    keyboardShouldPersistTaps="always"
                 >
                     {/* Add Group Photo */}
                     <View className="items-center mb-8 mt-2">

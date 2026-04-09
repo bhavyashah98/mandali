@@ -2,12 +2,10 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
-import HomeHub from '@/src/screens/home/HomeHub';
 import MemoriesModule from '@/src/screens/memories/MemoriesModule';
-import GroupSettings from '@/src/screens/group/GroupSettings';
-import HousieScreen from '@/src/screens/HousieScreen';
-import MoreScreen from '@/src/screens/MoreScreen';
 import { GroupNavigator } from './GroupNavigator';
+import { HousieNavigator } from './HousieNavigator';
+import SetupProfileScreen from '@/src/screens/auth/SetupProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -27,21 +25,19 @@ export const TabNavigator = () => {
                 },
                 tabBarIcon: ({ focused, color, size }) => {
                     let iconName: any;
-                    if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
-                    else if (route.name === 'Memories') iconName = focused ? 'images' : 'images-outline';
-                    else if (route.name === 'Group') iconName = focused ? 'people' : 'people-outline';
+                    if (route.name === 'Groups') iconName = focused ? 'people' : 'people-outline';
                     else if (route.name === 'Housie') iconName = focused ? 'game-controller' : 'game-controller-outline';
-                    else if (route.name === 'More') iconName = focused ? 'apps' : 'apps-outline';
+                    else if (route.name === 'Memories') iconName = focused ? 'images' : 'images-outline';
+                    else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
                     
                     return <Ionicons name={iconName} size={size} color={color} />;
                 },
             })}
         >
-            <Tab.Screen name="Home" component={HomeHub} />
+            <Tab.Screen name="Groups" component={GroupNavigator} />
+            <Tab.Screen name="Housie" component={HousieNavigator} />
             <Tab.Screen name="Memories" component={MemoriesModule} />
-            <Tab.Screen name="Group" component={GroupNavigator} />
-            <Tab.Screen name="Housie" component={HousieScreen} />
-            <Tab.Screen name="More" component={MoreScreen} />
+            <Tab.Screen name="Profile" component={SetupProfileScreen} />
         </Tab.Navigator>
     );
 };

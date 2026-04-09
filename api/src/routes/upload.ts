@@ -12,7 +12,6 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Using memory storage for simplicity and to avoid 'multer-storage-cloudinary' type issues
 const storage = multer.memoryStorage();
 const upload = multer({
     storage,
@@ -21,30 +20,29 @@ const upload = multer({
 
 router.use(authMiddleware);
 
-// POST /upload/image — Use multipart form-data
-router.post('/image', (req, res, next) => {
-    upload.single('image')(req, res, (err) => {
-        if (err) {
-            console.error('[Upload] Multer error:', err.message);
-            return res.status(400).json({ error: `Upload error: ${err.message}` });
-        }
-        next();
-    });
-}, async (req: AuthRequest, res) => {
+// POST /upload/image — Supports both multipart (FormData) and base64
+router.post('/image', upload.single('image'), async (req: AuthRequest, res) => {
     try {
-        // Fallback: If multer missed it but it's in the body (as base64/URI)
         let imageData = null;
 
-        if (!req.body.image) {
-            console.warn('[Upload] No image data found in file or body. Body keys:', Object.keys(req.body));
+        // 1. Check if it's a file upload (multer)
+        if (req.file) {
+            // Convert buffer to base64 for Cloudinary upload
+            const base64 = req.file.buffer.toString('base64');
+            imageData = `data:${req.file.mimetype};base64,${base64}`;
+        } 
+        // 2. Check if it's base64 in body
+        else if (req.body.image) {
+            imageData = req.body.image;
+        }
+
+        if (!imageData) {
             return res.status(400).json({ error: 'No image file provided' });
         }
 
-        imageData = req.body.image;
-
         const uploadResponse = await cloudinary.uploader.upload(imageData, {
-            folder: 'mandali/groups',
-            resource_type: 'image',
+            folder: 'mandali/uploads',
+            resource_type: 'auto',
         });
 
         res.json({

@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchGroupDetail } from '../../lib/api';
 
 const GroupDetailScreen = () => {
-    const navigation = useNavigation();
+    const navigation = useNavigation<any>();
     const route = useRoute();
     const { groupId } = route.params as { groupId: string };
 
@@ -96,6 +96,21 @@ const GroupDetailScreen = () => {
                     </View>
                 </View>
 
+                {/* Housie Quick Start */}
+                <TouchableOpacity 
+                    onPress={() => navigation.navigate('Housie', { groupId: group.id })}
+                    className="bg-white rounded-[40px] p-8 mt-6 flex-row items-center border border-black/5 shadow-sm"
+                >
+                    <View className="w-16 h-16 bg-pink-50 rounded-full items-center justify-center mr-5">
+                       <Ionicons name="game-controller" size={28} color="#b30069" />
+                    </View>
+                    <View className="flex-1">
+                        <Text className="text-xl font-headline-bold text-[#513c3c] mb-0.5">Start Housie</Text>
+                        <Text className="text-stone-400 font-body-medium">Gather everyone for a game!</Text>
+                    </View>
+                    <MaterialIcons name="chevron-right" size={24} color="#a09d96" />
+                </TouchableOpacity>
+
                 {/* Members Section */}
                 <View className="flex-row items-center justify-between mt-10 mb-6">
                     <Text className="text-2xl font-headline-bold text-on-surface">Members</Text>
@@ -105,7 +120,7 @@ const GroupDetailScreen = () => {
                 </View>
 
                 {/* Member List */}
-                {members.map((member) => (
+                {members.map((member: any) => (
                     <View key={member.id} className="flex-row items-center bg-white rounded-3xl p-4 mb-3 shadow-sm border border-black/5">
                         <View className="w-14 h-14 rounded-full bg-surface-container overflow-hidden mr-4 border border-black/5">
                             {member.users.avatar_url ? (
