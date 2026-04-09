@@ -3,43 +3,39 @@ import { View, Text, TouchableOpacity, TextInput, Alert, ActivityIndicator } fro
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { joinGroup } from '../../lib/api';
 
 const JoinGroupScreen = () => {
     const navigation = useNavigation();
+    const queryClient = useQueryClient();
     const [inviteCode, setInviteCode] = useState('');
-    const [loading, setLoading] = useState(false);
 
-    const handleJoinGroup = async () => {
+    const joinMutation = useMutation({
+        mutationFn: (code: string) => joinGroup(code.trim().toUpperCase()),
+        onSuccess: (data) => {
+            // CRITICAL: Invalidate the groups list so the new group shows up!
+            queryClient.invalidateQueries({ queryKey: ['groups'] });
+            
+            Alert.alert('Success', `You have joined "${data.group.name}"!`, [
+                { text: 'Great!', onPress: () => navigation.goBack() }
+            ]);
+        },
+        onError: (err: any) => {
+            console.error('[JoinGroup] Error:', err?.response?.data || err.message);
+            Alert.alert('Error', err?.response?.data?.error || 'Failed to join group. Please check the code.');
+        }
+    });
+
+    const handleJoinGroup = () => {
         if (!inviteCode.trim()) {
             Alert.alert('Error', 'Please enter an invite code');
             return;
         }
-
-        setLoading(true);
-        try {
-            const token = await AsyncStorage.getItem('mandali_token');
-            const response = await axios.post(
-                `${API_URL}/groups/join`,
-                { inviteCode: inviteCode.trim().toUpperCase() },
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                }
-            );
-
-            Alert.alert('Success', `You have joined "${response.data.group.name}"!`, [
-                { text: 'Great!', onPress: () => navigation.goBack() }
-            ]);
-        } catch (err: any) {
-            console.error('[JoinGroup] Error:', err?.response?.data || err.message);
-            Alert.alert('Error', err?.response?.data?.error || 'Failed to join group. Please check the code.');
-        } finally {
-            setLoading(false);
-        }
+        joinMutation.mutate(inviteCode);
     };
+
+    const loading = joinMutation.isPending;
 
     return (
         <SafeAreaView className="flex-1 bg-background" edges={['top']}>

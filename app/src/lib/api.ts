@@ -37,7 +37,11 @@ export const createGroup = async (groupData: any) => {
     const response = await axios.post(`${API_URL}/groups`, groupData, { headers });
     return response.data;
 };
-
+export const joinGroup = async (inviteCode: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/groups/join`, { inviteCode }, { headers });
+    return response.data;
+};
 export const uploadImage = async (uri: string, groupId: string) => {
     const headers = await getAuthHeaders();
     const formData = new FormData();
@@ -135,6 +139,30 @@ export const fetchHousieTickets = async (gameCode: string): Promise<{ tickets: a
 export const updateHousieStatus = async (gameCode: string, status: string): Promise<any> => {
     const headers = await getAuthHeaders();
     const response = await axios.patch(`${API_URL}/housie/${gameCode}/status`, { status }, { headers });
+    return response.data;
+};
+
+export const updateGroup = async (groupId: string, groupData: any) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.patch(`${API_URL}/groups/${groupId}`, groupData, { headers });
+    return response.data;
+};
+
+export const leaveGroup = async (groupId: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/groups/${groupId}/leave`, {}, { headers });
+    return response.data;
+};
+
+export const deleteGroup = async (groupId: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.delete(`${API_URL}/groups/${groupId}`, { headers });
+    return response.data;
+};
+
+export const transferOwnership = async (groupId: string, newAdminUserId: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/groups/${groupId}/transfer-ownership`, { newAdminUserId }, { headers });
     return response.data;
 };
 

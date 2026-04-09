@@ -1,142 +1,151 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { fetchGroups } from '../../lib/api';
 import { Image } from 'expo-image';
+import { useAuthStore } from '../../stores/authStore';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const GroupListScreen = () => {
     const navigation = useNavigation<any>();
+    const { user } = useAuthStore();
 
     const { data: groups = [], isLoading, isRefetching, refetch } = useQuery({
         queryKey: ['groups'],
         queryFn: fetchGroups,
     });
 
-    const getIconInfo = (index: number) => {
-        const icons = [
-            { name: 'flower', color: '#b30069', bg: '#fdf0f4' },
-            { name: 'utensils', color: '#8d6e3f', bg: '#fef3e3' },
-            { name: 'graduation-cap', color: '#43a047', bg: '#e8f5e9' },
-            { name: 'heart', color: '#d32f2f', bg: '#ffebee' },
-            { name: 'home', color: '#1976d2', bg: '#e3f2fd' },
-        ];
-        return icons[index % icons.length];
-    };
-
     return (
-        <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-            {/* Top Bar with Avatar and Settings */}
-            <View className="flex-row items-center justify-between px-6 py-3">
-                <View className="w-10 h-10 rounded-full overflow-hidden bg-surface-container">
-                    <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }} className="w-full h-full" />
+        <SafeAreaView className="flex-1 bg-[#FDF9F3]" edges={['top']}>
+            {/* Top Brand Bar */}
+            <View className="flex-row items-center px-6 py-4">
+                <View className="flex-row items-center flex-1">
+                    <Image
+                        source={require('../../../assets/icon.png')}
+                        style={{ width: 42, height: 42 }}
+                        contentFit="contain"
+                    />
+                    <Text className="text-[#b30069] font-headline-bold text-[24px] tracking-tight ml-2">
+                        Mandali
+                    </Text>
                 </View>
-                <Text className="text-2xl font-headline-bold text-primary">Mandali</Text>
-                <TouchableOpacity>
-                    <Ionicons name="settings-outline" size={24} color="#594048" />
-                </TouchableOpacity>
             </View>
 
-            <ScrollView 
+            <ScrollView
                 className="flex-1"
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 30, paddingBottom: 100 }}
+                contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 60 }}
                 refreshControl={
                     <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#b30069" />
                 }
             >
-                {/* Header Section */}
-                <View className="mb-10">
-                    <Text className="text-[40px] font-headline-bold text-on-surface leading-tight mb-2">My Mandalis</Text>
-                    <Text className="text-[17px] font-body-regular text-on-surface-variant">
-                        Your digital hearths and gathering circles.
+                {/* Centered Header Section */}
+                <View className="items-center mb-10 mt-6">
+                    <Text className="text-[38px] font-headline-bold text-on-surface text-center tracking-tight">
+                        My Mandalis
                     </Text>
+                    <Text className="text-[15px] font-body-medium text-on-surface-variant text-center px-8 mt-3 leading-5 opacity-60">
+                        All your groups, in one place
+                    </Text>
+                    <View className="w-10 h-[3px] bg-primary/20 mt-8 rounded-full" />
                 </View>
 
                 {/* Loading state */}
                 {isLoading && groups.length === 0 && (
-                    <View className="py-10 items-center justify-center">
+                    <View className="py-20 items-center justify-center">
                         <ActivityIndicator color="#b30069" size="large" />
                     </View>
                 )}
 
-                {/* Groups List */}
-                {groups.map((group: any, index: number) => {
-                    const iconInfo = getIconInfo(index);
-                    return (
-                        <TouchableOpacity 
+                {/* Empty State */}
+                {!isLoading && groups.length === 0 && (
+                    <View className="py-12 items-center">
+                        <View className="w-20 h-20 bg-primary/5 rounded-full items-center justify-center mb-6">
+                            <Ionicons name="people-outline" size={32} color="#b30069" opacity={0.4} />
+                        </View>
+                        <Text className="font-headline-bold text-lg text-on-surface-variant">No groups yet</Text>
+                        <Text className="font-body-regular text-sm text-on-surface-variant opacity-60 mt-1">Start your first Mandali below</Text>
+                    </View>
+                )}
+
+                {/* Group List (Vertical stacking) */}
+                <View style={{ gap: 12 }}>
+                    {groups.map((group: any) => (
+                        <TouchableOpacity
                             key={group.id}
                             onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
-                            activeOpacity={0.9}
-                            className="bg-white rounded-[48px] p-8 mb-4 shadow-sm border border-black/5"
-                            style={{
-                                shadowColor: '#000',
-                                shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: 0.04,
-                                shadowRadius: 10,
-                                elevation: 2,
-                            }}
+                            activeOpacity={0.7}
+                            className="bg-white rounded-[24px] px-4 py-4 flex-row items-center border border-stone-100 shadow-sm"
+                            style={{ elevation: 2 }}
                         >
-                            <View className="flex-row items-center">
-                                <View 
-                                    className="w-[72px] h-[72px] rounded-full items-center justify-center mr-6"
-                                    style={{ backgroundColor: iconInfo.bg }}
-                                >
-                                    {group.cover_photo_url ? (
-                                        <Image 
-                                            source={{ uri: group.cover_photo_url }} 
-                                            style={{ width: '100%', height: '100%' }}
-                                            contentFit="cover"
-                                            transition={200}
-                                        />
-                                    ) : (
-                                        <FontAwesome5 name={iconInfo.name} size={24} color={iconInfo.color} />
-                                    )}
-                                </View>
-
-                                <View className="flex-1">
-                                    <Text className="text-2xl font-headline-bold text-on-surface mb-1">
-                                        {group.name}
-                                    </Text>
-                                    <View className="flex-row items-center opacity-70">
-                                        <MaterialIcons name="group" size={16} color="#594048" />
-                                        <Text className="text-on-surface text-[15px] font-body-medium ml-2">
-                                            {group.memberCount} Members
+                            {/* Group Avatar */}
+                            <View className="w-16 h-16 rounded-2xl overflow-hidden bg-stone-50 border border-stone-100">
+                                {group.cover_photo_url ? (
+                                    <Image
+                                        source={{ uri: group.cover_photo_url }}
+                                        className="w-full h-full"
+                                        contentFit="cover"
+                                    />
+                                ) : (
+                                    <View className="w-full h-full items-center justify-center bg-primary/5">
+                                        <Text className="font-headline-bold text-xl text-primary opacity-30">
+                                            {group.name.charAt(0).toUpperCase()}
                                         </Text>
                                     </View>
+                                )}
+                            </View>
+
+                            {/* Group Details */}
+                            <View className="flex-1 ml-4 justify-center">
+                                <Text className="text-lg font-headline-bold text-[#1c1c18] mb-0.5" numberOfLines={1}>
+                                    {group.name}
+                                </Text>
+                                <View className="flex-row items-center">
+                                    <View className="w-1.5 h-1.5 rounded-full bg-primary/40 mr-2" />
+                                    <Text className="text-[13px] font-body-bold text-[#594048] opacity-60">
+                                        {group.is_admin ? 'Admin • ' : ''}{group.memberCount || 0} Members
+                                    </Text>
                                 </View>
                             </View>
+
+                            {/* Navigation Icon */}
+                            <MaterialIcons name="chevron-right" size={24} color="#b3006969" />
                         </TouchableOpacity>
-                    );
-                })}
+                    ))}
+                </View>
 
-                {/* Create Mandali Card */}
-                <TouchableOpacity 
-                    onPress={() => navigation.navigate('CreateGroup')}
-                    activeOpacity={0.95}
-                    className="bg-primary rounded-[56px] p-10 mt-6 mb-6 relative overflow-hidden shadow-xl shadow-primary/20"
-                >
-                    {/* Ghost Plus Background Icon */}
-                    <View className="absolute top-[-20px] right-[-20px] opacity-10">
-                        <MaterialIcons name="add" size={180} color="white" />
-                    </View>
+                {/* Primary Action Section - Matching Game Style */}
+                <View className="mt-12 gap-4">
+                    <TouchableOpacity
+                        onPress={() => navigation.navigate('CreateGroup')}
+                        activeOpacity={0.9}
+                        className="h-20 rounded-[32px] overflow-hidden shadow-xl shadow-primary/20 bg-[#b30069] flex-row items-center justify-center px-8"
+                        style={{ elevation: 8 }}
+                    >
+                        <MaterialIcons name="add-circle" size={28} color="white" />
+                        <Text className="text-white font-headline-bold text-2xl ml-3">Create New Mandali</Text>
+                    </TouchableOpacity>
 
-                    <Text className="text-[28px] font-headline-bold text-white mb-2">Create New Mandali</Text>
-                    <Text className="text-[16px] font-body-regular text-white/90 leading-6 pr-10">
-                        Start a new gathering place for your favorite people.
+                    <TouchableOpacity
+                        onPress={() => navigation.navigate('JoinGroup')}
+                        activeOpacity={0.7}
+                        className="h-20 rounded-[32px] bg-[#fcecf2] flex-row items-center justify-center px-8 border border-[#b30069]/10"
+                    >
+                        <MaterialIcons name="qr-code-scanner" size={26} color="#b30069" />
+                        <Text className="text-[#b30069] font-headline-bold text-2xl ml-3">Join with Invite</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Social Proof (Updated) */}
+                <View className="mt-16 items-center px-10">
+                    <View className="h-[1px] w-12 bg-stone-200 mb-6" />
+                    <Text className="text-[11px] font-body-bold tracking-[0.15em] uppercase text-[#594048]/60 text-center leading-5 transition-opacity">
+                        Trusted by Family, Friends, Colleagues & Community Circles
                     </Text>
-                </TouchableOpacity>
-
-                {/* Join Button */}
-                <TouchableOpacity 
-                    onPress={() => navigation.navigate('JoinGroup')}
-                    className="bg-surface-container/40 h-[68px] rounded-full flex-row items-center justify-center mt-2 border border-black/5"
-                >
-                    <Ionicons name="link" size={22} color="#b30069" style={{ transform: [{ rotate: '-45deg' }] }} />
-                    <Text className="text-on-surface font-body-bold text-lg ml-2">Join with Link</Text>
-                </TouchableOpacity>
+                </View>
 
             </ScrollView>
         </SafeAreaView>

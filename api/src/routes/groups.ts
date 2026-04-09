@@ -233,4 +233,193 @@ router.post('/join', async (req: AuthRequest, res) => {
     }
 });
 
+// ──────────────────────────────────────────────
+// PATCH /groups/:id — Update group (Admin Only)
+// ──────────────────────────────────────────────
+router.patch('/:id', async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const { name, description, coverPhotoUrl } = req.body;
+        const userId = req.userId!;
+
+        // 1. Verify user is admin
+        const { data: membership } = await supabase
+            .from('group_members')
+            .select('role')
+            .eq('group_id', id)
+            .eq('user_id', userId)
+            .single();
+
+        if (!membership || membership.role !== 'admin') {
+            return res.status(403).json({ error: 'Only admins can update group settings' });
+        }
+
+        const updates: any = {};
+        if (name) updates.name = name.trim();
+        if (description !== undefined) updates.description = description;
+        if (coverPhotoUrl !== undefined) updates.cover_photo_url = coverPhotoUrl;
+
+        const { data: group, error: updateError } = await supabase
+            .from('groups')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (updateError) {
+            console.error('[Groups] Update error:', updateError);
+            return res.status(500).json({ error: 'Failed to update group' });
+        }
+
+        res.json({ group, message: 'Group updated successfully' });
+    } catch (err) {
+        console.error('[Groups] Unexpected error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ──────────────────────────────────────────────
+// DELETE /groups/:id — Delete group (Admin Only)
+// ──────────────────────────────────────────────
+router.delete('/:id', async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.userId!;
+
+        // 1. Verify user is admin
+        const { data: membership } = await supabase
+            .from('group_members')
+            .select('role')
+            .eq('group_id', id)
+            .eq('user_id', userId)
+            .single();
+
+        if (!membership || membership.role !== 'admin') {
+            return res.status(403).json({ error: 'Only admins can delete groups' });
+        }
+
+        // 2. Delete group (cascades should handle members/photos/etc if setup in DB)
+        const { error: deleteError } = await supabase
+            .from('groups')
+            .delete()
+            .eq('id', id);
+
+        if (deleteError) {
+            console.error('[Groups] Delete error:', deleteError);
+            return res.status(500).json({ error: 'Failed to delete group' });
+        }
+
+        res.json({ message: 'Group permanently deleted' });
+    } catch (err) {
+        console.error('[Groups] Unexpected error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ──────────────────────────────────────────────
+// POST /groups/:id/leave — Leave a group
+// ──────────────────────────────────────────────
+router.post('/:id/leave', async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.userId!;
+
+        // Check current membership
+        const { data: membership } = await supabase
+            .from('group_members')
+            .select('role')
+            .eq('group_id', id)
+            .eq('user_id', userId)
+            .single();
+
+        if (!membership) {
+            return res.status(404).json({ error: 'Membership not found' });
+        }
+
+        // If admin, check if others exist
+        if (membership.role === 'admin') {
+            const { count } = await supabase
+                .from('group_members')
+                .select('*', { count: 'exact', head: true })
+                .eq('group_id', id);
+
+            if (count && count > 1) {
+                return res.status(400).json({ 
+                    error: 'Please transfer ownership to another member before leaving the group.' 
+                });
+            }
+        }
+
+        const { error: leaveError } = await supabase
+            .from('group_members')
+            .delete()
+            .eq('group_id', id)
+            .eq('user_id', userId);
+
+        if (leaveError) {
+            console.error('[Groups] Leave error:', leaveError);
+            return res.status(500).json({ error: 'Failed to leave group' });
+        }
+
+        res.json({ message: 'Successfully left the group' });
+    } catch (err) {
+        console.error('[Groups] Unexpected error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ──────────────────────────────────────────────
+// POST /groups/:id/transfer-ownership — Transfer Admin Role
+// ──────────────────────────────────────────────
+router.post('/:id/transfer-ownership', async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const { newAdminUserId } = req.body;
+        const userId = req.userId!;
+
+        if (!newAdminUserId) {
+            return res.status(400).json({ error: 'Target member ID is required for transfer' });
+        }
+
+        // 1. Verify caller is admin
+        const { data: myMembership } = await supabase
+            .from('group_members')
+            .select('role')
+            .eq('group_id', id)
+            .eq('user_id', userId)
+            .single();
+
+        if (!myMembership || myMembership.role !== 'admin') {
+            return res.status(403).json({ error: 'Only admins can transfer ownership' });
+        }
+
+        // 2. Verify target is a member
+        const { data: targetMembership } = await supabase
+            .from('group_members')
+            .select('id')
+            .eq('group_id', id)
+            .eq('user_id', newAdminUserId)
+            .single();
+
+        if (!targetMembership) {
+            return res.status(400).json({ error: 'Target user is not a member of this group' });
+        }
+
+        // 3. Batch updates
+        await Promise.all([
+            // Set new admin in members table
+            supabase.from('group_members').update({ role: 'admin' }).eq('group_id', id).eq('user_id', newAdminUserId),
+            // Demote self to member
+            supabase.from('group_members').update({ role: 'member' }).eq('group_id', id).eq('user_id', userId),
+            // Update group ownership record
+            supabase.from('groups').update({ admin_user_id: newAdminUserId }).eq('id', id)
+        ]);
+
+        res.json({ message: 'Ownership transferred successfully' });
+    } catch (err) {
+        console.error('[Groups] Transfer error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 export default router;

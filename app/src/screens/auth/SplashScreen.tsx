@@ -1,110 +1,202 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Image, Dimensions, Animated, Easing } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
-import { MaterialIcons } from '@expo/vector-icons';
+
+const { width, height } = Dimensions.get('window');
 
 const SplashScreen = () => {
     const navigation = useNavigation<any>();
 
+    // Animations
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(0.85)).current;
+    const floatAnim = useRef(new Animated.Value(0)).current;
+    const rotateAnim = useRef(new Animated.Value(0)).current;
+
     useEffect(() => {
+        // Entry Animations
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 1200,
+                easing: Easing.ease,
+                useNativeDriver: true,
+            }),
+            Animated.spring(scaleAnim, {
+                toValue: 1,
+                friction: 6,
+                tension: 40,
+                useNativeDriver: true,
+            })
+        ]).start();
+
+        // Continuous Floating & Rotation for "Atmospheric" feel
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(floatAnim, {
+                    toValue: -15,
+                    duration: 2500,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(floatAnim, {
+                    toValue: 0,
+                    duration: 2500,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                })
+            ])
+        ).start();
+
+        Animated.loop(
+            Animated.timing(rotateAnim, {
+                toValue: 1,
+                duration: 25000,
+                easing: Easing.linear,
+                useNativeDriver: true,
+            })
+        ).start();
+
         const timer = setTimeout(() => {
             navigation.navigate('Login');
-        }, 1500);
+        }, 10000);
         return () => clearTimeout(timer);
-    }, [navigation]);
+    }, []);
+
+    const rotation = rotateAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg']
+    });
 
     return (
-        <View className="flex-1 bg-background items-center justify-center overflow-hidden">
-            {/* Background Splash Glow (simulated with a large blurry circle) */}
-            <View style={styles.glowCircle} />
+        <View className="flex-1 bg-[#FDF9F3] items-center justify-center overflow-hidden">
+            {/* 1. Cinematic Background Layers */}
+            <LinearGradient
+                colors={['#FDF9F3', '#ffeaf2', '#FDF9F3']}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+            />
 
-            {/* Background Organic Shape */}
-            <View style={styles.svgContainer}>
-                <Svg style={{ opacity: 0.3 }} width={300} height={300} viewBox="-100 -100 200 200">
+            {/* Dynamic Light Orbs */}
+            <Animated.View
+                style={[
+                    styles.orb,
+                    { top: -50, left: -50, backgroundColor: 'rgba(179,0,105,0.08)', transform: [{ scale: 1.2 }] }
+                ]}
+            />
+            <Animated.View
+                style={[
+                    styles.orb,
+                    { bottom: -100, right: -100, backgroundColor: 'rgba(179,0,105,0.06)', transform: [{ scale: 1.5 }] }
+                ]}
+            />
+
+            {/* Rotating Atmospheric Textures (Organic Shapes) */}
+            <Animated.View style={[styles.textureContainer, { transform: [{ rotate: rotation }] }]}>
+                <Svg width={width * 1.8} height={width * 1.8} viewBox="0 0 200 200">
                     <Path
-                        fill="#ffb0cc"
-                        d="M44.7,-76.4C58.1,-69.2,69.2,-58.1,77.3,-44.7C85.4,-31.3,90.5,-15.7,89.3,-0.7C88.1,14.3,80.6,28.6,71.5,41.2C62.4,53.8,51.7,64.7,39.1,72.4C26.5,80.1,13.2,84.6,-0.7,85.8C-14.6,87,-29.2,84.9,-42.1,77.4C-55,69.9,-66.2,57,-74.6,42.5C-83,28.1,-88.6,12.1,-88.2,-3.7C-87.8,-19.5,-81.4,-35.1,-71.2,-47.8C-61,-60.5,-47.1,-70.3,-33.1,-77.1C-19.1,-83.9,-4.9,-87.7,10.2,-86C25.3,-84.3,31.3,-83.6,44.7,-76.4Z"
+                        fill="rgba(179,0,105,0.025)"
+                        d="M45.7,-74.6C59.9,-68.9,72.6,-57.6,80.1,-43.7C87.6,-29.8,89.9,-13.4,88.4,2.5C86.9,18.5,81.6,34,71.8,46.4C62,58.8,47.7,68,32.7,74.1C17.7,80.3,2,83.4,-13.5,81.5C-29,79.5,-44.2,72.6,-56.3,62.1C-68.4,51.6,-77.3,37.6,-81.9,22.3C-86.4,7,-86.6,-9.7,-81.7,-25.1C-76.8,-40.5,-66.8,-54.6,-53.4,-60.9C-40,-67.2,-23.2,-65.7,-7.1,-73.4C9.1,-81.1,24.3,-80.4,45.7,-74.6Z"
+                        transform="translate(100 100)"
                     />
                 </Svg>
-            </View>
+            </Animated.View>
 
-            {/* Center Layout */}
-            <View className="items-center z-10">
-                {/* Icon Motif */}
-                <View className="relative items-center justify-center mb-8">
-                    {/* Outer Ring */}
-                    <View className="w-32 h-32 rounded-full border-4 items-center justify-center" style={{ borderColor: 'rgba(179,0,105,0.2)' }}>
-                        {/* Inner Symbol */}
-                        <LinearGradient
-                            colors={['#b30069', '#df0e84']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            className="w-24 h-24 rounded-full items-center justify-center shadow-lg shadow-primary"
-                        >
-                            <MaterialIcons name="diversity-3" size={48} color="white" />
-                        </LinearGradient>
+            {/* 2. Central "Luxe Medallion" */}
+            <Animated.View
+                style={{
+                    opacity: fadeAnim,
+                    transform: [{ scale: scaleAnim }, { translateY: floatAnim }],
+                    alignItems: 'center'
+                }}
+            >
+                <View className="relative items-center justify-center">
+                    {/* Multi-layered Halo Effect */}
+                    <View style={[styles.halo, { width: 320, height: 320, borderColor: 'rgba(179,0,105,0.1)' }]} />
+                    <View style={[styles.halo, { width: 380, height: 380, borderColor: 'rgba(179,0,105,0.05)' }]} />
+                    <View style={[styles.halo, { width: 450, height: 450, borderColor: 'rgba(179,0,105,0.02)' }]} />
+
+                    {/* The Primary Medallion Seal */}
+                    <View
+                        className="w-[260px] h-[260px] rounded-full bg-white items-center justify-center border-[10px] border-[#b30069] shadow-2xl"
+                        style={[styles.medallionShadow, { overflow: 'hidden' }]}
+                    >
+                        <Image
+                            source={require('../../../assets/icon.png')}
+                            style={{ width: 260, height: 260, borderRadius: 130 }}
+                            resizeMode="cover"
+                        />
                     </View>
-
-                    {/* Floating Decorative Elements */}
-                    <View className="absolute -top-4 -right-4 w-8 h-8 rounded-full bg-secondary-container opacity-20" />
-                    <View className="absolute -bottom-2 -left-6 w-12 h-12 rounded-full opacity-10" style={{ backgroundColor: '#69df54' }} />
                 </View>
 
-                {/* App Branding */}
-                <View className="items-center">
-                    <Text className="text-primary font-headline-bold-italic" style={styles.headline}>
-                        Mandali
+                {/* 3. High-End Branding Typography */}
+                <View className="items-center mt-20 px-8">
+                    <Text className="text-[#b30069] font-headline-bold text-center tracking-[15px] ml-[15px]" style={styles.headline}>
+                        MANDALI
                     </Text>
-                    <Text className="text-on-surface-variant font-body-medium uppercase mt-3" style={styles.tagline}>
-                        Your group's companion
+
+                    {/* Decorative Elegant Line */}
+                    <View className="h-[1px] w-16 bg-[#b30069]/30 mt-4 rounded-full" />
+
+                    <Text className="text-[#594048]/50 font-body-bold text-center tracking-[4px] uppercase mt-10 text-[11px]">
+                        Where your group comes alive
                     </Text>
                 </View>
-            </View>
+            </Animated.View>
 
-            {/* Progress Indicator */}
-            <View className="absolute bottom-24 flex-row space-x-2">
-                <View className="w-2 h-2 rounded-full bg-primary" style={{ opacity: 0.4 }} />
-                <View className="w-2 h-2 rounded-full bg-primary" style={{ opacity: 0.2 }} />
-                <View className="w-2 h-2 rounded-full bg-primary" style={{ opacity: 0.1 }} />
+            {/* 4. Footer Narrative & Loading State */}
+            <View className="absolute bottom-16 items-center">
+                <View className="flex-row items-center space-x-4 mb-6">
+                    <Animated.View style={[styles.dot, { backgroundColor: '#b30069' }]} />
+                    <Animated.View style={[styles.dot, { backgroundColor: '#b30069', opacity: 0.4 }]} />
+                    <Animated.View style={[styles.dot, { backgroundColor: '#b30069', opacity: 0.1 }]} />
+                </View>
+                <Text className="text-[#594048]/30 font-body-medium text-[9px] uppercase tracking-[3px]">
+                    Experience Optimized • Ver 1.0
+                </Text>
             </View>
-
-            {/* Footer Visual */}
-            <LinearGradient
-                colors={['rgba(247, 243, 237, 0)', 'rgba(247, 243, 237, 0.8)']}
-                className="absolute bottom-0 w-full h-32"
-                pointerEvents="none"
-            />
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    glowCircle: {
+    orb: {
         position: 'absolute',
-        width: 600,
-        height: 600,
-        borderRadius: 300,
-        backgroundColor: 'rgba(223, 14, 132, 0.05)',
-        alignSelf: 'center',
+        width: 350,
+        height: 350,
+        borderRadius: 175,
+        opacity: 0.5,
     },
-    svgContainer: {
+    textureContainer: {
         position: 'absolute',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 0,
-        opacity: 0.3,
+        zIndex: -1,
+    },
+    medallionShadow: {
+        elevation: 40,
+        shadowColor: '#b30069',
+        shadowOffset: { width: 0, height: 25 },
+        shadowOpacity: 0.35,
+        shadowRadius: 35,
+    },
+    halo: {
+        position: 'absolute',
+        borderRadius: 999,
+        borderWidth: 1.5,
     },
     headline: {
-        fontSize: 60,
-        letterSpacing: -1,
-        lineHeight: 72,
+        fontSize: 38,
+        fontWeight: '900',
+        textShadowColor: 'rgba(179,0,105,0.15)',
+        textShadowOffset: { width: 0, height: 8 },
+        textShadowRadius: 15,
     },
-    tagline: {
-        fontSize: 18,
-        letterSpacing: 1.8,
-        opacity: 0.8,
+    dot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
     }
 });
 

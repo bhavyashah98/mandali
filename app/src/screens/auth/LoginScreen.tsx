@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     View,
     Text,
@@ -8,7 +8,10 @@ import {
     Platform,
     Animated,
     ActivityIndicator,
-    Image
+    Image,
+    TouchableWithoutFeedback,
+    Keyboard,
+    Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -31,6 +34,7 @@ const LoginScreen = () => {
     const [countryCode, setCountryCode] = useState<CountryCode>('IN');
     const [callingCode, setCallingCode] = useState<string>('91');
     const [isCountryPickerVisible, setCountryPickerVisible] = useState(false);
+    const [resendTimer, setResendTimer] = useState(0);
 
     // Fade animation value
     const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -44,6 +48,17 @@ const LoginScreen = () => {
         setCountryPickerVisible(false);
         if (error) setError('');
     };
+
+    // Countdown Timer Logic
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (resendTimer > 0) {
+            interval = setInterval(() => {
+                setResendTimer((prev) => prev - 1);
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [resendTimer]);
 
     const handleNext = async () => {
         setError('');
@@ -89,6 +104,25 @@ const LoginScreen = () => {
         }
     };
 
+    const handleResendOTP = async () => {
+        if (resendTimer > 0 || loading) return;
+        
+        setError('');
+        setLoading(true);
+        try {
+            const fullPhoneNumber = `+${callingCode}${phoneNumber}`;
+            const vId = await sendOTP(fullPhoneNumber, recaptchaVerifier.current);
+            setVerificationId(vId);
+            setResendTimer(30); // Reset to 30 seconds
+            setOtp('');
+            Alert.alert('Sent!', 'A new verification code has been sent.');
+        } catch (err: any) {
+            setError(err.message || 'Failed to resend OTP.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleBack = () => {
         setError('');
         Animated.sequence([
@@ -100,17 +134,18 @@ const LoginScreen = () => {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-background">
-            {/* required for real mobile devices instead of crashing on 'RecaptchaVerifier is not defined' */}
-            <FirebaseRecaptchaVerifierModal
-                ref={recaptchaVerifier}
-                firebaseConfig={firebaseConfig}
-                attemptInvisibleVerification={true}
-            />
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                className="flex-1"
-            >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <SafeAreaView className="flex-1 bg-background">
+                {/* required for real mobile devices instead of crashing on 'RecaptchaVerifier is not defined' */}
+                <FirebaseRecaptchaVerifierModal
+                    ref={recaptchaVerifier}
+                    firebaseConfig={firebaseConfig}
+                    attemptInvisibleVerification={true}
+                />
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    className="flex-1"
+                >
                 {step === 'otp' && (
                     <TouchableOpacity
                         className="w-10 h-10 bg-surface-container rounded-full items-center justify-center absolute top-2 left-6 z-20"
@@ -124,22 +159,33 @@ const LoginScreen = () => {
                     <Animated.View style={{ opacity: fadeAnim }}>
                         {step === 'phone' ? (
                             <View className="items-center w-full">
-                                {/* Logo Text & Backing Blob */}
-                                <View className="relative items-center justify-center mt-6 mb-8 h-24">
-                                    <View className="absolute w-[200px] h-[200px] rounded-full bg-primary opacity-5 -left-12 -top-16" />
-                                    <View className="absolute w-[140px] h-[140px] rounded-full bg-primary opacity-10 -right-6 top-0" />
-                                    <Text className="text-primary font-headline-bold-italic text-[42px] z-10">
-                                        Mandali
-                                    </Text>
+                                {/* Brand Header - Pop-out Seal */}
+                                <View className="items-center mb-10 mt-4">
+                                    <View
+                                        className="w-[170px] h-[170px] rounded-full bg-white items-center justify-center border-8 border-primary shadow-2xl"
+                                        style={{
+                                            elevation: 24,
+                                            shadowColor: '#b30069',
+                                            shadowOffset: { width: 0, height: 10 },
+                                            shadowOpacity: 0.3,
+                                            shadowRadius: 20
+                                        }}
+                                    >
+                                        <Image
+                                            source={require('../../../assets/icon.png')}
+                                            style={{ width: 140, height: 140, borderRadius: 70 }}
+                                            resizeMode="contain"
+                                        />
+                                    </View>
                                 </View>
 
                                 {/* Typography Hub */}
                                 <View className="items-center mb-10 w-full">
-                                    <Text className="font-headline-bold text-[28px] text-on-surface mb-2 tracking-tight">
+                                    <Text className="font-headline-bold text-[32px] text-primary mb-2 tracking-tight">
                                         Welcome to Mandali
                                     </Text>
                                     <Text className="font-body-regular text-on-surface-variant text-[15px]">
-                                        Enter your number to join your group
+                                        Join your group and start the fun
                                     </Text>
                                 </View>
 
@@ -232,8 +278,14 @@ const LoginScreen = () => {
                                 {error && step === 'otp' ? (
                                     <Text className="text-error font-body-medium text-xs w-full text-center mt-2">{error}</Text>
                                 ) : null}
-                                <TouchableOpacity className="items-center mt-6">
-                                    <Text className="font-body-medium text-primary">Resend Code</Text>
+                                <TouchableOpacity 
+                                    className="items-center mt-6"
+                                    onPress={handleResendOTP}
+                                    disabled={resendTimer > 0 || loading}
+                                >
+                                    <Text className={`font-body-medium ${resendTimer > 0 ? 'text-on-surface-variant opacity-40' : 'text-primary'}`}>
+                                        {resendTimer > 0 ? `Resend Code in ${resendTimer}s` : 'Resend Code'}
+                                    </Text>
                                 </TouchableOpacity>
                             </View>
                         )}
@@ -256,19 +308,21 @@ const LoginScreen = () => {
                             )}
                         </TouchableOpacity>
 
-                        {/* Bottom Avatars Section */}
+                        {/* Bottom Avatars Section - Community Social Proof */}
                         {step === 'phone' && (
                             <View className="items-center mt-12 mb-4">
-                                <View className="flex-row">
-                                    <Image source={{ uri: 'https://randomuser.me/api/portraits/women/44.jpg' }} className="w-[38px] h-[38px] rounded-full border-2 border-background" />
-                                    <Image source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }} className="w-[38px] h-[38px] rounded-full border-2 border-background -ml-3" />
-                                    <Image source={{ uri: 'https://randomuser.me/api/portraits/women/68.jpg' }} className="w-[38px] h-[38px] rounded-full border-2 border-background -ml-3" />
-                                    <View className="w-[38px] h-[38px] rounded-full border-2 border-background bg-[#e8e4de] -ml-3 items-center justify-center">
-                                        <Text className="text-[#594048] text-[10px] font-body-bold opacity-80">+2k</Text>
+                                <View className="flex-row items-center">
+                                    <View className="flex-row">
+                                        <Image source={{ uri: 'https://randomuser.me/api/portraits/women/44.jpg' }} className="w-[34px] h-[34px] rounded-full border-2 border-background" />
+                                        <Image source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }} className="w-[34px] h-[34px] rounded-full border-2 border-background -ml-2.5" />
+                                        <Image source={{ uri: 'https://randomuser.me/api/portraits/women/68.jpg' }} className="w-[34px] h-[34px] rounded-full border-2 border-background -ml-2.5" />
+                                        <View className="w-[34px] h-[34px] rounded-full border-2 border-background bg-primary/10 -ml-2.5 items-center justify-center">
+                                            <MaterialIcons name="favorite" size={12} color="#b30069" />
+                                        </View>
                                     </View>
                                 </View>
-                                <Text className="text-[#594048] text-[9px] font-body-bold tracking-[0.18em] mt-4 uppercase opacity-80">
-                                    2000+ Groups on Mandali
+                                <Text className="text-[#594048]/60 text-[10px] font-body-bold tracking-[0.12em] mt-3 uppercase">
+                                    Many Mandalis Gathering
                                 </Text>
                             </View>
                         )}
@@ -276,7 +330,8 @@ const LoginScreen = () => {
                 </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
-    );
+    </TouchableWithoutFeedback>
+);
 };
 
 export default LoginScreen;

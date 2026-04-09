@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -12,50 +12,67 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { createGroup, uploadImage } from '../../lib/api';
+import { createGroup, updateGroup, uploadImage } from '../../lib/api';
 import { Image } from 'expo-image';
 
 const CreateGroupScreen = () => {
-    const navigation = useNavigation();
+    const navigation = useNavigation<any>();
+    const route = useRoute();
     const queryClient = useQueryClient();
 
-    const [groupName, setGroupName] = useState('');
-    const [description, setDescription] = useState('');
-    const [groupImage, setGroupImage] = useState<string | null>(null);
+    // Check if we are in Edit Mode
+    const editGroup = (route.params as any)?.group;
+    const isEdit = !!editGroup;
 
-    const createMutation = useMutation({
+    const [groupName, setGroupName] = useState(editGroup?.name || '');
+    const [description, setDescription] = useState(editGroup?.description || '');
+    const [groupImage, setGroupImage] = useState<string | null>(editGroup?.cover_photo_url || null);
+    const [hasNewImage, setHasNewImage] = useState(false);
+
+    const submitMutation = useMutation({
         mutationFn: async () => {
-            let uploadedUrl = null;
-            if (groupImage) {
-                uploadedUrl = await uploadImage(groupImage, 'groups-image');
+            let uploadedUrl = groupImage;
+            
+            // Only upload if it's a new local URI
+            if (hasNewImage && groupImage) {
+                uploadedUrl = await uploadImage(groupImage, editGroup?.id || 'new');
             }
-            return createGroup({
+
+            const payload = {
                 name: groupName.trim(),
                 description: description.trim(),
                 coverPhotoUrl: uploadedUrl,
-            });
+            };
+
+            if (isEdit) {
+                return updateGroup(editGroup.id, payload);
+            } else {
+                return createGroup(payload);
+            }
         },
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['groups'] });
-            Alert.alert('Success', `"${data.group.name}" created!`, [
+            if (isEdit) queryClient.invalidateQueries({ queryKey: ['group', editGroup.id] });
+            
+            Alert.alert('Success', isEdit ? 'Mandali updated!' : `"${data.group.name}" created!`, [
                 { text: 'OK', onPress: () => navigation.goBack() },
             ]);
         },
         onError: (err: any) => {
-            console.error('[CreateGroup] Error:', err?.response?.data || err.message);
-            Alert.alert('Error', err?.response?.data?.error || 'Failed to create group');
+            console.error('[GroupForm] Error:', err?.response?.data || err.message);
+            Alert.alert('Error', err?.response?.data?.error || `Failed to ${isEdit ? 'update' : 'create'} group`);
         }
     });
 
-    const handleCreateGroup = () => {
+    const handleSubmit = () => {
         if (!groupName.trim()) return;
-        createMutation.mutate();
+        submitMutation.mutate();
     };
 
-    const loading = createMutation.isPending;
+    const loading = submitMutation.isPending;
 
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -73,6 +90,7 @@ const CreateGroupScreen = () => {
 
         if (!result.canceled && result.assets[0]) {
             setGroupImage(result.assets[0].uri);
+            setHasNewImage(true);
         }
     };
 
@@ -83,7 +101,9 @@ const CreateGroupScreen = () => {
                 <TouchableOpacity onPress={() => navigation.goBack()} className="w-10 h-10 items-center justify-center">
                     <MaterialIcons name="arrow-back" size={24} color="#b30069" />
                 </TouchableOpacity>
-                <Text className="text-[22px] font-headline-bold text-on-surface text-center">New Group</Text>
+                <Text className="text-[22px] font-headline-bold text-on-surface text-center">
+                    {isEdit ? 'Edit Mandali' : 'New Group'}
+                </Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -121,7 +141,9 @@ const CreateGroupScreen = () => {
                                     <MaterialIcons name="camera-alt" size={14} color="white" />
                                 </View>
                             </View>
-                            <Text className="text-sm font-body-bold text-on-surface-variant">Add Group Photo</Text>
+                            <Text className="text-sm font-body-bold text-on-surface-variant">
+                                {isEdit ? 'Change Photo' : 'Add Group Photo'}
+                            </Text>
                         </TouchableOpacity>
                     </View>
 
@@ -168,7 +190,7 @@ const CreateGroupScreen = () => {
                         </View>
                     </View>
 
-                    {/* Create Button */}
+                    {/* Submit Button */}
                     <TouchableOpacity
                         className={`w-full h-[58px] rounded-full items-center justify-center ${groupName.trim() && !loading ? 'bg-primary' : 'bg-primary/50'}`}
                         style={{
@@ -180,12 +202,14 @@ const CreateGroupScreen = () => {
                         }}
                         disabled={!groupName.trim() || loading}
                         activeOpacity={0.85}
-                        onPress={handleCreateGroup}
+                        onPress={handleSubmit}
                     >
                         {loading ? (
                             <ActivityIndicator color="white" />
                         ) : (
-                            <Text className="text-lg font-headline-bold text-white">Create Group</Text>
+                            <Text className="text-lg font-headline-bold text-white">
+                                {isEdit ? 'Save Changes' : 'Create Group'}
+                            </Text>
                         )}
                     </TouchableOpacity>
                 </ScrollView>
