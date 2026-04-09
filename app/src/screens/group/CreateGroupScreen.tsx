@@ -21,7 +21,7 @@ import { Image } from 'expo-image';
 const CreateGroupScreen = () => {
     const navigation = useNavigation();
     const queryClient = useQueryClient();
-    
+
     const [groupName, setGroupName] = useState('');
     const [description, setDescription] = useState('');
     const [groupImage, setGroupImage] = useState<string | null>(null);
@@ -30,7 +30,7 @@ const CreateGroupScreen = () => {
         mutationFn: async () => {
             let uploadedUrl = null;
             if (groupImage) {
-                uploadedUrl = await uploadImage(groupImage);
+                uploadedUrl = await uploadImage(groupImage, 'groups-image');
             }
             return createGroup({
                 name: groupName.trim(),

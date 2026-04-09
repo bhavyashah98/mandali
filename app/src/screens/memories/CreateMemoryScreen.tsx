@@ -53,13 +53,13 @@ const CreateMemoryScreen = () => {
 
         setIsUploading(true);
         try {
-            // 1. Upload all images in parallel
-            const uploadPromises = selectedImages.map(uri => uploadImage(uri));
+            // 1. Upload all images in parallel (using mandatory groupId)
+            const uploadPromises = selectedImages.map(uri => uploadImage(uri, groupId!));
             const imageUrls = await Promise.all(uploadPromises);
 
             // 2. Create memory record
             await createMemory({
-                groupId,
+                groupId: groupId!,
                 imageUrls,
                 story
             });

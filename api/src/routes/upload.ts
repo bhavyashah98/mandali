@@ -23,35 +23,75 @@ router.use(authMiddleware);
 // POST /upload/image — Supports both multipart (FormData) and base64
 router.post('/image', upload.single('image'), async (req: AuthRequest, res) => {
     try {
-        let imageData = null;
+        const groupId = req.query.groupId as string;
 
-        // 1. Check if it's a file upload (multer)
+        if (!groupId) {
+            return res.status(400).json({ error: 'groupId is required' });
+        }
+
+        let imageData: string | null = null;
+
         if (req.file) {
-            // Convert buffer to base64 for Cloudinary upload
             const base64 = req.file.buffer.toString('base64');
             imageData = `data:${req.file.mimetype};base64,${base64}`;
-        } 
-        // 2. Check if it's base64 in body
-        else if (req.body.image) {
+        } else if (req.body.image) {
             imageData = req.body.image;
         }
 
         if (!imageData) {
-            return res.status(400).json({ error: 'No image file provided' });
+            return res.status(400).json({ error: 'No image provided' });
         }
 
         const uploadResponse = await cloudinary.uploader.upload(imageData, {
-            folder: 'mandali/uploads',
+            upload_preset: 'mandali_photos',
+            folder: `mandali/${groupId}/photos`,
             resource_type: 'auto',
+            transformation: [{ quality: 'auto', fetch_format: 'auto' }],
         });
 
         res.json({
             url: uploadResponse.secure_url,
             publicId: uploadResponse.public_id,
         });
+
     } catch (err: any) {
-        console.error('[Upload] Cloudinary upload error:', err.message);
-        res.status(500).json({ error: 'Failed to upload image' });
+        console.error('[Upload] Error:', err.message);
+        res.status(500).json({ error: err.message || 'Upload failed' });
+    }
+});
+
+// POST /upload/profile — separate route, no groupId needed
+router.post('/profile', upload.single('image'), async (req: AuthRequest, res) => {
+    try {
+        const userId = req.userId;
+
+        if (!userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ error: 'No image provided' });
+        }
+
+        const base64 = req.file.buffer.toString('base64');
+        const imageData = `data:${req.file.mimetype};base64,${base64}`;
+
+        const uploadResponse = await cloudinary.uploader.upload(imageData, {
+            upload_preset: 'mandali_photos',
+            folder: 'mandali/profiles',
+            public_id: `user_${userId}`,   // overwrites previous profile photo
+            overwrite: true,
+            transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'auto' }],
+        });
+
+        res.json({
+            url: uploadResponse.secure_url,
+            publicId: uploadResponse.public_id,
+        });
+
+    } catch (err: any) {
+        console.error('[Upload] Profile error:', err.message);
+        res.status(500).json({ error: err.message || 'Upload failed' });
     }
 });
 

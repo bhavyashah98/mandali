@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../stores/authStore';
-import { API_URL, getAuthHeaders, uploadImage } from '../../lib/api';
+import { API_URL, getAuthHeaders, uploadProfileImage } from '../../lib/api';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
@@ -90,7 +90,7 @@ const SetupProfileScreen = () => {
             // 1. Upload image if it's a local URI (selected via picker)
             let avatarUrl = user?.avatar_url || null;
             if (profileImage && profileImage.startsWith('file')) {
-                avatarUrl = await uploadImage(profileImage);
+                avatarUrl = await uploadProfileImage(profileImage);
             }
 
             // 2. Save profile

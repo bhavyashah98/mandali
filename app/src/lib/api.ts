@@ -38,7 +38,7 @@ export const createGroup = async (groupData: any) => {
     return response.data;
 };
 
-export const uploadImage = async (uri: string) => {
+export const uploadImage = async (uri: string, groupId: string) => {
     const headers = await getAuthHeaders();
     const formData = new FormData();
     
@@ -55,7 +55,32 @@ export const uploadImage = async (uri: string) => {
     });
 
     // NOTE: Backend is mounted as /upload and route is /image -> /upload/image
-    const response = await axios.post(`${API_URL}/upload/image`, formData, {
+    const response = await axios.post(`${API_URL}/upload/image?groupId=${groupId}`, formData, {
+        headers: {
+            ...headers,
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data.url;
+};
+
+export const uploadProfileImage = async (uri: string) => {
+    const headers = await getAuthHeaders();
+    const formData = new FormData();
+    
+    // Create the file object
+    const filename = uri.split('/').pop() || 'profile.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+    // @ts-ignore
+    formData.append('image', {
+        uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
+        name: filename,
+        type,
+    });
+
+    const response = await axios.post(`${API_URL}/upload/profile`, formData, {
         headers: {
             ...headers,
             'Content-Type': 'multipart/form-data',
