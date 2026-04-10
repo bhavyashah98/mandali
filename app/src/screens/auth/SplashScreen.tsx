@@ -6,6 +6,14 @@ import Svg, { Path } from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
 
+// Dynamic Relative Sizing Constraints
+const MEDALLION_SIZE = Math.min(260, width * 0.65);
+const HALO_SIZES = [
+    MEDALLION_SIZE + 60,
+    MEDALLION_SIZE + 120,
+    MEDALLION_SIZE + 190
+];
+
 const SplashScreen = () => {
     const navigation = useNavigation<any>();
 
@@ -61,7 +69,7 @@ const SplashScreen = () => {
 
         const timer = setTimeout(() => {
             navigation.navigate('Login');
-        }, 10000);
+        }, 2500);
         return () => clearTimeout(timer);
     }, []);
 
@@ -115,26 +123,40 @@ const SplashScreen = () => {
             >
                 <View className="relative items-center justify-center">
                     {/* Multi-layered Halo Effect */}
-                    <View style={[styles.halo, { width: 320, height: 320, borderColor: 'rgba(179,0,105,0.1)' }]} />
-                    <View style={[styles.halo, { width: 380, height: 380, borderColor: 'rgba(179,0,105,0.05)' }]} />
-                    <View style={[styles.halo, { width: 450, height: 450, borderColor: 'rgba(179,0,105,0.02)' }]} />
+                    <View style={[styles.halo, { width: HALO_SIZES[0], height: HALO_SIZES[0], borderColor: 'rgba(179,0,105,0.1)' }]} />
+                    <View style={[styles.halo, { width: HALO_SIZES[1], height: HALO_SIZES[1], borderColor: 'rgba(179,0,105,0.05)' }]} />
+                    <View style={[styles.halo, { width: HALO_SIZES[2], height: HALO_SIZES[2], borderColor: 'rgba(179,0,105,0.02)' }]} />
 
                     {/* The Primary Medallion Seal */}
                     <View
-                        className="w-[260px] h-[260px] rounded-full bg-white items-center justify-center border-[10px] border-[#b30069] shadow-2xl"
-                        style={[styles.medallionShadow, { overflow: 'hidden' }]}
+                        className="rounded-full bg-white items-center justify-center shadow-2xl"
+                        style={[
+                            styles.medallionShadow,
+                            {
+                                overflow: 'hidden',
+                                width: MEDALLION_SIZE,
+                                height: MEDALLION_SIZE,
+                                borderWidth: Math.max(6, MEDALLION_SIZE * 0.038), // Responsive border width
+                                borderColor: '#b30069'
+                            }
+                        ]}
                     >
                         <Image
                             source={require('../../../assets/icon.png')}
-                            style={{ width: 260, height: 260, borderRadius: 130 }}
+                            style={{ width: '100%', height: '100%' }}
                             resizeMode="cover"
                         />
                     </View>
                 </View>
 
                 {/* 3. High-End Branding Typography */}
-                <View className="items-center mt-20 px-8">
-                    <Text className="text-[#b30069] font-headline-bold text-center tracking-[15px] ml-[15px]" style={styles.headline}>
+                <View className="items-center mt-20 px-8 w-full">
+                    <Text
+                        className="text-[#b30069] font-headline-bold text-center"
+                        style={styles.headline}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                    >
                         MANDALI
                     </Text>
 
@@ -154,9 +176,6 @@ const SplashScreen = () => {
                     <Animated.View style={[styles.dot, { backgroundColor: '#b30069', opacity: 0.4 }]} />
                     <Animated.View style={[styles.dot, { backgroundColor: '#b30069', opacity: 0.1 }]} />
                 </View>
-                <Text className="text-[#594048]/30 font-body-medium text-[9px] uppercase tracking-[3px]">
-                    Experience Optimized • Ver 1.0
-                </Text>
             </View>
         </View>
     );
@@ -187,7 +206,9 @@ const styles = StyleSheet.create({
         borderWidth: 1.5,
     },
     headline: {
-        fontSize: 38,
+        fontSize: Math.min(38, width * 0.1),
+        letterSpacing: Math.min(15, width * 0.035),
+        marginLeft: Math.min(15, width * 0.035), // Counterbalances letterSpacing on the last character for perfect centering
         fontWeight: '900',
         textShadowColor: 'rgba(179,0,105,0.15)',
         textShadowOffset: { width: 0, height: 8 },

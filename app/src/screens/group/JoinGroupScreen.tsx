@@ -2,14 +2,22 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { joinGroup } from '../../lib/api';
 
 const JoinGroupScreen = () => {
     const navigation = useNavigation();
+    const route = useRoute<any>();
     const queryClient = useQueryClient();
-    const [inviteCode, setInviteCode] = useState('');
+    const [inviteCode, setInviteCode] = useState(route.params?.inviteCode || '');
+
+    // Auto-trigger if we came from a deep link
+    React.useEffect(() => {
+        if (route.params?.inviteCode) {
+            setInviteCode(route.params.inviteCode);
+        }
+    }, [route.params?.inviteCode]);
 
     const joinMutation = useMutation({
         mutationFn: (code: string) => joinGroup(code.trim().toUpperCase()),
@@ -53,7 +61,7 @@ const JoinGroupScreen = () => {
                     Paste the 8-character invite code shared with you to join your digital gathering circle.
                 </Text>
                 
-                <View className="bg-surface-container rounded-2xl px-5 justify-center border border-dashed border-primary/30 h-16">
+                <View className="bg-surface-container rounded-2xl px-5 justify-center border border-dashed border-primary/30 h-16 mb-8">
                     <TextInput 
                         placeholder="e.g. AB12CD34"
                         placeholderTextColor="#a09d96"
@@ -63,6 +71,31 @@ const JoinGroupScreen = () => {
                         onChangeText={setInviteCode}
                         autoFocus
                     />
+                </View>
+
+                {/* Info Cards */}
+                <View className="flex-1 gap-4 mt-2">
+                    <View className="bg-primary/5 rounded-[24px] p-5">
+                        <MaterialIcons name="vpn-key" size={24} color="#b30069" className="mb-2" />
+                        <Text className="font-headline-bold text-[#1c1c18] text-[15px] mb-1">Private Access</Text>
+                        <Text className="font-body-medium text-stone-500 text-[13px] leading-5">
+                            Mandalis are private spaces accessible exclusively via valid 8-character invite codes.
+                        </Text>
+                    </View>
+                    <View className="bg-primary/5 rounded-[24px] p-5">
+                        <MaterialIcons name="auto-awesome-mosaic" size={24} color="#b30069" className="mb-2" />
+                        <Text className="font-headline-bold text-[#1c1c18] text-[15px] mb-1">Shared Journeys</Text>
+                        <Text className="font-body-medium text-stone-500 text-[13px] leading-5">
+                            Once joined, you will unlock all past memories, gatherings, and group events.
+                        </Text>
+                    </View>
+                    <View className="bg-primary/5 rounded-[24px] p-5">
+                        <MaterialIcons name="shield" size={24} color="#b30069" className="mb-2" />
+                        <Text className="font-headline-bold text-[#1c1c18] text-[15px] mb-1">Safe Space</Text>
+                        <Text className="font-body-medium text-stone-500 text-[13px] leading-5">
+                            Your connections and memories remain completely secure within your protected circle.
+                        </Text>
+                    </View>
                 </View>
 
                 {/* Submit Action */}

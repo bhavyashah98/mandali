@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -15,5 +16,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   setUser: (user) => set({ user }),
   setAuthenticated: (status) => set({ isAuthenticated: status }),
   login: () => set({ isAuthenticated: true }),
-  logout: () => set({ isAuthenticated: false, user: null }),
+  logout: async () => {
+      // Actively purge from permanent hardware storage so RootNavigator doesn't resume session on cold start
+      await AsyncStorage.removeItem('mandali_token');
+      await AsyncStorage.removeItem('mandali_user');
+      set({ isAuthenticated: false, user: null });
+  },
 }));

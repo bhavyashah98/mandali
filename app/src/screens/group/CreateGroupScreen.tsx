@@ -34,23 +34,39 @@ const CreateGroupScreen = () => {
 
     const submitMutation = useMutation({
         mutationFn: async () => {
-            let uploadedUrl = groupImage;
-            
-            // Only upload if it's a new local URI
-            if (hasNewImage && groupImage) {
-                uploadedUrl = await uploadImage(groupImage, editGroup?.id || 'new');
-            }
-
-            const payload = {
-                name: groupName.trim(),
-                description: description.trim(),
-                coverPhotoUrl: uploadedUrl,
-            };
-
             if (isEdit) {
+                let uploadedUrl = groupImage;
+                
+                // Only upload if it's a new local URI
+                if (hasNewImage && groupImage) {
+                    uploadedUrl = await uploadImage(groupImage, editGroup.id);
+                }
+
+                const payload = {
+                    name: groupName.trim(),
+                    description: description.trim(),
+                    coverPhotoUrl: uploadedUrl,
+                };
+
                 return updateGroup(editGroup.id, payload);
             } else {
-                return createGroup(payload);
+                const payload = {
+                    name: groupName.trim(),
+                    description: description.trim(),
+                };
+                
+                // 1. Create group first to obtain the legitimate ID
+                const response = await createGroup(payload);
+                const newGroupId = response.group.id;
+
+                // 2. Upload image and patch the group if an image was selected
+                if (hasNewImage && groupImage) {
+                    const uploadedUrl = await uploadImage(groupImage, newGroupId);
+                    await updateGroup(newGroupId, { ...payload, coverPhotoUrl: uploadedUrl });
+                    response.group.cover_photo_url = uploadedUrl;
+                }
+
+                return response;
             }
         },
         onSuccess: (data) => {
@@ -101,7 +117,12 @@ const CreateGroupScreen = () => {
                 <TouchableOpacity onPress={() => navigation.goBack()} className="w-10 h-10 items-center justify-center">
                     <MaterialIcons name="arrow-back" size={24} color="#b30069" />
                 </TouchableOpacity>
-                <Text className="text-[22px] font-headline-bold text-on-surface text-center">
+                <Text 
+                    className="flex-1 font-headline-bold text-on-surface text-center mx-2"
+                    style={{ fontSize: 22 }}
+                    adjustsFontSizeToFit
+                    numberOfLines={1}
+                >
                     {isEdit ? 'Edit Mandali' : 'New Group'}
                 </Text>
                 <View style={{ width: 40 }} />
@@ -192,7 +213,7 @@ const CreateGroupScreen = () => {
 
                     {/* Submit Button */}
                     <TouchableOpacity
-                        className={`w-full h-[58px] rounded-full items-center justify-center ${groupName.trim() && !loading ? 'bg-primary' : 'bg-primary/50'}`}
+                        className={`w-full h-[58px] rounded-full flex-row items-center justify-center px-4 ${groupName.trim() && !loading ? 'bg-primary' : 'bg-primary/50'}`}
                         style={{
                             shadowColor: '#b30069',
                             shadowOffset: { width: 0, height: 6 },
@@ -207,7 +228,12 @@ const CreateGroupScreen = () => {
                         {loading ? (
                             <ActivityIndicator color="white" />
                         ) : (
-                            <Text className="text-lg font-headline-bold text-white">
+                            <Text 
+                                className="font-headline-bold text-white text-center"
+                                style={{ fontSize: 18 }}
+                                adjustsFontSizeToFit
+                                numberOfLines={1}
+                            >
                                 {isEdit ? 'Save Changes' : 'Create Group'}
                             </Text>
                         )}

@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-    View, 
-    Text, 
-    TextInput, 
-    TouchableOpacity, 
-    ActivityIndicator, 
-    Alert, 
-    KeyboardAvoidingView, 
-    Platform, 
+import {
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
     ScrollView,
     Image
 } from 'react-native';
@@ -21,11 +21,11 @@ import * as ImagePicker from 'expo-image-picker';
 
 const SetupProfileScreen = () => {
     const { user, setUser, logout } = useAuthStore();
-    
+
     // Initialize states with user data if available (Edit Mode)
     const [name, setName] = useState(user?.name || '');
     const [profileImage, setProfileImage] = useState<string | null>(user?.avatar_url || null);
-    
+
     // Parse user birthday if exists (YYYY-MM-DD)
     const [day, setDay] = useState('');
     const [month, setMonth] = useState('');
@@ -41,10 +41,10 @@ const SetupProfileScreen = () => {
             }
         }
     }, [user?.birthday]);
-    
+
     const monthRef = useRef<TextInput>(null);
     const yearRef = useRef<TextInput>(null);
-    
+
     const [isLoading, setIsLoading] = useState(false);
 
     const pickImage = async () => {
@@ -86,7 +86,7 @@ const SetupProfileScreen = () => {
         try {
             setIsLoading(true);
             const headers = await getAuthHeaders();
-            
+
             // 1. Upload image if it's a local URI (selected via picker)
             let avatarUrl = user?.avatar_url || null;
             if (profileImage && profileImage.startsWith('file')) {
@@ -129,12 +129,12 @@ const SetupProfileScreen = () => {
                 <View style={{ width: 40 }} />
             </View>
 
-            <KeyboardAvoidingView 
+            <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 className="flex-1"
             >
-                <ScrollView 
-                    contentContainerStyle={{ padding: 24, paddingBottom: 40 }} 
+                <ScrollView
+                    contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="always"
                 >
@@ -142,7 +142,7 @@ const SetupProfileScreen = () => {
                     <View className="items-center mb-8 mt-2">
                         <TouchableOpacity onPress={pickImage} activeOpacity={0.7} className="items-center">
                             <View className="relative mb-2.5">
-                                <View 
+                                <View
                                     className="w-[124px] h-[124px] rounded-full items-center justify-center overflow-hidden border-[3px] border-white"
                                     style={{
                                         backgroundColor: '#f3e8ef',
@@ -154,7 +154,7 @@ const SetupProfileScreen = () => {
                                     }}
                                 >
                                     {profileImage ? (
-                                        <Image source={{ uri: profileImage }} className="w-full h-full" resizeMode="cover" />
+                                        <Image source={{ uri: profileImage }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                                     ) : (
                                         <Ionicons name="person" size={54} color="#b30069" />
                                     )}
@@ -239,7 +239,7 @@ const SetupProfileScreen = () => {
                                 {isFirstTime ? 'Make it Yours' : 'Account Identity'}
                             </Text>
                             <Text className="text-[12px] font-body-regular text-on-surface-variant leading-4">
-                                {isFirstTime 
+                                {isFirstTime
                                     ? 'Personalizing your profile helps your friends recognize you and join your Mandali gatherings.'
                                     : 'Your Mandali profile is how you appear to others in games and memories. Keep it updated!'}
                             </Text>

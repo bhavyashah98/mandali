@@ -6,7 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { fetchGroups } from '../../lib/api';
 
-const HousieSelectGroupScreen = () => {
+const MemoriesSelectGroupScreen = () => {
     const navigation = useNavigation<any>();
     const { data: groups, isLoading, isRefetching, refetch } = useQuery({
         queryKey: ['groups'],
@@ -17,31 +17,24 @@ const HousieSelectGroupScreen = () => {
         <View className="gap-3 mt-4 flex-1 w-full pb-8">
             <View className="h-[1px] bg-stone-200/80 w-full mb-4 mt-2" />
             <View className="bg-primary/5 rounded-[24px] p-5">
-                <MaterialIcons name="confirmation-num" size={24} color="#b30069" className="mb-2" />
-                <Text className="font-headline-bold text-[#1c1c18] text-[15px] mb-1">Classic Gameplay</Text>
+                <MaterialIcons name="photo-album" size={24} color="#b30069" className="mb-2" />
+                <Text className="font-headline-bold text-[#1c1c18] text-[15px] mb-1">Shared Albums</Text>
                 <Text className="font-body-medium text-stone-500 text-[13px] leading-5">
-                    Generate automated digital tickets instantly and play live with anyone in your Mandali circle.
+                    Drop photos directly into the stream and let everyone in your Mandali circle relive the moments together.
                 </Text>
             </View>
             <View className="bg-primary/5 rounded-[24px] p-5">
-                <MaterialIcons name="emoji-events" size={24} color="#b30069" className="mb-2" />
-                <Text className="font-headline-bold text-[#1c1c18] text-[15px] mb-1">Live Bounties</Text>
+                <MaterialIcons name="calendar-month" size={24} color="#b30069" className="mb-2" />
+                <Text className="font-headline-bold text-[#1c1c18] text-[15px] mb-1">Timeless Timeline</Text>
                 <Text className="font-body-medium text-stone-500 text-[13px] leading-5">
-                    Fastest five, first row, full house... sprint to claim digital rewards against your friends.
+                    Your photos are intelligently grouped by month and year so you never lose track of a precious memory.
                 </Text>
             </View>
             <View className="bg-primary/5 rounded-[24px] p-5">
-                <MaterialIcons name="notifications-active" size={24} color="#b30069" className="mb-2" />
-                <Text className="font-headline-bold text-[#1c1c18] text-[15px] mb-1">Instant Invites</Text>
+                <MaterialIcons name="cloud-upload" size={24} color="#b30069" className="mb-2" />
+                <Text className="font-headline-bold text-[#1c1c18] text-[15px] mb-1">Permanent Storage</Text>
                 <Text className="font-body-medium text-stone-500 text-[13px] leading-5">
-                    When a game is launched, all members of your chosen Mandali are notified instantly to join the lobby.
-                </Text>
-            </View>
-            <View className="bg-primary/5 rounded-[24px] p-5">
-                <MaterialIcons name="leaderboard" size={24} color="#b30069" className="mb-2" />
-                <Text className="font-headline-bold text-[#1c1c18] text-[15px] mb-1">Mandali Leaderboards</Text>
-                <Text className="font-body-medium text-stone-500 text-[13px] leading-5">
-                    Track all-time winners across your group and see exactly who claims the highest bounties securely.
+                    No compression and no expiry. Preserve your full-quality memories indefinitely across all your devices.
                 </Text>
             </View>
         </View>
@@ -50,11 +43,11 @@ const HousieSelectGroupScreen = () => {
     const renderEmptyState = () => (
         <View className="items-center w-full mb-6 mt-16 px-4">
             <View className="w-20 h-20 rounded-full bg-primary/5 items-center justify-center mb-4">
-                <MaterialIcons name="local-activity" size={40} color="#b30069" />
+                <MaterialIcons name="photo-library" size={40} color="#b30069" />
             </View>
             <Text className="text-2xl font-headline-bold text-on-surface text-center mb-2">No Mandali Found!</Text>
             <Text className="text-on-surface-variant text-center font-body-medium leading-5 mb-8">
-                Housie is better with friends and family. Create or join a Mandali to start your first session!
+                Memories are better when shared with friends and family. Create or join a Mandali to start capturing your moments!
             </Text>
 
             <View className="w-full gap-4">
@@ -90,7 +83,7 @@ const HousieSelectGroupScreen = () => {
     const renderGroupItem = ({ item }: { item: any }) => {
         return (
             <TouchableOpacity
-                onPress={() => navigation.navigate('HousieLobby', { groupId: item.id })}
+                onPress={() => navigation.navigate('MemoriesHome', { groupId: item.id })}
                 activeOpacity={0.7}
                 className="bg-white rounded-[24px] px-4 py-4 flex-row items-center border border-stone-100 shadow-sm mb-3"
                 style={{ elevation: 2 }}
@@ -135,7 +128,7 @@ const HousieSelectGroupScreen = () => {
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top']}>
             <View className="px-6 py-4 flex-row items-center justify-between">
                 <View>
-                    <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-[3px] mb-1">Housie Lobby</Text>
+                    <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-[3px] mb-1">Memories Gallery</Text>
                     <Text className="text-2xl font-headline-bold text-primary">Pick a Mandali</Text>
                 </View>
             </View>
@@ -167,4 +160,4 @@ const HousieSelectGroupScreen = () => {
     );
 };
 
-export default HousieSelectGroupScreen;
+export default MemoriesSelectGroupScreen;

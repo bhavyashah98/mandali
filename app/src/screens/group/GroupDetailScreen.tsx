@@ -5,8 +5,10 @@ import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchGroupDetail, leaveGroup, deleteGroup, transferOwnership } from '../../lib/api';
+import * as Linking from 'expo-linking';
 import { Image } from 'expo-image';
 import { useAuthStore } from '../../stores/authStore';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const GroupDetailScreen = () => {
     const navigation = useNavigation<any>();
@@ -61,8 +63,13 @@ const GroupDetailScreen = () => {
     const handleShareLink = async () => {
         if (!data?.group.invite_code) return;
         try {
+            // Mobile scheme for internal routing
+            const appUrl = Linking.createURL(`join/${data.group.invite_code}`);
+            // HTTPS format so WhatsApp natively highlights it as a clickable link
+            const webUrl = `https://mandali.onrender.com/join/${data.group.invite_code}`;
+
             await Share.share({
-                message: `Join our Mandali circle! Use this invite code: ${data.group.invite_code}`,
+                message: `Join our Mandali circle!\n\nOpen this link to join directly:\n${webUrl}\n\n(Or use invite code: ${data.group.invite_code})`,
             });
         } catch (err) {
             console.error('[Share] Error:', err);
@@ -128,21 +135,13 @@ const GroupDetailScreen = () => {
                 <TouchableOpacity onPress={() => navigation.goBack()} className="w-10 h-10 items-center justify-center bg-stone-50 rounded-full">
                     <MaterialIcons name="arrow-back" size={22} color="#594048" />
                 </TouchableOpacity>
-                <View className="w-10 h-10 rounded-[32px] overflow-hidden border-4 border-white shadow-xl bg-stone-50 shadow-black/5">
-                    {group.cover_photo_url ? (
-                        <Image
-                            source={{ uri: group.cover_photo_url }}
-                            style={{ width: '100%', height: '100%' }}
-                            contentFit="cover"
-                        />
-                    ) : (
-                        <View className="w-full h-full items-center justify-center">
-                            <Text className="text-primary font-headline-bold text-[32px]">{group.name.charAt(0)}</Text>
-                        </View>
-                    )}
-                </View>
-                <Text className="text-xl font-headline-bold text-primary flex-1 text-left mx-2" numberOfLines={1}>
-                    {group.name}
+                <Text 
+                    className="flex-1 text-center font-headline-bold text-primary mx-2"
+                    style={{ fontSize: 20 }}
+                    adjustsFontSizeToFit
+                    numberOfLines={1}
+                >
+                    Mandali
                 </Text>
                 {isAdmin ? (
                     <TouchableOpacity
@@ -160,12 +159,50 @@ const GroupDetailScreen = () => {
             <ScrollView
                 className="flex-1"
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120 }}
+                contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
                 refreshControl={
                     <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#b30069" />
                 }
             >
-                {/* Branding Avatar */}
+                {/* Hero Cover Image */}
+                <View className="w-full h-80 rounded-[32px] overflow-hidden mt-2 mb-8 shadow-2xl shadow-black/20 bg-stone-100">
+                    {group.cover_photo_url ? (
+                        <Image
+                            source={{ uri: group.cover_photo_url }}
+                            style={{ width: '100%', height: '100%' }}
+                            contentFit="cover"
+                            contentPosition="top"
+                        />
+                    ) : (
+                        <View className="w-full h-full bg-[#fcecf2] items-center justify-center">
+                            <Ionicons name="people" size={100} color="#b30069" style={{ opacity: 0.15 }} />
+                        </View>
+                    )}
+
+                    {/* Gradient Overlay for Text Readability */}
+                    <LinearGradient
+                        colors={['transparent', 'rgba(0,0,0,0.8)']}
+                        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '60%', justifyContent: 'flex-end', padding: 24 }}
+                    >
+                        <Text 
+                            className="text-white font-headline-bold mb-2 leading-tight" 
+                            style={{ fontSize: 36 }}
+                            numberOfLines={2}
+                            adjustsFontSizeToFit
+                        >
+                            {group.name}
+                        </Text>
+                        <View className="flex-row items-center">
+                            <Text className="text-white/90 font-body-medium text-[15px]">
+                                {members.length} {members.length === 1 ? 'Member' : 'Members'}
+                            </Text>
+                            <Text className="text-white/60 font-body-medium text-[15px] mx-2">•</Text>
+                            <Text className="text-white/90 font-body-medium text-[15px]">
+                                Since {group.created_at ? new Date(group.created_at).getFullYear() : new Date().getFullYear()}
+                            </Text>
+                        </View>
+                    </LinearGradient>
+                </View>
 
                 {/* Group Info Card */}
                 {group.description && (
@@ -183,13 +220,18 @@ const GroupDetailScreen = () => {
                 <View className="gap-4">
                     <TouchableOpacity
                         onPress={() => navigation.navigate('Memories', { screen: 'MemoriesHome', params: { groupId: group.id } })}
-                        className="bg-[#fcecf2] rounded-[24px] p-6 flex-row items-center border border-primary/5 shadow-sm"
+                        className="bg-[#fcecf2] rounded-[24px] h-[84px] px-5 flex-row items-center border border-primary/5 shadow-sm"
                     >
                         <View className="w-12 h-12 bg-white rounded-xl items-center justify-center mr-4 shadow-sm shadow-primary/10">
                             <Ionicons name="images" size={24} color="#b30069" />
                         </View>
                         <View className="flex-1">
-                            <Text className="text-lg font-headline-bold text-[#b30069]">Shared Memories</Text>
+                            <Text 
+                                className="font-headline-bold text-[#b30069]" 
+                                style={{ fontSize: 18 }} 
+                                adjustsFontSizeToFit 
+                                numberOfLines={1}
+                            >Shared Memories</Text>
                             <Text className="text-[#b30069]/60 text-xs font-body-medium">Relive your best moments</Text>
                         </View>
                         <MaterialIcons name="chevron-right" size={20} color="#b3006969" />
@@ -197,13 +239,18 @@ const GroupDetailScreen = () => {
 
                     <TouchableOpacity
                         onPress={() => navigation.navigate('Housie', { screen: 'HousieLobby', params: { groupId: group.id } })}
-                        className="bg-[#b30069] rounded-[24px] p-6 flex-row items-center shadow-lg shadow-primary/20"
+                        className="bg-[#b30069] rounded-[24px] h-[84px] px-5 flex-row items-center shadow-lg shadow-primary/20"
                     >
                         <View className="w-12 h-12 bg-white rounded-xl items-center justify-center mr-4">
                             <Ionicons name="game-controller" size={24} color="#b30069" />
                         </View>
                         <View className="flex-1">
-                            <Text className="text-lg font-headline-bold text-white">Housie Gathering</Text>
+                            <Text 
+                                className="font-headline-bold text-white"
+                                style={{ fontSize: 18 }} 
+                                adjustsFontSizeToFit 
+                                numberOfLines={1}
+                            >Housie Gathering</Text>
                             <Text className="text-white/60 text-xs font-body-medium">Gather everyone for a game</Text>
                         </View>
                         <MaterialIcons name="chevron-right" size={20} color="white" opacity={0.6} />
@@ -211,13 +258,18 @@ const GroupDetailScreen = () => {
 
                     <TouchableOpacity
                         onPress={handleShareLink}
-                        className="bg-[#1c1c18] rounded-[24px] p-6 flex-row items-center shadow-lg shadow-black/10"
+                        className="bg-[#1c1c18] rounded-[24px] h-[84px] px-5 flex-row items-center shadow-lg shadow-black/10"
                     >
                         <View className="w-12 h-12 bg-white/10 rounded-xl items-center justify-center mr-4">
                             <Ionicons name="share-social" size={24} color="white" />
                         </View>
                         <View className="flex-1">
-                            <Text className="text-lg font-headline-bold text-white">Invite Members</Text>
+                            <Text 
+                                className="font-headline-bold text-white"
+                                style={{ fontSize: 18 }} 
+                                adjustsFontSizeToFit 
+                                numberOfLines={1}
+                            >Invite Members</Text>
                             <Text className="text-white/60 text-xs font-body-medium">Expand your circle of trust</Text>
                         </View>
                         <View className="bg-white/20 px-3 py-1 rounded-full">
@@ -237,7 +289,7 @@ const GroupDetailScreen = () => {
                         <View key={member.id} className="flex-row items-center mb-4 bg-white/50 p-3 rounded-2xl border border-stone-100">
                             <View className="w-12 h-12 rounded-full overflow-hidden bg-stone-100 mr-4 border border-stone-200">
                                 {member.users.avatar_url ? (
-                                    <Image source={{ uri: member.users.avatar_url }} className="w-full h-full" />
+                                    <Image source={{ uri: member.users.avatar_url }} style={{ width: '100%', height: '100%' }} />
                                 ) : (
                                     <View className="w-full h-full items-center justify-center">
                                         <Text className="text-primary font-headline-bold">{member.users.name.charAt(0)}</Text>

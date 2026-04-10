@@ -1,7 +1,7 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect, useState, useRef } from 'react';
+import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-
+import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthNavigator } from './AuthNavigator';
 import { TabNavigator } from './TabNavigator';
@@ -12,9 +12,32 @@ const Stack = createStackNavigator();
 
 export const RootNavigator = () => {
     const { isAuthenticated, setAuthenticated, setUser, user } = useAuthStore();
-    const [isAppReady, setIsAppReady] = React.useState(false);
+    const [isAppReady, setIsAppReady] = useState(false);
+    const navigationRef = useRef<NavigationContainerRef<any>>(null);
 
-    React.useEffect(() => {
+    // Global Deep Link Handler
+    const handleDeepLink = async (url: string | null) => {
+        if (!url) return;
+        const parsed = Linking.parse(url);
+        // e.g. mandali://join/XYZA1234
+        if (parsed.path?.startsWith('join/')) {
+            const inviteCode = parsed.path.split('/')[1];
+            if (inviteCode) {
+                // Store temporarily across app lifecycle
+                await AsyncStorage.setItem('pending_invite_code', inviteCode);
+            }
+        }
+    };
+
+    useEffect(() => {
+        // Detect initial URL
+        Linking.getInitialURL().then(handleDeepLink);
+        // Detect live foreground URL changes
+        const subscription = Linking.addEventListener('url', (e) => handleDeepLink(e.url));
+        return () => subscription.remove();
+    }, []);
+
+    useEffect(() => {
         const loadSession = async () => {
             try {
                 const token = await AsyncStorage.getItem('mandali_token');
@@ -34,13 +57,35 @@ export const RootNavigator = () => {
         loadSession();
     }, []);
 
-    if (!isAppReady) return null;
-
-    // Logic: If authenticated but name is missing, force profile setup
     const isProfileIncomplete = isAuthenticated && (!user?.name || user?.name.trim() === '');
 
+    // Execute Join Navigation whenever App completes state
+    useEffect(() => {
+        const processPendingInvite = async () => {
+            if (isAppReady && isAuthenticated && !isProfileIncomplete) {
+                const pendingCode = await AsyncStorage.getItem('pending_invite_code');
+                if (pendingCode) {
+                    await AsyncStorage.removeItem('pending_invite_code');
+                    // Give a slight delay to let Stack render
+                    setTimeout(() => {
+                        navigationRef.current?.navigate('Main', {
+                            screen: 'Groups',
+                            params: {
+                                screen: 'JoinGroup',
+                                params: { inviteCode: pendingCode }
+                            }
+                        });
+                    }, 500);
+                }
+            }
+        };
+        processPendingInvite();
+    }, [isAppReady, isAuthenticated, isProfileIncomplete]);
+
+    if (!isAppReady) return null;
+
     return (
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef}>
             <Stack.Navigator screenOptions={{ headerShown: false }}>
                 {!isAuthenticated ? (
                     <Stack.Screen name="Auth" component={AuthNavigator} />

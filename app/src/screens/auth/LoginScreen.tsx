@@ -11,7 +11,8 @@ import {
     Image,
     TouchableWithoutFeedback,
     Keyboard,
-    Alert
+    Alert,
+    ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -106,7 +107,7 @@ const LoginScreen = () => {
 
     const handleResendOTP = async () => {
         if (resendTimer > 0 || loading) return;
-        
+
         setError('');
         setLoading(true);
         try {
@@ -146,192 +147,217 @@ const LoginScreen = () => {
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     className="flex-1"
                 >
-                {step === 'otp' && (
-                    <TouchableOpacity
-                        className="w-10 h-10 bg-surface-container rounded-full items-center justify-center absolute top-2 left-6 z-20"
-                        onPress={handleBack}
+                    {step === 'otp' && (
+                        <TouchableOpacity
+                            className="w-10 h-10 bg-surface-container rounded-full items-center justify-center absolute top-2 left-6 z-20"
+                            onPress={handleBack}
+                        >
+                            <MaterialIcons name="arrow-back" size={24} color="#1c1c18" />
+                        </TouchableOpacity>
+                    )}
+
+                    <ScrollView
+                        contentContainerStyle={{ flexGrow: 1 }}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                        className="px-6 py-10"
                     >
-                        <MaterialIcons name="arrow-back" size={24} color="#1c1c18" />
-                    </TouchableOpacity>
-                )}
-
-                <View className="flex-1 justify-center px-6">
-                    <Animated.View style={{ opacity: fadeAnim }}>
-                        {step === 'phone' ? (
-                            <View className="items-center w-full">
-                                {/* Brand Header - Pop-out Seal */}
-                                <View className="items-center mb-10 mt-4">
-                                    <View
-                                        className="w-[170px] h-[170px] rounded-full bg-white items-center justify-center border-8 border-primary shadow-2xl"
-                                        style={{
-                                            elevation: 24,
-                                            shadowColor: '#b30069',
-                                            shadowOffset: { width: 0, height: 10 },
-                                            shadowOpacity: 0.3,
-                                            shadowRadius: 20
-                                        }}
-                                    >
-                                        <Image
-                                            source={require('../../../assets/icon.png')}
-                                            style={{ width: 140, height: 140, borderRadius: 70 }}
-                                            resizeMode="contain"
-                                        />
-                                    </View>
-                                </View>
-
-                                {/* Typography Hub */}
-                                <View className="items-center mb-10 w-full">
-                                    <Text className="font-headline-bold text-[32px] text-primary mb-2 tracking-tight">
-                                        Welcome to Mandali
-                                    </Text>
-                                    <Text className="font-body-regular text-on-surface-variant text-[15px]">
-                                        Join your group and start the fun
-                                    </Text>
-                                </View>
-
-                                {/* Inputs Section */}
-                                <View className="flex-row mb-2 w-full">
-                                    {/* Code Field */}
-                                    <View className="mr-3 w-[100px]">
-                                        <Text className="font-body-bold text-[#594048] text-xs mb-2 ml-1 opacity-70">Code</Text>
-                                        <TouchableOpacity
-                                            onPress={() => setCountryPickerVisible(true)}
-                                            className={`bg-surface-container-high h-[52px] rounded-2xl flex-row items-center px-4 justify-between border ${error ? 'border-error' : 'border-transparent'}`}
-                                        >
-                                            <Text className="font-body-bold text-on-surface text-[15px]">+{callingCode}</Text>
-                                            <MaterialIcons name="keyboard-arrow-down" size={20} color="#1c1c18" />
-                                        </TouchableOpacity>
-
-                                        {isCountryPickerVisible && (
-                                            <CountryPicker
-                                                withFilter
-                                                withFlag
-                                                withAlphaFilter
-                                                withCallingCode
-                                                withEmoji
-                                                onSelect={onSelectCountry}
-                                                onClose={() => setCountryPickerVisible(false)}
-                                                visible={isCountryPickerVisible}
-                                                countryCode={countryCode}
-                                                translation="common"
-                                                containerButtonStyle={{ display: 'none' }}
-                                                theme={{
-                                                    fontFamily: 'System',
-                                                    primaryColor: '#fdf9f3',
-                                                    backgroundColor: '#fdf9f3',
-                                                    onBackgroundTextColor: '#1c1c18',
+                        <Animated.View style={{ opacity: fadeAnim }} className="flex-1">
+                            <View className="flex-1 justify-center gap-8">
+                                {step === 'phone' ? (
+                                    <View className="items-center w-full gap-6">
+                                        {/* Brand Header - Pop-out Seal */}
+                                        <View className="items-center">
+                                            <View
+                                                className="w-[170px] h-[170px] rounded-full bg-white items-center justify-center border-8 border-primary shadow-2xl"
+                                                style={{
+                                                    elevation: 24,
+                                                    shadowColor: '#b30069',
+                                                    shadowOffset: { width: 0, height: 10 },
+                                                    shadowOpacity: 0.3,
+                                                    shadowRadius: 20
                                                 }}
-                                            />
-                                        )}
-                                    </View>
+                                            >
+                                                <Image
+                                                    source={require('../../../assets/icon.png')}
+                                                    style={{ width: 140, height: 140, borderRadius: 70 }}
+                                                    resizeMode="contain"
+                                                />
+                                            </View>
+                                        </View>
 
-                                    {/* Phone Number Field */}
-                                    <View className="flex-1">
-                                        <Text className="font-body-bold text-[#594048] text-xs mb-2 ml-1 opacity-70">Phone Number</Text>
-                                        <View className={`bg-surface-container-high h-[52px] rounded-2xl px-5 justify-center border ${error ? 'border-error' : 'border-transparent'}`}>
-                                            <TextInput
-                                                style={{ paddingVertical: 0, margin: 0, height: '100%' }}
-                                                className="font-body-medium text-[16px] text-on-surface opacity-80 w-full"
-                                                textAlignVertical="center"
-                                                placeholder="00000 00000"
-                                                placeholderTextColor="#a09d96"
-                                                keyboardType="phone-pad"
-                                                maxLength={15}
-                                                value={phoneNumber}
-                                                onChangeText={(text) => {
-                                                    setPhoneNumber(text);
-                                                    if (error) setError('');
-                                                }}
-                                            />
+                                        {/* Typography Hub */}
+                                        <View className="items-center w-full px-2">
+                                            <Text
+                                                className="font-headline-bold text-primary mb-2 tracking-tight text-center w-full"
+                                                style={{ fontSize: 32 }}
+                                                numberOfLines={1}
+                                                adjustsFontSizeToFit
+                                            >
+                                                Welcome to Mandali
+                                            </Text>
+                                            <Text className="font-body-regular text-on-surface-variant text-[15px] text-center">
+                                                Join your group and start the fun
+                                            </Text>
+                                        </View>
+
+                                        {/* Inputs Section */}
+                                        <View className="w-full">
+                                            <View className="flex-row w-full">
+                                                {/* Code Field */}
+                                                <View className="mr-3 w-[100px]">
+                                                    <Text className="font-body-bold text-[#594048] text-xs mb-2 ml-1 opacity-70">Code</Text>
+                                                    <TouchableOpacity
+                                                        onPress={() => setCountryPickerVisible(true)}
+                                                        className={`bg-surface-container-high h-[52px] rounded-2xl flex-row items-center px-4 justify-between border ${error ? 'border-error' : 'border-transparent'}`}
+                                                    >
+                                                        <Text className="font-body-bold text-on-surface text-[15px]">+{callingCode}</Text>
+                                                        <MaterialIcons name="keyboard-arrow-down" size={20} color="#1c1c18" />
+                                                    </TouchableOpacity>
+
+                                                    {isCountryPickerVisible && (
+                                                        <CountryPicker
+                                                            withFilter
+                                                            withFlag
+                                                            withAlphaFilter
+                                                            withCallingCode
+                                                            withEmoji
+                                                            onSelect={onSelectCountry}
+                                                            onClose={() => setCountryPickerVisible(false)}
+                                                            visible={isCountryPickerVisible}
+                                                            countryCode={countryCode}
+                                                            translation="common"
+                                                            containerButtonStyle={{ display: 'none' }}
+                                                            theme={{
+                                                                fontFamily: 'System',
+                                                                primaryColor: '#fdf9f3',
+                                                                backgroundColor: '#fdf9f3',
+                                                                onBackgroundTextColor: '#1c1c18',
+                                                            }}
+                                                        />
+                                                    )}
+                                                </View>
+
+                                                {/* Phone Number Field */}
+                                                <View className="flex-1">
+                                                    <Text className="font-body-bold text-[#594048] text-xs mb-2 ml-1 opacity-70">Phone Number</Text>
+                                                    <View className={`bg-surface-container-high h-[52px] rounded-2xl px-5 justify-center border ${error ? 'border-error' : 'border-transparent'}`}>
+                                                        <TextInput
+                                                            style={{ paddingVertical: 0, margin: 0, height: '100%' }}
+                                                            className="font-body-medium text-[16px] text-on-surface opacity-80 w-full"
+                                                            textAlignVertical="center"
+                                                            placeholder="00000 00000"
+                                                            placeholderTextColor="#a09d96"
+                                                            keyboardType="phone-pad"
+                                                            maxLength={15}
+                                                            value={phoneNumber}
+                                                            onChangeText={(text) => {
+                                                                setPhoneNumber(text);
+                                                                if (error) setError('');
+                                                            }}
+                                                        />
+                                                    </View>
+                                                </View>
+                                            </View>
+
+                                            {/* Phone Validation Error Space */}
+                                            <View className="h-6 justify-center pl-2 mt-1">
+                                                {error && step === 'phone' ? (
+                                                    <Text className="text-error font-body-medium text-xs">{error}</Text>
+                                                ) : null}
+                                            </View>
                                         </View>
                                     </View>
-                                </View>
-                                {/* Phone Validation Error */}
-                                {error && step === 'phone' ? (
-                                    <Text className="text-error font-body-medium text-xs w-full ml-2 mb-6">{error}</Text>
-                                ) : <View className="mb-6 h-4" />}
-                            </View>
-                        ) : (
-                            <View className="items-center w-full mb-10 mt-10">
-                                <Text className="font-headline-bold text-[32px] text-on-surface mb-2">
-                                    Verify your number
-                                </Text>
-                                <Text className="font-body-regular text-on-surface-variant text-base mb-10 text-center px-4">
-                                    Enter the code we just sent to +{callingCode} {phoneNumber}
-                                </Text>
-                                <View className={`w-full bg-surface-container-high h-[60px] rounded-2xl px-5 justify-center border ${error ? 'border-error' : 'border-transparent'}`}>
-                                    <TextInput
-                                        className="font-body-bold text-3xl text-center text-primary tracking-[0.6em]"
-                                        placeholder="······"
-                                        placeholderTextColor="#e1bdc8"
-                                        keyboardType="number-pad"
-                                        maxLength={6}
-                                        value={otp}
-                                        onChangeText={(text) => {
-                                            setOtp(text);
-                                            if (error) setError('');
-                                        }}
-                                        autoFocus
-                                    />
-                                </View>
-                                {/* OTP Validation Error */}
-                                {error && step === 'otp' ? (
-                                    <Text className="text-error font-body-medium text-xs w-full text-center mt-2">{error}</Text>
-                                ) : null}
-                                <TouchableOpacity 
-                                    className="items-center mt-6"
-                                    onPress={handleResendOTP}
-                                    disabled={resendTimer > 0 || loading}
+                                ) : (
+                                    <View className="items-center w-full gap-6">
+                                        <View className="items-center mb-4">
+                                            <Text className="font-headline-bold text-[32px] text-on-surface mb-2 text-center">
+                                                Verify your number
+                                            </Text>
+                                            <Text className="font-body-regular text-on-surface-variant text-base text-center px-4">
+                                                Enter the code we just sent to +{callingCode} {phoneNumber}
+                                            </Text>
+                                        </View>
+
+                                        <View className="w-full items-center">
+                                            <View className={`w-full bg-surface-container-high h-[60px] rounded-2xl px-5 justify-center border ${error ? 'border-error' : 'border-transparent'}`}>
+                                                <TextInput
+                                                    className="font-body-bold text-3xl text-center text-primary tracking-[0.6em]"
+                                                    placeholder="······"
+                                                    placeholderTextColor="#e1bdc8"
+                                                    keyboardType="number-pad"
+                                                    maxLength={6}
+                                                    value={otp}
+                                                    onChangeText={(text) => {
+                                                        setOtp(text);
+                                                        if (error) setError('');
+                                                    }}
+                                                    autoFocus
+                                                />
+                                            </View>
+                                            {/* OTP Validation Error Space */}
+                                            <View className="h-6 justify-center pt-2">
+                                                {error && step === 'otp' ? (
+                                                    <Text className="text-error font-body-medium text-xs text-center">{error}</Text>
+                                                ) : null}
+                                            </View>
+                                            <TouchableOpacity
+                                                className="items-center"
+                                                onPress={handleResendOTP}
+                                                disabled={resendTimer > 0 || loading}
+                                            >
+                                                <Text className={`font-body-medium ${resendTimer > 0 ? 'text-on-surface-variant opacity-40' : 'text-primary'}`}>
+                                                    {resendTimer > 0 ? `Resend Code in ${resendTimer}s` : 'Resend Code'}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                )}
+
+                                {/* Submit Button */}
+                                <TouchableOpacity
+                                    className="w-full h-14 rounded-full items-center justify-center flex-row shadow-md shadow-primary/30 bg-primary"
+                                    onPress={handleNext}
+                                    disabled={loading}
                                 >
-                                    <Text className={`font-body-medium ${resendTimer > 0 ? 'text-on-surface-variant opacity-40' : 'text-primary'}`}>
-                                        {resendTimer > 0 ? `Resend Code in ${resendTimer}s` : 'Resend Code'}
-                                    </Text>
+                                    {loading ? (
+                                        <ActivityIndicator color="#fff" />
+                                    ) : (
+                                        <Text className="font-body-bold text-lg text-white">
+                                            {step === 'phone' ? 'Send OTP' : 'Verify & Continue'}
+                                        </Text>
+                                    )}
+                                    {!loading && (
+                                        <MaterialIcons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
+                                    )}
                                 </TouchableOpacity>
                             </View>
-                        )}
 
-                        {/* Submit Button */}
-                        <TouchableOpacity
-                            className="w-full h-14 mt-2 rounded-full items-center justify-center flex-row shadow-md shadow-primary/30 bg-primary"
-                            onPress={handleNext}
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <ActivityIndicator color="#fff" />
-                            ) : (
-                                <Text className="font-body-bold text-lg text-white">
-                                    {step === 'phone' ? 'Send OTP' : 'Verify & Continue'}
-                                </Text>
-                            )}
-                            {!loading && (
-                                <MaterialIcons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
-                            )}
-                        </TouchableOpacity>
-
-                        {/* Bottom Avatars Section - Community Social Proof */}
-                        {step === 'phone' && (
-                            <View className="items-center mt-12 mb-4">
-                                <View className="flex-row items-center">
-                                    <View className="flex-row">
-                                        <Image source={{ uri: 'https://randomuser.me/api/portraits/women/44.jpg' }} className="w-[34px] h-[34px] rounded-full border-2 border-background" />
-                                        <Image source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }} className="w-[34px] h-[34px] rounded-full border-2 border-background -ml-2.5" />
-                                        <Image source={{ uri: 'https://randomuser.me/api/portraits/women/68.jpg' }} className="w-[34px] h-[34px] rounded-full border-2 border-background -ml-2.5" />
-                                        <View className="w-[34px] h-[34px] rounded-full border-2 border-background bg-primary/10 -ml-2.5 items-center justify-center">
-                                            <MaterialIcons name="favorite" size={12} color="#b30069" />
+                            {/* Bottom Avatars Section - Community Social Proof */}
+                            {step === 'phone' && (
+                                <View className="items-center pt-8">
+                                    <View className="flex-row items-center">
+                                        <View className="flex-row">
+                                            <Image source={{ uri: 'https://randomuser.me/api/portraits/women/44.jpg' }} className="w-[34px] h-[34px] rounded-full border-2 border-background" />
+                                            <Image source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }} className="w-[34px] h-[34px] rounded-full border-2 border-background -ml-2.5" />
+                                            <Image source={{ uri: 'https://randomuser.me/api/portraits/women/68.jpg' }} className="w-[34px] h-[34px] rounded-full border-2 border-background -ml-2.5" />
+                                            <View className="w-[34px] h-[34px] rounded-full border-2 border-background bg-primary/10 -ml-2.5 items-center justify-center">
+                                                <MaterialIcons name="favorite" size={12} color="#b30069" />
+                                            </View>
                                         </View>
                                     </View>
+                                    <Text className="text-[#594048]/60 text-[10px] font-body-bold tracking-[0.12em] mt-3 uppercase">
+                                        Many Mandalis Gathering
+                                    </Text>
                                 </View>
-                                <Text className="text-[#594048]/60 text-[10px] font-body-bold tracking-[0.12em] mt-3 uppercase">
-                                    Many Mandalis Gathering
-                                </Text>
-                            </View>
-                        )}
-                    </Animated.View>
-                </View>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
-    </TouchableWithoutFeedback>
-);
+                            )}
+                        </Animated.View>
+                    </ScrollView>
+
+                </KeyboardAvoidingView>
+            </SafeAreaView>
+        </TouchableWithoutFeedback>
+    );
 };
 
 export default LoginScreen;

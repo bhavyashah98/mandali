@@ -18,6 +18,8 @@ const GroupListScreen = () => {
         queryFn: fetchGroups,
     });
 
+    console.log(groups, isLoading);
+
     return (
         <SafeAreaView className="flex-1 bg-[#FDF9F3]" edges={['top']}>
             {/* Top Brand Bar */}
@@ -43,8 +45,13 @@ const GroupListScreen = () => {
                 }
             >
                 {/* Centered Header Section */}
-                <View className="items-center mb-10 mt-6">
-                    <Text className="text-[38px] font-headline-bold text-on-surface text-center tracking-tight">
+                <View className="items-center mb-10 mt-6 w-full">
+                    <Text 
+                        className="font-headline-bold text-on-surface text-center tracking-tight text-[#1c1c18]"
+                        style={{ fontSize: 38 }}
+                        adjustsFontSizeToFit
+                        numberOfLines={1}
+                    >
                         My Mandalis
                     </Text>
                     <Text className="text-[15px] font-body-medium text-on-surface-variant text-center px-8 mt-3 leading-5 opacity-60">
@@ -86,7 +93,7 @@ const GroupListScreen = () => {
                                 {group.cover_photo_url ? (
                                     <Image
                                         source={{ uri: group.cover_photo_url }}
-                                        className="w-full h-full"
+                                        style={{ width: '100%', height: '100%' }}
                                         contentFit="cover"
                                     />
                                 ) : (
@@ -122,20 +129,34 @@ const GroupListScreen = () => {
                     <TouchableOpacity
                         onPress={() => navigation.navigate('CreateGroup')}
                         activeOpacity={0.9}
-                        className="h-20 rounded-[32px] overflow-hidden shadow-xl shadow-primary/20 bg-[#b30069] flex-row items-center justify-center px-8"
+                        className="h-16 rounded-[28px] overflow-hidden shadow-xl shadow-primary/20 bg-[#b30069] flex-row items-center justify-center px-6"
                         style={{ elevation: 8 }}
                     >
-                        <MaterialIcons name="add-circle" size={28} color="white" />
-                        <Text className="text-white font-headline-bold text-2xl ml-3">Create New Mandali</Text>
+                        <MaterialIcons name="add-circle" size={24} color="white" />
+                        <Text 
+                            className="text-white font-headline-bold ml-3"
+                            style={{ fontSize: 20 }}
+                            adjustsFontSizeToFit
+                            numberOfLines={1}
+                        >
+                            Create New Mandali
+                        </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                         onPress={() => navigation.navigate('JoinGroup')}
                         activeOpacity={0.7}
-                        className="h-20 rounded-[32px] bg-[#fcecf2] flex-row items-center justify-center px-8 border border-[#b30069]/10"
+                        className="h-16 rounded-[28px] bg-[#fcecf2] flex-row items-center justify-center px-6 border border-[#b30069]/10"
                     >
-                        <MaterialIcons name="qr-code-scanner" size={26} color="#b30069" />
-                        <Text className="text-[#b30069] font-headline-bold text-2xl ml-3">Join with Invite</Text>
+                        <MaterialIcons name="qr-code-scanner" size={24} color="#b30069" />
+                        <Text 
+                            className="text-[#b30069] font-headline-bold ml-3"
+                            style={{ fontSize: 20 }}
+                            adjustsFontSizeToFit
+                            numberOfLines={1}
+                        >
+                            Join with Invite
+                        </Text>
                     </TouchableOpacity>
                 </View>
 

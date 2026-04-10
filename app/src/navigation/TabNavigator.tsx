@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GroupNavigator } from './GroupNavigator';
 import { HousieNavigator } from './HousieNavigator';
@@ -10,6 +11,8 @@ import SetupProfileScreen from '@/src/screens/auth/SetupProfileScreen';
 const Tab = createBottomTabNavigator();
 
 export const TabNavigator = () => {
+    const insets = useSafeAreaInsets();
+    
     return (
         <Tab.Navigator
             screenOptions={({ route }) => ({
@@ -19,9 +22,14 @@ export const TabNavigator = () => {
                 tabBarStyle: {
                     backgroundColor: '#fdf9f3',
                     borderTopWidth: 0,
-                    elevation: 0,
-                    height: 60,
-                    paddingBottom: 8,
+                    elevation: 10,
+                    shadowColor: '#b30069',
+                    shadowOffset: { width: 0, height: -4 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 10,
+                    height: 60 + Math.max(insets.bottom, 8),
+                    paddingBottom: Math.max(insets.bottom, 8),
+                    paddingTop: 8,
                 },
                 tabBarIcon: ({ focused, color, size }) => {
                     let iconName: any;
