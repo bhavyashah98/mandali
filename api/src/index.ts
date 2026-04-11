@@ -10,6 +10,7 @@ import groupRoutes from './routes/groups';
 import uploadRoutes from './routes/upload';
 import housieRoutes from './routes/housie';
 import memoriesRoutes from './routes/memories';
+import legalRoutes from './routes/legal';
 import { supabase } from './lib/supabase';
 
 const app = express();
@@ -40,6 +41,7 @@ app.use('/groups', groupRoutes);
 app.use('/upload', uploadRoutes);
 app.use('/housie', housieRoutes);
 app.use('/memories', memoriesRoutes);
+app.use('/', legalRoutes);
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', message: 'Mandali API is running' });

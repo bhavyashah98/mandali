@@ -91,4 +91,32 @@ router.patch('/profile', async (req, res) => {
     }
 });
 
+// Delete Profile - Required for App Store Compliance
+router.delete('/profile', async (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'No authorization token provided' });
+    
+    try {
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+        const userId = decoded.userId;
+
+        // Note: With Supabase, ensuring foreign keys have ON DELETE CASCADE setup handles child records (like group_members).
+        const { error: deleteError } = await supabase
+            .from('users')
+            .delete()
+            .eq('id', userId);
+
+        if (deleteError) {
+            console.error('[ProfileDelete] Supabase Error:', deleteError);
+            return res.status(400).json({ error: 'Failed to delete profile record' });
+        }
+
+        res.json({ success: true, message: 'Account permanently deleted' });
+    } catch (err: any) {
+        console.error('[ProfileDelete] JWT/Server Error:', err);
+        res.status(401).json({ error: 'Session expired or invalid. Please login again.' });
+    }
+});
+
 export default router;

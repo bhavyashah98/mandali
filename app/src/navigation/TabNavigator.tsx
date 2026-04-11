@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GroupNavigator } from './GroupNavigator';
 import { HousieNavigator } from './HousieNavigator';
 import { MemoriesNavigator } from './MemoriesNavigator';
-import SetupProfileScreen from '@/src/screens/auth/SetupProfileScreen';
+import { ProfileNavigator } from './ProfileNavigator';
 
 const Tab = createBottomTabNavigator();
 
@@ -45,7 +45,7 @@ export const TabNavigator = () => {
             <Tab.Screen name="Groups" component={GroupNavigator} />
             <Tab.Screen name="Housie" component={HousieNavigator} />
             <Tab.Screen name="Memories" component={MemoriesNavigator} />
-            <Tab.Screen name="Profile" component={SetupProfileScreen} />
+            <Tab.Screen name="Profile" component={ProfileNavigator} />
         </Tab.Navigator>
     );
 };

@@ -13,14 +13,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../../stores/authStore';
 import { API_URL, getAuthHeaders, uploadProfileImage } from '../../lib/api';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import * as WebBrowser from 'expo-web-browser';
 
 const SetupProfileScreen = () => {
     const { user, setUser, logout } = useAuthStore();
+    const navigation = useNavigation<any>();
 
     // Initialize states with user data if available (Edit Mode)
     const [name, setName] = useState(user?.name || '');
@@ -105,6 +108,11 @@ const SetupProfileScreen = () => {
                 setUser(updatedUser);
                 await AsyncStorage.setItem('mandali_user', JSON.stringify(updatedUser));
                 Alert.alert('Success', 'Profile updated successfully!');
+                
+                // If they came from menu, navigate back.
+                if (!isFirstTime && navigation.canGoBack()) {
+                    navigation.goBack();
+                }
             }
         } catch (error: any) {
             console.error('[ProfileUpdate] Error:', error);
@@ -120,9 +128,15 @@ const SetupProfileScreen = () => {
         <SafeAreaView className="flex-1 bg-background" edges={['top']}>
             {/* Header */}
             <View className="flex-row items-center justify-between px-4 py-3.5 bg-background">
-                <TouchableOpacity onPress={logout} className="w-10 h-10 items-center justify-center">
-                    <MaterialIcons name="logout" size={22} color="#b30069" />
-                </TouchableOpacity>
+                {isFirstTime ? (
+                    <TouchableOpacity onPress={logout} className="w-10 h-10 items-center justify-center">
+                        <MaterialIcons name="logout" size={22} color="#b30069" />
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity onPress={() => navigation.goBack()} className="w-10 h-10 items-center justify-center bg-stone-100 rounded-full">
+                        <MaterialIcons name="arrow-back" size={22} color="#1c1c18" />
+                    </TouchableOpacity>
+                )}
                 <Text className="text-[22px] font-headline-bold text-on-surface text-center">
                     {isFirstTime ? 'Setup Profile' : 'My Profile'}
                 </Text>
