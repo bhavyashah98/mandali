@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
     View, 
     Text, 
@@ -9,13 +9,14 @@ import {
     Keyboard,
     TouchableWithoutFeedback,
     Platform,
-    ScrollView
+    ScrollView,
+    KeyboardAvoidingView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchHousieGame, joinHousieGame, fetchHousieTickets } from '../../lib/api';
+import { fetchHousieGame, joinHousieGame } from '../../lib/api';
 
 const HousieJoinGameScreen = () => {
     const navigation = useNavigation<any>();
@@ -27,39 +28,14 @@ const HousieJoinGameScreen = () => {
     const [ticketCount, setTicketCount] = useState('2');
     const [isLoading, setIsLoading] = useState(false);
 
-    // Sync gameCode if passed from params (e.g. from Lobby)
-    useEffect(() => {
-        if (passedGameCode) {
-            setGameCode(passedGameCode);
-        }
-    }, [passedGameCode]);
-
-    // Fetch game to get the ticket price and status
+    // Fetch game to get ticket price — single source of data, no redirect side-effects
     const { data: gameDetails } = useQuery({
         queryKey: ['housieGame', gameCode],
         queryFn: () => fetchHousieGame(gameCode),
         enabled: !!gameCode && gameCode.length >= 6
     });
 
-    // Check if user already owns tickets for this game
-    const { data: ticketData } = useQuery({
-        queryKey: ['housieTickets', gameCode],
-        queryFn: () => fetchHousieTickets(gameCode),
-        enabled: !!gameCode && gameCode.length >= 6
-    });
-
-    // Smart redirect: If user holds tickets, route them to waiting room or game screen
-    useEffect(() => {
-        if (ticketData?.tickets && ticketData.tickets.length > 0 && gameDetails) {
-            if (gameDetails.status === 'active') {
-                navigation.replace('HousieTicket', { gameCode: gameCode.toUpperCase(), groupId });
-            } else if (gameDetails.status === 'waiting') {
-                navigation.replace('HousieWaitingRoom', { gameCode: gameCode.toUpperCase(), groupId });
-            }
-        }
-    }, [ticketData, gameDetails, navigation, gameCode, groupId]);
-
-    const ticketPrice = gameDetails?.ticket_price || 50; 
+    const ticketPrice = gameDetails?.ticket_price || 50;
 
     const handleJoin = async () => {
         if (!gameCode || gameCode.length < 6) {
@@ -96,11 +72,15 @@ const HousieJoinGameScreen = () => {
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
-                <ScrollView 
-                    className="flex-1" 
-                    contentContainerStyle={{ flexGrow: 1 }}
-                    keyboardShouldPersistTaps="handled"
+                <KeyboardAvoidingView 
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={{ flex: 1 }}
                 >
+                    <ScrollView 
+                        className="flex-1" 
+                        contentContainerStyle={{ flexGrow: 1 }}
+                        keyboardShouldPersistTaps="handled"
+                    >
                     <View className="px-8 mt-12 flex-1 justify-center">
                         <Text className="text-primary font-headline-bold text-[42px] leading-[48px] mb-4">Join the{"\n"}Gathering</Text>
                         <Text className="text-on-surface-variant font-body-medium text-lg mb-10">Enter the code to grab your tickets and start playing.</Text>
@@ -171,6 +151,7 @@ const HousieJoinGameScreen = () => {
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
+                </KeyboardAvoidingView>
             </SafeAreaView>
         </TouchableWithoutFeedback>
     );

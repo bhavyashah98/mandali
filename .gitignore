@@ -27,3 +27,4 @@ npm-debug.log*
 # Firebase — never commit these
 api/firebase-service-account.json
 app/GoogleService-Info.plist
+app/google-services.json

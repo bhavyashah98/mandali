@@ -94,9 +94,15 @@ export const uploadProfileImage = async (uri: string) => {
 };
 
 // --- HOUSIE API ---
-export const createHousieGame = async (groupId: string, ticketPrice: number): Promise<any> => {
+export const createHousieGame = async (groupId: string): Promise<any> => {
     const headers = await getAuthHeaders();
-    const response = await axios.post(`${API_URL}/housie/create`, { groupId, ticketPrice }, { headers });
+    const response = await axios.post(`${API_URL}/housie/create`, { groupId }, { headers });
+    return response.data;
+};
+
+export const setupHousieGame = async (gameCode: string, ticketPrice: number): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.patch(`${API_URL}/housie/${gameCode}/setup`, { ticketPrice }, { headers });
     return response.data;
 };
 
@@ -139,6 +145,12 @@ export const fetchHousieTickets = async (gameCode: string): Promise<{ tickets: a
 export const updateHousieStatus = async (gameCode: string, status: string): Promise<any> => {
     const headers = await getAuthHeaders();
     const response = await axios.patch(`${API_URL}/housie/${gameCode}/status`, { status }, { headers });
+    return response.data;
+};
+
+export const cancelHousieGame = async (gameCode: string): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/housie/${gameCode}/cancel`, {}, { headers });
     return response.data;
 };
 

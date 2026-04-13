@@ -14,22 +14,55 @@
       "backgroundColor": "#fdf9f3"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mandaliapp.mandali",
+      "buildNumber": "1",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Mandali uses your camera to add photos to group memories",
+        "NSPhotoLibraryUsageDescription": "Mandali accesses your photos to add them to group memories",
+        "NSPhotoLibraryAddUsageDescription": "Mandali saves photos to your library",
+        "NSUserNotificationUsageDescription": "Mandali sends notifications about your group activity"
+      }
     },
     "android": {
+      "package": "com.mandaliapp.mandali",
+      "versionCode": 1,
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#fdf9f3"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-notifications",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Mandali uses your camera to add photos to group memories"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Mandali accesses your photos to add them to group memories",
+          "cameraPermission": "Mandali uses your camera to add photos to group memories"
+        }
+      ]
     ],
     "extra": {
       "eas": {

@@ -63,26 +63,38 @@ io.on('connection', (socket) => {
         const { gameCode, prizeId, userId, ticketId, markedNumbers } = data;
         
         try {
-            // Get current game state to find the "current number"
+            // Get current game state
             const { data: game } = await supabase
                 .from('housie_games')
-                .select('called_numbers')
+                .select('called_numbers, winners')
                 .eq('game_code', gameCode)
                 .single();
             
             const currentNumberIndex = game?.called_numbers?.length || 0;
             const lastNumber = game?.called_numbers?.[currentNumberIndex - 1];
 
-            // Broadcast to host including the number index it was claimed on
-            io.to(gameCode).emit('new_claim', {
-                prizeId,
-                userId,
-                ticketId,
-                markedNumbers,
+            const claimPayload = {
+                prizeId, userId, ticketId, markedNumbers,
                 claimedOnNumber: lastNumber,
                 claimedOnIndex: currentNumberIndex,
-                socketId: socket.id
-            });
+                claimedAt: new Date().toISOString()
+            };
+
+            // Persist pending claim to DB so host sees it even after re-opening
+            const winners = game?.winners || {};
+            const pending = winners['__pending'] || [];
+            // Avoid duplicate pending claims for same ticket+prize
+            const alreadyPending = pending.some((c: any) => c.ticketId === ticketId && c.prizeId === prizeId);
+            if (!alreadyPending) {
+                winners['__pending'] = [...pending, claimPayload];
+                await supabase
+                    .from('housie_games')
+                    .update({ winners })
+                    .eq('game_code', gameCode);
+            }
+
+            // Broadcast to host
+            io.to(gameCode).emit('new_claim', claimPayload);
         } catch (e) {
             console.error("Claim broadcast error:", e);
         }
@@ -170,12 +182,18 @@ io.on('connection', (socket) => {
                 }
                 deniedMap[ticketId] = ticketDeniedInfo;
                 winners['__denied'] = deniedMap;
-
-                await supabase
-                    .from('housie_games')
-                    .update({ winners })
-                    .eq('game_code', gameCode);
             }
+
+            // Remove from __pending queue regardless of outcome
+            const updatedPending = (winners['__pending'] || []).filter(
+                (c: any) => !(c.ticketId === ticketId && c.prizeId === prizeId)
+            );
+            winners['__pending'] = updatedPending;
+
+            await supabase
+                .from('housie_games')
+                .update({ winners })
+                .eq('game_code', gameCode);
         } catch (err) {
             console.error("Error updating winners and results:", err);
         }

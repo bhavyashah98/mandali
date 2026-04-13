@@ -29,16 +29,18 @@ const HousieTicketScreen = () => {
     const [claimingTicketId, setClaimingTicketId] = useState<string | null>(null);
     const [isGameEnded, setIsGameEnded] = useState(false);
 
-    // 1. Fetch Game State
+    // 1. Fetch Game State — staleTime 30s as socket fallback
     const { data: game } = useQuery({
         queryKey: ['housieGame', gameCode],
         queryFn: () => fetchHousieGame(gameCode),
         enabled: !!gameCode && gameCode.length >= 6,
-        staleTime: 0
+        staleTime: 30_000,
+        refetchOnMount: 'always',   // Always refetch on mount so prizes (set at activation) are fresh
+        refetchOnWindowFocus: false
     });
 
     useEffect(() => {
-        if (game?.status === 'finished') {
+        if (game?.status === 'ended') {
             setIsGameEnded(true);
         }
     }, [game?.status]);
@@ -135,12 +137,17 @@ const HousieTicketScreen = () => {
             queryClient.invalidateQueries({ queryKey: ['housieParticipants', gameCode] });
         };
 
-        const onGameEnded = (data: any) => {
-            console.log('[Ticket] game_ended received, gameId:', game?.id);
-            navigation.replace('HousieResults', {
-                gameId: game?.id,
-                groupId: groupId
-            });
+        const onGameEnded = () => {
+            // Close any open modal before navigating — prevents modal floating over Results screen
+            setPrizesModalVisible(false);
+            setClaimingTicketId(null);
+            // Small delay to let modal animate closed before navigation
+            setTimeout(() => {
+                navigation.replace('HousieResults', {
+                    gameCode: gameCode,
+                    groupId: groupId
+                });
+            }, 150);
         };
 
         socket.on('number_called', onNumberCalled);
@@ -154,18 +161,17 @@ const HousieTicketScreen = () => {
             socket.off('tickets_bought', onTicketsBought);
             socket.off('game_ended', onGameEnded);
         };
-    }, [gameCode, navigation, groupId, game?.id]);
+    }, [gameCode]); // Stable dep — game?.id caused re-registration on every refresh
 
     // Double-Safety: Navigate via query if socket was missed
     useEffect(() => {
-        if (game?.status === 'finished' && game?.id) {
-            console.log('[Ticket] Query fallback: game finished, redirecting...');
+        if (game?.status === 'ended' && gameCode) {
             navigation.replace('HousieResults', {
-                gameId: game.id,
+                gameCode: gameCode,
                 groupId: groupId
             });
         }
-    }, [game?.status, game?.id]);
+    }, [game?.status]);
 
     const toggleMark = (ticketId: string, num: number) => {
         if (isGameEnded) return;
@@ -184,15 +190,9 @@ const HousieTicketScreen = () => {
     const calledNumbers = game?.called_numbers || [];
     const latestNumber = calledNumbers[calledNumbers.length - 1];
 
-    useEffect(() => {
-        // If query has finished fetching, and user has no tickets, bounce them to the Join screen
-        if (!isLoadingTickets && ticketData && !isJoined) {
-            navigation.replace('HousieJoinGame', {
-                gameCode,
-                groupId
-            });
-        }
-    }, [isLoadingTickets, ticketData, isJoined, navigation, gameCode, groupId]);
+    // Note: No redirect-if-no-tickets here.
+    // Members only reach this screen after purchasing tickets in WaitingRoom.
+    // A momentary empty ticketData during loading should never bounce them away.
 
     if (isLoadingTickets || !ticketData || !isJoined) {
         return (
@@ -316,7 +316,9 @@ const HousieTicketScreen = () => {
                                             <Text className={`font-headline-bold text-sm ${isGlobalClosed ? 'text-stone-400 line-through' : 'text-[#594048]'}`}>{prize.name}</Text>
                                             {winners.length > 0 && (
                                                 <Text className={`text-[9px] uppercase font-body-bold ${isGlobalClosed ? 'text-stone-400' : 'text-orange-500'}`}>
-                                                    {isGlobalClosed ? `Claimed by ${winners.length} Player${winners.length > 1 ? 's' : ''}` : `Splitting: ${winners.length} Claim${winners.length > 1 ? 's' : ''}`}
+                                                    {isGlobalClosed
+                                                        ? `${winners.length} Prize${winners.length > 1 ? 's' : ''} Claimed ✓`
+                                                        : 'Pending verification...'}
                                                 </Text>
                                             )}
                                         </View>

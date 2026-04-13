@@ -99,40 +99,20 @@ const HousieDefineBountyScreen = () => {
             return;
         }
 
-        // Validate Unique Names
+        // Validate unique prize names
         const names = prizes.map(p => p.name.trim().toLowerCase());
         const uniqueNames = new Set(names);
         if (uniqueNames.size !== names.length) {
-            Alert.alert('Duplicate Prizes', 'Every prize must have a unique name to prevent confusion.');
+            Alert.alert('Duplicate Prizes', 'Every prize must have a unique name.');
             return;
-        }
-
-        // Validate Amounts (FH1 > FH2 > FH3 > any row) if they all exist
-        const fh1 = prizes.find(p => p.id === 'full_house_1');
-        const fh2 = prizes.find(p => p.id === 'full_house_2');
-        const fh3 = prizes.find(p => p.id === 'full_house_3');
-        const standardRows = prizes.filter(p => ['early_five', 'top_line', 'middle_line', 'bottom_line'].includes(p.id));
-
-        const fh1Amt = parseInt(fh1?.amount || '0');
-        const fh2Amt = parseInt(fh2?.amount || '0');
-        const fh3Amt = parseInt(fh3?.amount || '0');
-        const maxRowAmt = Math.max(...standardRows.map(r => parseInt(r.amount || '0')), 0);
-
-        if (fh1 && fh2 && fh3) {
-            if (!(fh1Amt > fh2Amt && fh2Amt > fh3Amt)) {
-                Alert.alert('Invalid Bounties', 'Full House progression must be: 1st > 2nd > 3rd.');
-                return;
-            }
-            if (fh3Amt <= maxRowAmt) {
-                Alert.alert('Invalid Bounties', 'Even the 3rd Full House must be strictly greater than any individual row prize.');
-                return;
-            }
         }
 
         try {
             setIsStarting(true);
             await activateHousieGame(gameCode, prizes);
-            navigation.replace('HousieGame', { gameCode, groupId });
+            // Use navigate (not replace) so WaitingRoom stays alive in stack
+            // to receive the game_activated socket event for members still there
+            navigation.navigate('HousieGame', { gameCode, groupId });
         } catch (error: any) {
             Alert.alert('Error', error.response?.data?.error || 'Failed to start game');
             setIsStarting(false);
@@ -268,8 +248,8 @@ const HousieDefineBountyScreen = () => {
                             <ActivityIndicator color="white" />
                         ) : (
                             <>
-                                <Ionicons name="play" size={28} color="white" />
-                                <Text className="text-white font-headline-bold text-2xl ml-3">Start the Game</Text>
+                                <Ionicons name="lock-closed" size={24} color="white" />
+                                <Text className="text-white font-headline-bold text-2xl ml-3">Lock & Start Game</Text>
                             </>
                         )}
                     </TouchableOpacity>

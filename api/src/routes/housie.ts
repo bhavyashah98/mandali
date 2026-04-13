@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { io } from '../index';
 import { generateHousieTicket } from '../utils/housie';
+import { sendGroupPushNotification } from '../lib/push';
 
 const router = Router();
 
@@ -42,7 +43,7 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
             return res.status(403).json({ error: 'You must be a member of the group to start a game' });
         }
 
-        // 2. Create the game
+        // 2. Create the game in not_started state
         const { data, error } = await supabase
             .from('housie_games')
             .insert({
@@ -50,21 +51,21 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
                 group_id: groupId,
                 host_id: userId,
                 called_numbers: [],
-                status: 'waiting',
-                ticket_price: ticketPrice || 0
+                status: 'not_started',
+                ticket_price: 0,
+                last_activity_at: new Date().toISOString()
             })
             .select()
             .single();
 
         if (error) throw error;
 
-        // Broadcast to group members about the new game
+        // Immediately notify group so other members' lobbies refetch and see the game
         const ioInstance = req.app.get('io');
         if (ioInstance) {
-            ioInstance.to(groupId).emit('game_created', { 
-                gameCode, 
-                hostName: 'Host',
-                ticketPrice
+            ioInstance.to(groupId).emit('game_created', {
+                gameCode,
+                status: 'not_started'
             });
         }
 
@@ -85,13 +86,77 @@ router.get('/active/:groupId', authMiddleware, async (req: AuthRequest, res) => 
             .from('housie_games')
             .select('*')
             .eq('group_id', groupId)
-            .in('status', ['waiting', 'active'])
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
 
         if (error) throw error;
         res.json({ game });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * SETUP GAME (Progress not_started -> waiting)
+ */
+router.patch('/:gameCode/setup', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const gameCode = (req.params.gameCode as string).toUpperCase();
+        const { ticketPrice } = req.body;
+        const userId = req.userId!;
+
+        const { data: game, error: fetchError } = await supabase
+            .from('housie_games')
+            .select('*')
+            .eq('game_code', gameCode)
+            .single();
+
+        if (fetchError || !game) {
+            return res.status(404).json({ error: 'Game not found' });
+        }
+
+        if (game.host_id !== userId) {
+            return res.status(403).json({ error: 'Only the host can setup this game.' });
+        }
+
+        if (game.status !== 'not_started') {
+            return res.status(400).json({ error: 'Game is already setup' });
+        }
+
+        const { data: updatedGame, error: updateError } = await supabase
+            .from('housie_games')
+            .update({
+                status: 'waiting',
+                ticket_price: ticketPrice,
+                last_activity_at: new Date().toISOString()
+            })
+            .eq('game_code', gameCode)
+            .select()
+            .single();
+
+        if (updateError) throw updateError;
+
+        // Broadcast to group members about the new active waiting room
+        const ioInstance = req.app.get('io');
+        if (ioInstance) {
+            ioInstance.to(game.group_id).emit('game_created', {
+                gameCode,
+                hostName: 'Host',
+                ticketPrice
+            });
+        }
+
+        // Send Push Notification advising members a game is ready to join!
+        sendGroupPushNotification(
+            game.group_id,
+            userId,
+            '🎟️ Housie Room Open!',
+            'A group member is hosting a new game! Jump into the waiting room to grab your tickets before it starts.',
+            { type: 'housie', gameCode: gameCode }
+        ).catch((err: any) => console.error('[Push Failed]:', err));
+
+        res.json({ success: true, game: updatedGame });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -113,14 +178,15 @@ router.patch('/:gameCode/activate', authMiddleware, async (req: AuthRequest, res
 
         if (fetchError || !game) return res.status(404).json({ error: 'Game not found' });
         if (game.host_id !== userId) return res.status(403).json({ error: 'Only the host can activate the game' });
-        
+
         const { prizes = [] } = req.body;
 
         const { data: updatedGame, error: updateError } = await supabase
             .from('housie_games')
-            .update({ 
+            .update({
                 status: 'active',
-                prizes: prizes
+                prizes: prizes,
+                last_activity_at: new Date().toISOString()
             })
             .eq('game_code', gameCode)
             .select()
@@ -134,6 +200,77 @@ router.patch('/:gameCode/activate', authMiddleware, async (req: AuthRequest, res
         });
 
         res.json(updatedGame);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * CANCEL STUCK GAME (Escape Hatch)
+ * Any member (except host) can cancel a game the host has abandoned.
+ * Thresholds: not_started/waiting=30m, bounty=15m, active=60m (last number called)
+ */
+router.post('/:gameCode/cancel', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const gameCode = (req.params.gameCode as string).toUpperCase();
+        const userId = req.userId!;
+
+        const { data: game, error: fetchError } = await supabase
+            .from('housie_games')
+            .select('*')
+            .eq('game_code', gameCode)
+            .single();
+
+        if (fetchError || !game) return res.status(404).json({ error: 'Game not found' });
+        if (game.host_id === userId) return res.status(403).json({ error: 'Host cannot cancel their own game this way.' });
+
+        const INACTIVITY_LIMITS_MINS: Record<string, number> = {
+            not_started: 30,
+            waiting: 30,
+            bounty: 15,
+            active: 60,
+        };
+
+        const limitMins = INACTIVITY_LIMITS_MINS[game.status];
+        if (!limitMins) {
+            return res.status(400).json({ error: 'Game is already ended.' });
+        }
+
+        const refTime = game.status === 'active'
+            ? (game.last_number_called_at || game.last_activity_at || game.created_at)
+            : (game.last_activity_at || game.created_at);
+
+        const inactiveMins = (Date.now() - new Date(refTime).getTime()) / 1000 / 60;
+
+        if (inactiveMins < limitMins) {
+            const remaining = Math.ceil(limitMins - inactiveMins);
+            return res.status(400).json({
+                error: `Host is not yet inactive. Cancel available in ${remaining} minute${remaining !== 1 ? 's' : ''}.`,
+                remainingMins: remaining
+            });
+        }
+
+        const { data: cancelledGame, error: updateError } = await supabase
+            .from('housie_games')
+            .update({
+                status: 'ended',
+                cancellation_reason: 'host_inactive',
+                cancelled_by: userId,
+                last_activity_at: new Date().toISOString()
+            })
+            .eq('game_code', gameCode)
+            .select()
+            .single();
+
+        if (updateError) throw updateError;
+
+        req.app.get('io').to(game.group_id).emit('game_cancelled', {
+            gameCode,
+            reason: 'host_inactive',
+            cancelledBy: userId
+        });
+
+        res.json({ success: true, game: cancelledGame });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -251,7 +388,11 @@ router.post('/:gameCode/call', authMiddleware, async (req: AuthRequest, res) => 
 
         const { data, error: updateError } = await supabase
             .from('housie_games')
-            .update({ called_numbers: updatedNumbers })
+            .update({ 
+                called_numbers: updatedNumbers,
+                last_number_called_at: new Date().toISOString(),
+                last_activity_at: new Date().toISOString()
+            })
             .eq('game_code', gameCode)
             .select()
             .single();
@@ -311,7 +452,7 @@ router.post('/:gameCode/verify', authMiddleware, async (req: AuthRequest, res) =
 router.get('/:gameCode/participants', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const gameCode = (req.params.gameCode as string).toUpperCase();
-        
+
         // 1. Get game
         const { data: game, error: gameError } = await supabase
             .from('housie_games')
@@ -367,14 +508,14 @@ router.post('/:gameCode/join', authMiddleware, async (req: AuthRequest, res) => 
         const gameCode = (req.params.gameCode as string).toUpperCase();
         const { ticketCount = 1 } = req.body;
         const userId = req.userId!;
- 
+
         // 1. Verify game exists and is WAITING
         const { data: game, error: gameError } = await supabase
             .from('housie_games')
             .select('id, group_id, status')
             .eq('game_code', gameCode)
             .single();
- 
+
         if (gameError || !game) return res.status(404).json({ error: 'Game not found' });
         if (game.status !== 'waiting') return res.status(400).json({ error: 'Joining is closed for this game' });
 
@@ -388,7 +529,7 @@ router.post('/:gameCode/join', authMiddleware, async (req: AuthRequest, res) => 
         if ((existingCount || 0) + ticketCount > 6) {
             return res.status(400).json({ error: `You can only have a maximum of 6 tickets. You already have ${existingCount || 0}.` });
         }
- 
+
         // 2. Generate tickets
         const ticketsToCreate = [];
         for (let i = 0; i < ticketCount; i++) {
@@ -398,7 +539,7 @@ router.post('/:gameCode/join', authMiddleware, async (req: AuthRequest, res) => 
                 ticket_data: generateHousieTicket()
             });
         }
- 
+
         // 3. Save to database
         const { data: tickets, error: ticketError } = await supabase
             .from('housie_tickets')
@@ -422,7 +563,7 @@ router.post('/:gameCode/join', authMiddleware, async (req: AuthRequest, res) => 
         res.status(500).json({ error: error.message });
     }
 });
- 
+
 /**
  * GET MY TICKETS
  */
@@ -430,23 +571,23 @@ router.get('/:gameCode/tickets', authMiddleware, async (req: AuthRequest, res) =
     try {
         const gameCode = (req.params.gameCode as string).toUpperCase();
         const userId = req.userId!;
- 
+
         const { data: game } = await supabase.from('housie_games').select('id').eq('game_code', gameCode).single();
         if (!game) return res.status(404).json({ error: 'Game not found' });
- 
+
         const { data: tickets, error } = await supabase
             .from('housie_tickets')
             .select('*')
             .eq('game_id', game.id)
             .eq('user_id', userId);
- 
+
         if (error) throw error;
         res.json({ tickets });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
 });
- 
+
 /**
  * GET SINGLE TICKET BY ID (For verification)
  */
@@ -471,9 +612,13 @@ router.get('/ticket/:ticketId', authMiddleware, async (req: AuthRequest, res) =>
 
 router.patch('/:gameCode/status', authMiddleware, async (req: AuthRequest, res) => {
     const { gameCode } = req.params;
-    const { status = 'finished' } = req.body; 
+    const { status = 'ended' } = req.body;
     const userId = req.userId;
 
+    const ALLOWED_STATUSES = ['waiting', 'bounty', 'active', 'ended'];
+    if (!ALLOWED_STATUSES.includes(status)) {
+        return res.status(400).json({ error: `Invalid status '${status}'. Allowed: ${ALLOWED_STATUSES.join(', ')}` });
+    }
     try {
         // Verify user is the host
         const { data: game, error: gameError } = await supabase
@@ -492,20 +637,22 @@ router.patch('/:gameCode/status', authMiddleware, async (req: AuthRequest, res) 
 
         const { data: updatedGame, error: updateError } = await supabase
             .from('housie_games')
-            .update({ status })
+            .update({ status, last_activity_at: new Date().toISOString() })
             .eq('game_code', gameCode)
             .select()
             .single();
 
         if (updateError) throw updateError;
 
-        // Broadcast to all players
-        const io = req.app.get('io');
-        io.to(gameCode).emit('game_ended', {
-            message: 'The game has been ended by the host.',
-            status: updatedGame.status,
-            endedAt: new Date()
-        });
+        // Broadcast game_ended only when actually ending — not for other status transitions
+        if (status === 'ended') {
+            const io = req.app.get('io');
+            io.to(gameCode).emit('game_ended', {
+                message: 'The game has been ended by the host.',
+                status: updatedGame.status,
+                endedAt: new Date()
+            });
+        }
 
         res.json(updatedGame);
     } catch (error: any) {
@@ -516,9 +663,18 @@ router.patch('/:gameCode/status', authMiddleware, async (req: AuthRequest, res) 
 /**
  * GET GAME RESULTS
  */
-router.get('/:gameId/results', authMiddleware, async (req: AuthRequest, res) => {
+router.get('/:gameCode/results', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const { gameId } = req.params;
+        const gameCode = (req.params.gameCode as string).toUpperCase();
+
+        // First resolve gameCode -> game UUID
+        const { data: game, error: gameError } = await supabase
+            .from('housie_games')
+            .select('id')
+            .eq('game_code', gameCode)
+            .single();
+
+        if (gameError || !game) return res.json({ results: [] });
 
         const { data, error } = await supabase
             .from('game_results')
@@ -528,7 +684,7 @@ router.get('/:gameId/results', authMiddleware, async (req: AuthRequest, res) => 
                 prize_amount,
                 users:user_id(name, avatar_url)
             `)
-            .eq('game_id', gameId);
+            .eq('game_id', game.id);
 
         if (error) throw error;
         if (!data) return res.json({ results: [] });
@@ -536,7 +692,7 @@ router.get('/:gameId/results', authMiddleware, async (req: AuthRequest, res) => 
         // Aggregate by user
         const resultData = data as any[];
         const summary: Record<string, any> = {};
-        
+
         resultData.forEach(row => {
             if (!summary[row.user_id]) {
                 summary[row.user_id] = {

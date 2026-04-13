@@ -11,6 +11,7 @@ import HousieGameScreen from '../screens/housie/HousieGameScreen';
 import HousieTicketScreen from '../screens/housie/HousieTicketScreen';
 import HousieResultsScreen from '../screens/housie/HousieResultsScreen';
 import HousieLeaderboardScreen from '../screens/housie/HousieLeaderboardScreen';
+import HousieSpectatorScreen from '../screens/housie/HousieSpectatorScreen';
 
 const Stack = createStackNavigator();
 
@@ -32,6 +33,7 @@ export const HousieNavigator = () => {
             <Stack.Screen name="HousieTicket" component={HousieTicketScreen} />
             <Stack.Screen name="HousieResults" component={HousieResultsScreen} />
             <Stack.Screen name="HousieLeaderboard" component={HousieLeaderboardScreen} />
+            <Stack.Screen name="HousieSpectator" component={HousieSpectatorScreen} />
         </Stack.Navigator>
     );
 };

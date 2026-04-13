@@ -19,7 +19,7 @@ const HousieGameScreen = () => {
     const navigation = useNavigation<any>();
     const queryClient = useQueryClient();
     const { user } = useAuthStore();
-    
+
     // Normalize params
     const params = route.params as { gameCode: string; groupId: string };
     const gameCode = params?.gameCode?.trim().toUpperCase() || '';
@@ -38,8 +38,43 @@ const HousieGameScreen = () => {
         queryKey: ['housieGame', gameCode],
         queryFn: () => fetchHousieGame(gameCode),
         enabled: !!gameCode,
-        staleTime: 0
+        staleTime: 0,
+        refetchOnMount: 'always'
     });
+
+    // Hydrate pending claims queue from DB when game data loads (handles host re-open)
+    React.useEffect(() => {
+        if (!game?.winners?.['__pending'] || !user?.id || game?.host_id !== user?.id) return;
+        const pending: any[] = game.winners['__pending'];
+        if (pending.length === 0) return;
+
+        // Only hydrate if queue is currently empty (avoid double-adding on re-renders)
+        setClaimsQueue(prev => {
+            if (prev.length > 0) return prev; // Already has live socket claims, don't overwrite
+            return []; // Will be populated below
+        });
+
+        // Fetch ticket data for each pending claim and rebuild the queue
+        Promise.all(
+            pending.map(async (claim: any) => {
+                try {
+                    const ticket = await fetchTicketById(claim.ticketId);
+                    return { ...claim, ticket };
+                } catch {
+                    return null;
+                }
+            })
+        ).then(resolved => {
+            const valid = resolved.filter(Boolean);
+            if (valid.length > 0) {
+                setClaimsQueue(prev => {
+                    // Don't overwrite if live socket claims came in while we were fetching
+                    if (prev.length > 0) return prev;
+                    return valid;
+                });
+            }
+        });
+    }, [game?.winners?.['__pending']?.length, game?.host_id, user?.id]);
 
     // 2. Socket Integration
     React.useEffect(() => {
@@ -128,27 +163,27 @@ const HousieGameScreen = () => {
     });
 
     const endGameMutation = useMutation({
-        mutationFn: () => updateHousieStatus(gameCode, 'finished'),
+        mutationFn: () => updateHousieStatus(gameCode, 'ended'),
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
             await queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
-            // Navigate to results screen
-            navigation.replace('HousieResults', { 
-                gameId: game.id, 
-                groupId: groupId 
+            navigation.replace('HousieResults', {
+                gameCode: gameCode,
+                groupId: groupId
             });
         },
         onError: (err: any) => {
-            Alert.alert('Error', 'Failed to end session.');
+            const msg = err?.response?.data?.error || err?.message || 'Failed to end session.';
+            Alert.alert('Error ending game', msg);
         }
     });
 
     const handleEndGamePress = () => {
         Alert.alert('End Game?', 'Are you sure you want to finish this session?', [
             { text: 'Cancel', style: 'cancel' },
-            { 
-                text: 'Finish Game', 
-                style: 'destructive', 
+            {
+                text: 'Finish Game',
+                style: 'destructive',
                 onPress: () => endGameMutation.mutate()
             }
         ]);
@@ -164,7 +199,7 @@ const HousieGameScreen = () => {
         const winners = Array.isArray(winnerList) ? winnerList : (winnerList ? [winnerList] : []);
         const isClaimed = winners.length > 0;
         const individualAmount = isClaimed ? (p.amount / winners.length).toFixed(0) : p.amount;
-        
+
         return {
             ...p,
             status: isClaimed ? 'CLAIMED' : 'OPEN',
@@ -180,12 +215,25 @@ const HousieGameScreen = () => {
             for (let j = 1; j <= 10; j++) {
                 const num = i * 10 + j;
                 const isCalled = calledNumbers.includes(num);
+                const isCurrent = num === (calledNumbers[calledNumbers.length - 1]);
                 row.push(
-                    <View 
-                        key={num} 
-                        className={`w-[26px] h-[26px] rounded-md items-center justify-center m-[3px] ${isCalled ? 'bg-[#b30069]' : 'bg-[#F2F2F2]'}`}
+                    <View
+                        key={num}
+                        className={`w-[26px] h-[26px] rounded-md items-center justify-center m-[3px] ${
+                            isCurrent
+                                ? 'bg-[#b30069]'
+                                : isCalled
+                                ? 'bg-[#f59e0b]'
+                                : 'bg-[#f0ebe6]'
+                        }`}
                     >
-                        <Text className={`text-[10px] font-headline-bold ${isCalled ? 'text-white' : 'text-[#8E8E8E]'}`}>
+                        <Text className={`text-[10px] font-headline-bold ${
+                            isCurrent
+                                ? 'text-white'
+                                : isCalled
+                                ? 'text-white'
+                                : 'text-[#b0a09a]'
+                        }`}>
                             {num}
                         </Text>
                     </View>
@@ -210,7 +258,7 @@ const HousieGameScreen = () => {
                     <Text className="text-[#594048] font-headline-bold text-base">{gameCode}</Text>
                 </View>
                 <View className="w-10 h-10 items-center justify-center rounded-full bg-white shadow-sm border border-stone-100">
-                     <Ionicons name="people" size={20} color="#594048" />
+                    <Ionicons name="people" size={20} color="#594048" />
                 </View>
             </View>
 
@@ -218,21 +266,26 @@ const HousieGameScreen = () => {
                 {/* 1. NOW CALLING CARD */}
                 <View className="bg-white rounded-[40px] p-6 items-center shadow-2xl shadow-black/5 border border-black/5 mb-4" style={{ elevation: 8 }}>
                     <Text className="text-stone-400 font-body-bold text-[11px] uppercase tracking-[3px] mb-4">NOW CALLING</Text>
-                    
-                    <View 
+
+                    <View
                         className="w-40 h-40 rounded-full bg-[#b30069] items-center justify-center shadow-2xl shadow-[#b30069]/40 border-[10px] border-[#FAF7F2] mb-6"
                         style={{ elevation: 12 }}
                     >
-                        <Text className="text-white text-[84px] font-headline-bold">
+                        <Text
+                            style={{ fontSize: 64, lineHeight: 72 }}
+                            className="text-white font-headline-bold"
+                            adjustsFontSizeToFit
+                            numberOfLines={1}
+                        >
                             {currentNumber}
                         </Text>
                     </View>
 
                     <View className="w-full mb-6">
-                         <View className="flex-row items-center justify-center gap-3">
+                        <View className="flex-row items-center justify-center gap-3">
                             {recentNumbers.map((num, i) => (
                                 <View key={i} className="items-center">
-                                    <View 
+                                    <View
                                         className="w-11 h-11 rounded-full bg-[#FAF7F2] border-[3px] border-white items-center justify-center shadow-md shadow-black/10"
                                         style={{ elevation: 4 }}
                                     >
@@ -246,7 +299,7 @@ const HousieGameScreen = () => {
 
                     {isHost && (
                         <View className="w-full gap-3 px-6">
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 onPress={() => callNumberMutation.mutate()}
                                 disabled={callNumberMutation.isPending || (game?.called_numbers?.length || 0) >= 90 || endGameMutation.isPending}
                                 className={`bg-[#b30069] h-14 rounded-full flex-row items-center justify-center shadow-lg shadow-[#b30069]/20 ${endGameMutation.isPending ? 'opacity-50' : ''}`}
@@ -261,7 +314,7 @@ const HousieGameScreen = () => {
                                 )}
                             </TouchableOpacity>
 
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 onPress={handleEndGamePress}
                                 disabled={endGameMutation.isPending}
                                 className="bg-red-50 h-14 rounded-full flex-row items-center justify-center border border-red-100"
@@ -311,7 +364,7 @@ const HousieGameScreen = () => {
                                         </Text>
                                     </View>
                                 </View>
-                                
+
                                 {prize.winners?.length > 0 && (
                                     <View className="mt-2 pt-2 border-t border-stone-50">
                                         <Text className="text-[10px] text-stone-400 font-body-medium">Winners: {prize.winners.map((w: any) => `Ticket #${w.ticketId?.slice(-4).toUpperCase()}`).join(', ')}</Text>
@@ -390,7 +443,7 @@ const HousieGameScreen = () => {
                                     {renderBoard()}
                                 </View>
                             </View>
-                            
+
                             <View className="flex-row gap-4 mb-2">
                                 <TouchableOpacity onPress={() => handleVerifyClaim('denied')} className="flex-1 h-14 rounded-[24px] bg-white border border-stone-200 items-center justify-center">
                                     <Text className="text-stone-400 font-headline-bold text-lg">Deny</Text>

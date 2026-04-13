@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { sendGroupPushNotification } from '../lib/push';
 
 const router = Router();
 
@@ -62,6 +63,16 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         }
 
         console.log('[Memories] Successfully stored memory:', data.id);
+
+        // Notify other group members asynchronously without awaiting
+        sendGroupPushNotification(
+            groupId, 
+            userId!, 
+            '✨ New Memory Shared!', 
+            'Someone just added a new memory to your group. Tap to view it!',
+            { type: 'memory', groupId }
+        ).catch((err: any) => console.error('[Push Failed]:', err));
+
         res.json(data);
     } catch (error: any) {
         res.status(500).json({ error: error.message });

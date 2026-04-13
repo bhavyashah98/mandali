@@ -2,19 +2,8 @@ import { io, Socket } from 'socket.io-client';
 import { API_URL } from './api';
 
 /**
- * Socket Singleton
- * 
- * Instead of each screen creating its own io() connection (which leads to
- * many duplicate connections), the entire app shares ONE socket instance.
- * 
- * Usage:
- *   import { getSocket } from '../../lib/socketService';
- *   const socket = getSocket();
- *   socket.emit('join_game', gameCode);
- *   socket.on('number_called', handler);
- * 
- * Always call socket.off('event', handler) in your useEffect cleanup to avoid
- * duplicate listeners, since the socket itself is never destroyed.
+ * Socket Singleton — the entire app shares ONE socket instance.
+ * Always call socket.off() in useEffect cleanup to avoid duplicate listeners.
  */
 
 let socketInstance: Socket | null = null;

@@ -7,6 +7,7 @@ import { AuthNavigator } from './AuthNavigator';
 import { TabNavigator } from './TabNavigator';
 import { useAuthStore } from '../stores/authStore';
 import SetupProfileScreen from '../screens/auth/SetupProfileScreen';
+import { registerForPushNotificationsAsync } from '../lib/pushNotifications';
 
 const Stack = createStackNavigator();
 
@@ -42,10 +43,11 @@ export const RootNavigator = () => {
             try {
                 const token = await AsyncStorage.getItem('mandali_token');
                 const userData = await AsyncStorage.getItem('mandali_user');
-                
+
                 if (token && userData) {
                     setAuthenticated(true);
                     setUser(JSON.parse(userData));
+                    registerForPushNotificationsAsync();
                 }
             } catch (err) {
                 console.error('[Session] Load error:', err);

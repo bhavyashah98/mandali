@@ -1,47 +1,56 @@
 import React, { useState } from 'react';
-import { 
-    View, 
-    Text, 
-    TouchableOpacity, 
-    TextInput, 
-    ActivityIndicator, 
-    Alert, 
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    TextInput,
+    ActivityIndicator,
+    Alert,
     Keyboard,
     TouchableWithoutFeedback,
-    Platform
+    Platform,
+    KeyboardAvoidingView,
+    ScrollView,
+    useWindowDimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { createHousieGame } from '../../lib/api';
+import { setupHousieGame } from '../../lib/api';
+
+const PRESETS = ['20', '50', '100', '200'];
 
 const HousieCreateGameScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute();
-    const { groupId } = (route.params as { groupId: string }) || {};
+    const { groupId, gameCode } = (route.params as { groupId: string, gameCode: string }) || {};
     const [ticketPrice, setTicketPrice] = useState('50');
     const [isLoading, setIsLoading] = useState(false);
 
+    const { height } = useWindowDimensions();
+
+    // Responsive scaling — base is 812pt (iPhone 13)
+    const scale = Math.min(Math.max(height / 812, 0.75), 1.2);
+    const priceFontSize = Math.round(72 * scale);
+    const titleFontSize = Math.round(38 * scale);
+    const cardPadding = Math.round(24 * scale);
+    const isSmall = height < 700;
+
     const handleCreateGame = async () => {
-        if (!groupId) {
-            Alert.alert('Error', 'No group selected');
+        if (!gameCode) {
+            Alert.alert('Error', 'Game session was lost. Please return to the lobby.');
             return;
         }
-
         const price = parseFloat(ticketPrice);
-        if (isNaN(price) || price <= 0) {
-            Alert.alert('Error', 'Please enter a valid ticket price');
+        if (isNaN(price) || price < 0) {
+            Alert.alert('Invalid Price', 'Please enter a valid ticket price.');
             return;
         }
-
         try {
             setIsLoading(true);
-            const response = await createHousieGame(groupId, price);
+            const response = await setupHousieGame(gameCode, price);
             if (response.success) {
-                navigation.replace('HousieWaitingRoom', {
-                    gameCode: response.game.game_code,
-                    groupId: groupId
-                });
+                navigation.replace('HousieWaitingRoom', { gameCode, groupId });
             }
         } catch (error: any) {
             Alert.alert('Error', error.response?.data?.error || 'Failed to initialize game');
@@ -53,101 +62,159 @@ const HousieCreateGameScreen = () => {
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
-                {/* Minimal Header */}
-                <View className="px-8 py-6 flex-row items-center justify-between">
-                    <TouchableOpacity 
-                        onPress={() => navigation.goBack()}
-                        className="w-12 h-12 rounded-full bg-white items-center justify-center shadow-sm"
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={{ flex: 1 }}
+                >
+                    {/* Header */}
+                    <View
+                        style={{ paddingHorizontal: 24, paddingTop: isSmall ? 8 : 16, paddingBottom: 8 }}
+                        className="flex-row items-center justify-between"
                     >
-                        <MaterialIcons name="close" size={24} color="#594048" />
-                    </TouchableOpacity>
-                    <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-[4px]">Housie Host</Text>
-                    <View className="w-12" />
-                </View>
-
-                <View className="flex-1 px-8 justify-between pb-10">
-                    {/* Hero Title Section with Premium Icon */}
-                    <View className="mt-4">
-                        <View className="flex-row items-center mb-6">
-                            <View className="w-14 h-14 rounded-2xl bg-primary/10 items-center justify-center rotate-[10deg]">
-                                <FontAwesome5 name="medal" size={24} color="#b30069" />
-                            </View>
-                            <View className="ml-4 -rotate-[2deg]">
-                                <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-[3px]">Mandali Master</Text>
-                                <Text className="text-primary font-headline-bold text-lg">Session Host</Text>
-                            </View>
-                        </View>
-                        
-                        <Text className="text-[44px] font-headline-bold text-on-surface leading-[48px]">
-                            Set the{"\n"}Stakes
-                        </Text>
-                        <Text className="text-stone-500 font-body-medium text-lg mt-3 leading-6 max-w-[280px]">
-                            Choose the ticket price to define the final prize pool.
-                        </Text>
+                        <TouchableOpacity
+                            onPress={() => navigation.goBack()}
+                            className="w-10 h-10 rounded-full bg-white items-center justify-center shadow-sm border border-stone-100"
+                        >
+                            <MaterialIcons name="close" size={20} color="#594048" />
+                        </TouchableOpacity>
+                        <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-[4px]">Housie Host</Text>
+                        <View className="w-10" />
                     </View>
 
-                    {/* Central Price Token */}
-                    <View className="items-center py-6">
-                        <View className="w-full bg-white rounded-[60px] p-10 shadow-2xl shadow-black/[0.04] border border-stone-100 items-center">
-                            <Text className="text-stone-300 font-body-bold text-[24px] uppercase tracking-[3px] mb-4">Ticket Value(₹)</Text>
-                            
-                            <View className="flex-row items-baseline justify-center w-full">
+                    <ScrollView
+                        contentContainerStyle={{
+                            flexGrow: 1,
+                            paddingHorizontal: 24,
+                            paddingBottom: 40,
+                        }}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                        bounces={false}
+                    >
+                        {/* Top section */}
+                        <View>
+                            {/* Badge row */}
+                            <View className="flex-row items-center" style={{ marginTop: isSmall ? 4 : 12, marginBottom: isSmall ? 8 : 16 }}>
+                                <View className="w-11 h-11 rounded-2xl bg-primary/10 items-center justify-center">
+                                    <FontAwesome5 name="medal" size={20} color="#b30069" />
+                                </View>
+                                <View className="ml-3">
+                                    <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-[3px]">Mandali Master</Text>
+                                    <Text className="text-primary font-headline-bold text-sm">Session Host</Text>
+                                </View>
+                            </View>
+
+                            {/* Title */}
+                            <Text
+                                style={{ fontSize: titleFontSize, lineHeight: titleFontSize * 1.1 }}
+                                className="font-headline-bold text-on-surface"
+                            >
+                                Set the{"\n"}Stakes
+                            </Text>
+                            <Text
+                                className="text-stone-500 font-body-medium leading-5"
+                                style={{ fontSize: isSmall ? 13 : 15, marginTop: 6, marginBottom: isSmall ? 12 : 20 }}
+                            >
+                                Choose a ticket price to define the prize pool.
+                            </Text>
+                        </View>
+
+                        {/* Price Input Card */}
+                        <View
+                            className="bg-white rounded-[32px] shadow-md shadow-black/5 border border-stone-100 items-center"
+                            style={{ padding: cardPadding, marginBottom: isSmall ? 12 : 20 }}
+                        >
+                            <Text className="text-stone-300 font-body-bold text-xs uppercase tracking-[3px]" style={{ marginBottom: isSmall ? 8 : 12 }}>
+                                Ticket Value (₹)
+                            </Text>
+
+                            {/* Price input row */}
+                            <View className="flex-row items-center justify-center">
+                                <Text style={{ fontSize: priceFontSize * 0.55, color: '#b30069' }} className="font-headline-bold mr-1">₹</Text>
                                 <TextInput
                                     value={ticketPrice}
                                     onChangeText={(val) => setTicketPrice(val.replace(/[^0-9]/g, ''))}
                                     keyboardType="number-pad"
                                     placeholder="0"
                                     placeholderTextColor="#e6d9d0"
-                                    style={{ 
-                                        fontSize: 90, 
+                                    style={{
+                                        fontSize: priceFontSize,
                                         fontFamily: Platform.OS === 'ios' ? 'NotoSerif_700Bold' : 'serif',
                                         color: '#b30069',
                                         textAlign: 'center',
                                         padding: 0,
                                         margin: 0,
-                                        minWidth: 160,
+                                        minWidth: 100,
+                                        maxWidth: 220,
                                         includeFontPadding: false,
-                                        height: 100
+                                        height: priceFontSize * 1.25,
                                     }}
                                 />
                             </View>
 
-                            {/* Preset Selection Pills */}
-                            <View className="flex-row items-center justify-center gap-4 mt-10">
-                                {['20', '50', '100', '200'].map((p) => (
-                                    <TouchableOpacity 
+                            {/* Preset pills */}
+                            <View
+                                className="flex-row items-center justify-center"
+                                style={{ gap: isSmall ? 8 : 12, marginTop: isSmall ? 12 : 16 }}
+                            >
+                                {PRESETS.map((p) => (
+                                    <TouchableOpacity
                                         key={p}
                                         onPress={() => setTicketPrice(p)}
-                                        className={`w-14 h-14 rounded-full border items-center justify-center ${ticketPrice === p ? 'bg-primary border-primary' : 'bg-transparent border-stone-100'}`}
+                                        style={{ width: isSmall ? 52 : 56, height: isSmall ? 40 : 46 }}
+                                        className={`rounded-full border items-center justify-center ${
+                                            ticketPrice === p
+                                                ? 'bg-primary border-primary'
+                                                : 'bg-transparent border-stone-200'
+                                        }`}
                                     >
-                                        <Text className={`text-sm font-body-bold ${ticketPrice === p ? 'text-white' : 'text-stone-400'}`}>
-                                            {p}
+                                        <Text
+                                            style={{ fontSize: isSmall ? 11 : 13 }}
+                                            className={`font-body-bold ${ticketPrice === p ? 'text-white' : 'text-stone-400'}`}
+                                        >
+                                            ₹{p}
                                         </Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
                         </View>
-                    </View>
 
-                    {/* Bottom CTA Section styled like Lobby's Start Game */}
-                    <View>
-                        <TouchableOpacity 
+                        {/* Info row — hidden on very small screens to save space */}
+                        {!isSmall && (
+                            <View className="flex-row items-center bg-primary/5 rounded-2xl px-4 py-3 mb-5 border border-primary/10">
+                                <MaterialIcons name="info-outline" size={16} color="#b30069" />
+                                <Text className="text-primary/70 font-body-medium text-sm ml-2 flex-1">
+                                    All ticket sales go into the prize pool, split across bounties you define next.
+                                </Text>
+                            </View>
+                        )}
+
+                        {/* CTA */}
+                        <TouchableOpacity
                             onPress={handleCreateGame}
-                            disabled={isLoading || !ticketPrice}
+                            disabled={isLoading || !ticketPrice || ticketPrice === '0'}
                             activeOpacity={0.9}
-                            className={`bg-primary h-20 rounded-[32px] flex-row items-center justify-center shadow-lg shadow-primary/30 ${isLoading || !ticketPrice ? 'opacity-50' : 'opacity-100'}`}
+                            style={{ height: isSmall ? 56 : 64 }}
+                            className={`bg-primary rounded-[28px] flex-row items-center justify-center shadow-lg shadow-primary/30 ${
+                                isLoading || !ticketPrice || ticketPrice === '0' ? 'opacity-50' : 'opacity-100'
+                            }`}
                         >
                             {isLoading ? (
                                 <ActivityIndicator color="white" />
                             ) : (
                                 <>
-                                    <MaterialIcons name="bolt" size={28} color="white" />
-                                    <Text className="text-white font-headline-bold text-2xl ml-3">Initialize Game</Text>
+                                    <MaterialIcons name="bolt" size={22} color="white" />
+                                    <Text
+                                        style={{ fontSize: isSmall ? 17 : 20 }}
+                                        className="text-white font-headline-bold ml-2"
+                                    >
+                                        Initialize Game
+                                    </Text>
                                 </>
                             )}
                         </TouchableOpacity>
-                    </View>
-                </View>
+                    </ScrollView>
+                </KeyboardAvoidingView>
             </SafeAreaView>
         </TouchableWithoutFeedback>
     );

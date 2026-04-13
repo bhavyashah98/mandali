@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchHousieGame, activateHousieGame, joinHousieGame, API_URL, getAuthHeaders, updateHousieStatus } from '../../lib/api';
+import { fetchHousieGame, joinHousieGame, API_URL, getAuthHeaders, updateHousieStatus } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { getSocket } from '../../lib/socketService';
 import axios from 'axios';
@@ -16,44 +16,47 @@ const HousieWaitingRoomScreen = () => {
     const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};
     const { user } = useAuthStore();
 
-    const [isActivating, setIsActivating] = useState(false);
     const [buyCount, setBuyCount] = useState(1);
     const [isBuying, setIsBuying] = useState(false);
 
-    // 1. Fetch Game Basic State
+    // Fetch once on mount — socket handles all subsequent state changes
     const { data: game } = useQuery({
         queryKey: ['housieGame', gameCode],
         queryFn: () => fetchHousieGame(gameCode!),
-        staleTime: 0
+        staleTime: Infinity,        // Never silently refetch — socket is the source of truth
+        refetchOnWindowFocus: false // Don't refetch when user switches apps/tabs
     });
 
-    // 2. Fetch Participants & Prize Pool
     const fetchParticipants = async () => {
         const headers = await getAuthHeaders();
         const response = await axios.get(`${API_URL}/housie/${gameCode}/participants`, { headers });
         return response.data;
     };
 
-    const { data: stats, refetch: refetchStats } = useQuery({
+    const { data: stats } = useQuery({
         queryKey: ['housieParticipants', gameCode],
         queryFn: fetchParticipants,
+        staleTime: 30_000,          // Cache for 30s — socket invalidates on new ticket buys
+        refetchOnWindowFocus: false
     });
 
     const isHost = game?.host_id === user?.id;
 
-    // 3. Socket Integration
+    // Ref so the socket callback always reads the latest isHost without stale closure
+    const isHostRef = React.useRef(false);
+    isHostRef.current = isHost;
+
     useEffect(() => {
         const socket = getSocket();
         socket.emit('join_game', gameCode);
 
-        const onTicketsBought = () => refetchStats();
+        const onTicketsBought = () => {
+            queryClient.invalidateQueries({ queryKey: ['housieParticipants', gameCode] });
+        };
 
         const onGameActivated = () => {
-            if (user?.id === game?.host_id) {
-                navigation.replace('HousieGame', { gameCode, groupId });
-            } else {
-                navigation.replace('HousieTicket', { gameCode, groupId });
-            }
+            if (isHostRef.current) return;
+            navigation.replace('HousieTicket', { gameCode, groupId });
         };
 
         socket.on('tickets_bought', onTicketsBought);
@@ -63,7 +66,7 @@ const HousieWaitingRoomScreen = () => {
             socket.off('tickets_bought', onTicketsBought);
             socket.off('game_activated', onGameActivated);
         };
-    }, [gameCode, game?.host_id]);
+    }, [gameCode]);
 
     const handleStartGame = async () => {
         navigation.navigate('HousieDefineBounty', { gameCode, groupId });
@@ -80,8 +83,9 @@ const HousieWaitingRoomScreen = () => {
             setIsBuying(true);
             const response = await joinHousieGame(gameCode!, buyCount);
             if (response.success) {
-                Alert.alert('Success', `You bought ${buyCount} tickets!`);
+                Alert.alert('🎟️ Tickets Bought!', `You now have ${buyCount} ticket${buyCount > 1 ? 's' : ''}!`);
                 queryClient.invalidateQueries({ queryKey: ['housieParticipants', gameCode] });
+                queryClient.invalidateQueries({ queryKey: ['housieTickets', gameCode] });
                 setBuyCount(1);
             }
         } catch (error: any) {
@@ -130,16 +134,16 @@ const HousieWaitingRoomScreen = () => {
                     <Text className="text-[#594048] font-headline-bold text-lg">Waiting Room</Text>
                 </View>
                 {isHost ? (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         onPress={() => {
                             Alert.alert('Cancel Game', 'Are you sure you want to cancel this game?', [
                                 { text: 'No', style: 'cancel' },
-                                { 
-                                    text: 'Yes, Cancel', 
+                                {
+                                    text: 'Yes, Cancel',
                                     style: 'destructive',
                                     onPress: async () => {
                                         try {
-                                            await updateHousieStatus(gameCode, 'finished');
+                                            await updateHousieStatus(gameCode, 'ended');
                                             await queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
                                             navigation.goBack();
                                         } catch (err) {
@@ -168,7 +172,12 @@ const HousieWaitingRoomScreen = () => {
                         {/* Game Code Card */}
                         <View className="bg-[#b30069] rounded-[40px] p-8 items-center shadow-2xl shadow-[#b30069]/20 mb-6" style={{ elevation: 12 }}>
                             <Text className="text-white/70 font-body-bold text-[10px] uppercase tracking-[4px] mb-4">JOINING CODE</Text>
-                            <Text className="text-white text-6xl font-headline-bold tracking-[8px]">{gameCode}</Text>
+                            <Text
+                                className="text-white font-headline-bold tracking-[6px]"
+                                style={{ fontSize: 52 }}
+                                adjustsFontSizeToFit
+                                numberOfLines={1}
+                            >{gameCode}</Text>
                             <View className="flex-row items-center mt-6 bg-white/20 px-6 py-3 rounded-full">
                                 <FontAwesome5 name="ticket-alt" size={16} color="white" />
                                 <Text className="text-white font-headline-bold text-lg ml-3">₹{stats?.ticketPrice} / Ticket</Text>
@@ -207,13 +216,13 @@ const HousieWaitingRoomScreen = () => {
             {/* Action Footer */}
             <View className="absolute bottom-0 left-0 right-0 p-8 bg-[#fdf9f3]/95 border-t border-stone-100">
                 {isHost ? (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         onPress={handleStartGame}
-                        disabled={isActivating || (stats?.totalTickets || 0) === 0}
+                        disabled={(stats?.totalTickets || 0) === 0}
                         className={`h-20 rounded-[32px] flex-row items-center justify-center shadow-2xl shadow-primary/30 ${(stats?.totalTickets || 0) === 0 ? 'bg-[#b30069]/50' : 'bg-[#b30069]'}`}
                     >
-                        <Ionicons name="play" size={28} color="white" />
-                        <Text className="text-white font-headline-bold text-2xl ml-3">Start the Game</Text>
+                        <Ionicons name="trophy" size={26} color="white" />
+                        <Text className="text-white font-headline-bold text-2xl ml-3">Set the Stage →</Text>
                     </TouchableOpacity>
                 ) : (
                     <View className="flex-row items-center gap-4">
@@ -222,7 +231,7 @@ const HousieWaitingRoomScreen = () => {
                                 <MaterialIcons name="remove" size={24} color="#b30069" />
                             </TouchableOpacity>
                             <Text className="mx-4 text-2xl font-headline-bold text-[#594048] w-6 text-center">{buyCount}</Text>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 onPress={() => {
                                     const myTickets = stats?.participants?.find((p: any) => p.id === user?.id)?.ticketCount || 0;
                                     if (myTickets + buyCount < 6) {

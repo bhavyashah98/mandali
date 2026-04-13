@@ -9,7 +9,7 @@ import axios from 'axios';
 const HousieResultsScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
-    const { gameId, groupId } = route.params;
+    const { gameCode, groupId } = route.params;
 
     const [isLoading, setIsLoading] = useState(true);
     const [results, setResults] = useState<any[]>([]);
@@ -21,7 +21,7 @@ const HousieResultsScreen = () => {
     const fetchResults = async () => {
         try {
             const headers = await getAuthHeaders();
-            const response = await axios.get(`${API_URL}/housie/${gameId}/results`, { headers });
+            const response = await axios.get(`${API_URL}/housie/${gameCode}/results`, { headers });
             setResults(response.data.results);
         } catch (error) {
             console.error('[Results] Fetch error:', error);

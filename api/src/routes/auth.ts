@@ -119,4 +119,32 @@ router.delete('/profile', async (req, res) => {
     }
 });
 
+// Register Push Token
+router.post('/push-token', async (req, res) => {
+    const { push_token } = req.body;
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'No authorization token provided' });
+    
+    try {
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+        const userId = decoded.userId;
+
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({ expo_push_token: push_token })
+            .eq('id', userId);
+
+        if (updateError) {
+            console.error('[PushTokenUpdate] Supabase Error:', updateError);
+            return res.status(400).json({ error: 'Failed to save push token' });
+        }
+
+        res.json({ success: true });
+    } catch (err: any) {
+        console.error('[PushTokenUpdate] JWT/Server Error:', err);
+        res.status(401).json({ error: 'Session expired or invalid.' });
+    }
+});
+
 export default router;
