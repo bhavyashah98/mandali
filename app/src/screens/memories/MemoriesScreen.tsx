@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator, Modal, Pressable } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -8,18 +8,15 @@ import { fetchMemories, fetchGroupDetail } from '../../lib/api';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const COLUMN_COUNT = 3;
-const GAP = 2; // Pixel gap between items
-const GRID_SIZE = (width / COLUMN_COUNT); // Width inclusive of gaps if using margins differently
 
 const MemoriesScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute();
     const params = route.params as { groupId: string } | undefined;
     const groupId = params?.groupId;
-
-    const [selectedMoment, setSelectedMoment] = useState<{ url: string, memory: any } | null>(null);
+    const today = new Date();
 
     const { data: group } = useQuery({
         queryKey: ['groupDetail', groupId],
@@ -31,11 +28,22 @@ const MemoriesScreen = () => {
         queryKey: ['memories', groupId],
         queryFn: async () => {
             const data = await fetchMemories(groupId!);
-            console.log('[Memories] Raw data from API:', JSON.stringify(data, null, 2));
             return data;
         },
         enabled: !!groupId,
     });
+
+    // 'On This Day' Filter
+    const onThisDayMemories = useMemo(() => {
+        if (!memories) return [];
+        const t = new Date();
+        return memories.filter(m => {
+            const d = new Date(m.created_at);
+            return d.getMonth() === t.getMonth() && 
+                   d.getDate() === t.getDate() && 
+                   d.getFullYear() < t.getFullYear();
+        });
+    }, [memories]);
 
     const groupedMemories = useMemo(() => {
         if (!memories) return [];
@@ -54,13 +62,17 @@ const MemoriesScreen = () => {
                 const urls = Array.isArray(item.image_urls) ? item.image_urls : [];
                 photoCount += urls.length;
             });
-            return {
-                label,
-                items,
-                count: photoCount
-            };
+            return { label, items, count: photoCount };
         });
     }, [memories]);
+
+    const openDetail = (url: string, memory: any) => {
+        navigation.navigate('MemoryDetail', { 
+            url, 
+            memory, 
+            groupName: group?.group?.name || 'Mandali' 
+        });
+    };
 
     if (isLoading) {
         return (
@@ -91,9 +103,11 @@ const MemoriesScreen = () => {
     }
 
     return (
-        <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+        <View className="flex-1 bg-white">
+            <SafeAreaView edges={['top']} className="bg-white" />
+            
             {/* Header */}
-            <View className="px-6 py-4 flex-row items-center justify-between bg-white/80 border-b border-stone-100">
+            <View className="px-6 py-4 flex-row items-center justify-between bg-white border-b border-stone-100">
                 <TouchableOpacity onPress={() => navigation.goBack()} className="w-10 h-10 items-center justify-center">
                     <MaterialIcons name="arrow-back-ios" size={20} color="#b30069" style={{ marginLeft: 5 }} />
                 </TouchableOpacity>
@@ -101,7 +115,7 @@ const MemoriesScreen = () => {
                     <Text className="text-[#31302d] font-headline-bold text-lg" numberOfLines={1}>
                         {group?.group?.name || 'Mandali'}
                     </Text>
-                    <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-widest mt-0.5">Memories</Text>
+                    <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-widest mt-0.5">Gallery</Text>
                 </View>
                 <TouchableOpacity 
                     onPress={() => navigation.navigate('CreateMemory', { groupId })}
@@ -112,6 +126,35 @@ const MemoriesScreen = () => {
             </View>
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+                
+                {/* ── ON THIS DAY SECTION ── */}
+                {onThisDayMemories.length > 0 && (
+                    <View className="mt-6 px-5">
+                        <View className="flex-row items-center mb-4">
+                            <Ionicons name="sparkles" size={18} color="#b38b00" />
+                            <Text className="ml-2 text-[#b38b00] font-headline-bold text-lg uppercase tracking-tight">On This Day</Text>
+                        </View>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row overflow-visible">
+                            {onThisDayMemories.map((memory, index) => (
+                                <TouchableOpacity 
+                                    key={index}
+                                    onPress={() => openDetail(memory.image_urls[0], memory)}
+                                    className="mr-3 rounded-[32px] overflow-hidden bg-stone-100 shadow-sm"
+                                    style={{ width: 150, height: 200 }}
+                                >
+                                    <Image source={{ uri: memory.image_urls[0] }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                                    <BlurView tint="dark" intensity={20} className="absolute inset-x-0 bottom-0 p-3 h-16 justify-center">
+                                        <Text className="text-white font-body-bold text-xs uppercase tracking-widest">
+                                            {today.getFullYear() - new Date(memory.created_at).getFullYear()} Years Ago
+                                        </Text>
+                                    </BlurView>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                        <View className="h-[1px] bg-stone-100 w-full mt-8" />
+                    </View>
+                )}
+
                 {groupedMemories.length === 0 ? (
                     <View className="items-center justify-center py-40 px-12">
                          <View className="w-20 h-20 rounded-full bg-[#fdf9f3] items-center justify-center mb-6">
@@ -128,9 +171,11 @@ const MemoriesScreen = () => {
                 ) : (
                     groupedMemories.map((section, sidx) => (
                         <View key={sidx} className="mb-4">
-                            <View className="px-5 py-4 flex-row items-center justify-between">
-                                <Text className="text-[#31302d] font-headline-bold text-xl">{section.label}</Text>
-                                <Text className="text-stone-300 font-body-bold text-[10px] uppercase tracking-widest">{section.count} Photos</Text>
+                            <View className="px-5 py-6 flex-row items-center justify-between">
+                                <Text className="text-[#31302d] font-headline-bold text-2xl">{section.label}</Text>
+                                <View className="bg-stone-50 px-3 py-1 rounded-full border border-stone-100">
+                                    <Text className="text-stone-300 font-body-bold text-[10px] uppercase tracking-widest">{section.count} Photos</Text>
+                                </View>
                             </View>
 
                             <View className="flex-row flex-wrap">
@@ -163,7 +208,7 @@ const MemoriesScreen = () => {
                                         >
                                             <TouchableOpacity 
                                                 activeOpacity={0.9}
-                                                onPress={() => setSelectedMoment({ url, memory })}
+                                                onPress={() => openDetail(url, memory)}
                                                 className="w-full h-full bg-stone-100 overflow-hidden"
                                             >
                                                 <Image 
@@ -172,9 +217,13 @@ const MemoriesScreen = () => {
                                                     contentFit="cover"
                                                     transition={300}
                                                     cachePolicy="memory-disk"
-                                                    onLoad={() => console.log(`[OK] Image Load: ${url.substring(0, 30)}`)}
-                                                    onError={(e) => console.error(`[ERR] Image Load: ${url}`, e)}
                                                 />
+                                                {/* Personal Touch: Uploader Badge */}
+                                                <View className="absolute bottom-1 right-1 w-5 h-5 rounded-full border border-white/50 bg-white/20 overflow-hidden">
+                                                    {memory.user?.avatar_url && (
+                                                        <Image source={{ uri: memory.user.avatar_url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                                                    )}
+                                                </View>
                                             </TouchableOpacity>
                                         </View>
                                     ))
@@ -183,68 +232,11 @@ const MemoriesScreen = () => {
                         </View>
                     ))
                 )}
-                <View className="h-20" />
+                <View className="h-40" />
             </ScrollView>
 
-            {/* Immersive Detail Modal */}
-            <Modal visible={!!selectedMoment} transparent animationType="fade">
-                <View className="flex-1 bg-black">
-                    <Pressable onPress={() => setSelectedMoment(null)} className="absolute inset-0 z-0" />
-                    <SafeAreaView className="flex-1" pointerEvents="box-none">
-                        {/* Modal Header */}
-                        <View className="flex-row items-center justify-between px-6 py-4 z-10">
-                            <TouchableOpacity 
-                                onPress={() => setSelectedMoment(null)}
-                                className="w-10 h-10 rounded-full bg-black/20 items-center justify-center"
-                            >
-                                <Ionicons name="close" size={28} color="white" />
-                            </TouchableOpacity>
-                            <View className="flex-row items-center">
-                                <View className="items-end mr-3">
-                                    <Text className="text-white font-headline-bold text-base">{selectedMoment?.memory.user?.name}</Text>
-                                    <Text className="text-white/60 font-body-medium text-[10px] uppercase tracking-wider">
-                                        {selectedMoment && new Date(selectedMoment.memory.created_at).toLocaleDateString()}
-                                    </Text>
-                                </View>
-                                <View className="w-10 h-10 rounded-full bg-white/20 border border-white/30 overflow-hidden">
-                                    {selectedMoment?.memory.user?.avatar_url && (
-                                        <Image 
-                                            source={{ uri: selectedMoment.memory.user.avatar_url }} 
-                                            style={{ width: '100%', height: '100%' }} 
-                                            contentFit="cover"
-                                        />
-                                    )}
-                                </View>
-                            </View>
-                        </View>
-
-                        {/* Full Image */}
-                        <View className="flex-1 justify-center z-5">
-                            <Image 
-                                source={{ uri: selectedMoment?.url }} 
-                                style={{ width: '100%', height: '60%' }}
-                                contentFit="contain"
-                                transition={500}
-                            />
-                        </View>
-
-                        {/* Story Overlay */}
-                        {selectedMoment?.memory.story ? (
-                            <View className="px-8 pb-12 pt-8 bg-gradient-to-t from-black via-black/80 to-transparent z-10">
-                                <View className="w-12 h-1 bg-white/30 rounded-full self-center mb-6" />
-                                <Text className="text-white/80 font-body-medium text-lg leading-7">
-                                    {selectedMoment.memory.story}
-                                </Text>
-                            </View>
-                        ) : (
-                            <View className="p-12 items-center z-10">
-                                <Text className="text-white/30 font-body-bold italic">No story attached to this moment</Text>
-                            </View>
-                        )}
-                    </SafeAreaView>
-                </View>
-            </Modal>
-        </SafeAreaView>
+            <SafeAreaView edges={['bottom']} />
+        </View>
     );
 };
 

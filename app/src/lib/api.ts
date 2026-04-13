@@ -190,3 +190,9 @@ export const createMemory = async (memoryData: { groupId: string, imageUrls: str
     const response = await axios.post(`${API_URL}/memories`, memoryData, { headers });
     return response.data;
 };
+
+export const deleteMemory = async (memoryId: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.delete(`${API_URL}/memories/${memoryId}`, { headers });
+    return response.data;
+};

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { uploadImage, createMemory, fetchGroupDetail } from '../../lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
@@ -53,8 +54,18 @@ const CreateMemoryScreen = () => {
 
         setIsUploading(true);
         try {
-            // 1. Upload all images in parallel (using mandatory groupId)
-            const uploadPromises = selectedImages.map(uri => uploadImage(uri, groupId!));
+            // 0. Auto-compress images aggressively to ensure they are well under 1MB
+            const compressedImages = await Promise.all(selectedImages.map(async (uri) => {
+                const result = await manipulateAsync(
+                    uri,
+                    [{ resize: { width: 1200 } }], // Downscale to 1200px (WhatsApp-style)
+                    { compress: 0.8, format: SaveFormat.JPEG } // 70% quality
+                );
+                return result.uri;
+            }));
+
+            // 1. Upload all images in parallel
+            const uploadPromises = compressedImages.map(uri => uploadImage(uri, groupId!));
             const imageUrls = await Promise.all(uploadPromises);
 
             // 2. Create memory record
@@ -65,8 +76,8 @@ const CreateMemoryScreen = () => {
             });
 
             queryClient.invalidateQueries({ queryKey: ['memories', groupId] });
-            
-            Alert.alert('Moment Preserved', 'Your story has been added to the Mandali hearth.', [
+
+            Alert.alert('Moment Preserved', 'Your story has been added to the Mandali Memories Gallery.', [
                 { text: 'View Gallery', onPress: () => navigation.goBack() }
             ]);
         } catch (error: any) {
@@ -78,13 +89,15 @@ const CreateMemoryScreen = () => {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top']}>
+        <View className="flex-1 bg-[#fdf9f3]">
+            <SafeAreaView edges={['top']} className="bg-[#fdf9f3]" />
+
             {/* Header */}
             <View className="px-6 py-4 flex-row items-center border-b border-stone-100/50">
                 <TouchableOpacity onPress={() => navigation.goBack()} className="w-10 h-10 items-center justify-center rounded-full bg-white shadow-sm">
                     <MaterialIcons name="arrow-back-ios" size={18} color="#b30069" style={{ marginLeft: 5 }} />
                 </TouchableOpacity>
-                <Text className="text-[#b30069] font-headline-bold text-xl ml-4">Add to Hearth</Text>
+                <Text className="text-[#b30069] font-headline-bold text-xl ml-4">Add Memory</Text>
             </View>
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -101,7 +114,7 @@ const CreateMemoryScreen = () => {
                     {/* Image Selector Grid */}
                     <View className="flex-row flex-wrap gap-3">
                         {/* Gallery Trigger */}
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             onPress={pickImages}
                             className="bg-white border-2 border-dashed border-stone-200 rounded-[32px] items-center justify-center"
                             style={{ width: selectedImages.length === 0 ? width - 48 : GRID_SIZE, height: selectedImages.length === 0 ? 240 : GRID_SIZE }}
@@ -115,14 +128,14 @@ const CreateMemoryScreen = () => {
                         {selectedImages.map((uri, idx) => (
                             <View key={idx} style={{ width: GRID_SIZE, height: GRID_SIZE }} className="rounded-[24px] overflow-hidden bg-stone-100 shadow-sm border border-white">
                                 <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={200} />
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     onPress={() => removeImage(idx)}
                                     className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/40 items-center justify-center"
                                 >
                                     <Ionicons name="close" size={16} color="white" />
                                 </TouchableOpacity>
                                 <View className="absolute bottom-2 right-2 bg-white/80 rounded-full w-5 h-5 items-center justify-center">
-                                     <Ionicons name="checkmark-circle" size={14} color="#b30069" />
+                                    <Ionicons name="checkmark-circle" size={14} color="#b30069" />
                                 </View>
                             </View>
                         ))}
@@ -149,31 +162,36 @@ const CreateMemoryScreen = () => {
 
                     <View className="mt-8 flex-row items-center px-2">
                         <View className="w-10 h-10 rounded-full bg-[#fdf2d0] items-center justify-center mr-4">
-                           <Ionicons name="people" size={20} color="#b38b00" />
+                            <Ionicons name="people" size={20} color="#b38b00" />
                         </View>
                         <Text className="text-stone-400 font-body-medium flex-1">
                             This will be shared with <Text className="text-[#594048] font-body-bold">{group?.group?.name || 'the Mandali'}</Text>
                         </Text>
                     </View>
 
-                    {/* Submit Button */}
-                    <TouchableOpacity 
-                        onPress={handleUpload}
-                        disabled={isUploading}
-                        className="mt-12 bg-[#b30069] h-16 rounded-full flex-row items-center justify-center shadow-lg shadow-[#b30069]/30"
-                    >
-                        {isUploading ? (
-                            <ActivityIndicator color="white" />
-                        ) : (
-                            <>
-                                <Ionicons name="sparkles" size={20} color="white" />
-                                <Text className="text-white font-headline-bold text-xl ml-3">Upload to Hearth</Text>
-                            </>
-                        )}
-                    </TouchableOpacity>
                 </View>
+                <View className="h-20" />
             </ScrollView>
-        </SafeAreaView>
+
+            {/* Footer Action */}
+            <View className="p-6 bg-white border-t border-stone-100">
+                <TouchableOpacity
+                    onPress={handleUpload}
+                    disabled={isUploading}
+                    className="bg-[#b30069] h-16 rounded-full flex-row items-center justify-center shadow-lg shadow-[#b30069]/30"
+                >
+                    {isUploading ? (
+                        <ActivityIndicator color="white" />
+                    ) : (
+                        <>
+                            <Ionicons name="sparkles" size={20} color="white" />
+                            <Text className="text-white font-headline-bold text-xl ml-3">Upload to Gallery</Text>
+                        </>
+                    )}
+                </TouchableOpacity>
+                <SafeAreaView edges={['bottom']} />
+            </View>
+        </View>
     );
 };
 

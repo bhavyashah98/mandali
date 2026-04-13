@@ -79,4 +79,26 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     }
 });
 
+/**
+ * DELETE /memories/:id
+ * Delete a memory (only if owned by the user)
+ */
+router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.userId;
+
+        const { error } = await supabase
+            .from('memories')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', userId);
+
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 export default router;

@@ -10,9 +10,10 @@ let socketInstance: Socket | null = null;
 
 export const getSocket = (): Socket => {
     if (!socketInstance || !socketInstance.connected) {
-        const host = API_URL!.replace('/api', '');
+        const host = process.env.EXPO_PUBLIC_SOCKET_URL!;
+
         socketInstance = io(host, {
-            transports: ['websocket'],
+            transports: ['polling', 'websocket'], // Allow polling fallback for easier remote connection
             reconnection: true,
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,

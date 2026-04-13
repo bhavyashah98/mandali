@@ -24,6 +24,7 @@ router.use(authMiddleware);
 router.post('/image', upload.single('image'), async (req: AuthRequest, res) => {
     try {
         const groupId = req.query.groupId as string;
+        console.log(`[Upload] Incoming request: size=${req.file?.size} bytes, content-length=${req.headers['content-length']}`);
 
         if (!groupId) {
             return res.status(400).json({ error: 'groupId is required' });

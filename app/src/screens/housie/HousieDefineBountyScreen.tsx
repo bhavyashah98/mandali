@@ -30,9 +30,9 @@ const HousieDefineBountyScreen = () => {
         { id: 'top_line', name: 'Top Line', amount: '0', icon: 'horizontal-rule' },
         { id: 'middle_line', name: 'Middle Line', amount: '0', icon: 'horizontal-rule' },
         { id: 'bottom_line', name: 'Bottom Line', amount: '0', icon: 'horizontal-rule' },
-        { id: 'full_house_1', name: 'Full House 1', amount: '0', icon: 'grid-view', isHighlight: true },
-        { id: 'full_house_2', name: 'Full House 2', amount: '0', icon: 'grid-view', isHighlight: true },
-        { id: 'full_house_3', name: 'Full House 3', amount: '0', icon: 'grid-view', isHighlight: true }
+        { id: 'full_house_1', name: '1st Full House', amount: '0', icon: 'grid-view', isHighlight: true },
+        { id: 'full_house_2', name: '2nd Full House', amount: '0', icon: 'grid-view', isHighlight: true },
+        { id: 'full_house_3', name: '3rd Full House', amount: '0', icon: 'grid-view', isHighlight: true }
     ]);
 
     // Fetch Stats for Pool calculation
