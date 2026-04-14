@@ -65,6 +65,14 @@
           "photosPermission": "Mandali accesses your photos to add them to group memories",
           "cameraPermission": "Mandali uses your camera to add photos to group memories"
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useModularHeaders": true
+          }
+        }
       ]
     ],
     "extra": {
