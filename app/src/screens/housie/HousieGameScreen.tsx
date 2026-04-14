@@ -219,21 +219,19 @@ const HousieGameScreen = () => {
                 row.push(
                     <View
                         key={num}
-                        className={`w-[26px] h-[26px] rounded-md items-center justify-center m-[3px] ${
-                            isCurrent
+                        className={`w-[26px] h-[26px] rounded-md items-center justify-center m-[3px] ${isCurrent
                                 ? 'bg-[#b30069]'
                                 : isCalled
-                                ? 'bg-[#f59e0b]'
-                                : 'bg-[#f0ebe6]'
-                        }`}
+                                    ? 'bg-[#f59e0b]'
+                                    : 'bg-[#f0ebe6]'
+                            }`}
                     >
-                        <Text className={`text-[10px] font-headline-bold ${
-                            isCurrent
+                        <Text className={`text-[10px] font-headline-bold ${isCurrent
                                 ? 'text-white'
                                 : isCalled
-                                ? 'text-white'
-                                : 'text-[#b0a09a]'
-                        }`}>
+                                    ? 'text-white'
+                                    : 'text-[#b0a09a]'
+                            }`}>
                             {num}
                         </Text>
                     </View>
@@ -256,9 +254,6 @@ const HousieGameScreen = () => {
                 <View className="items-center">
                     <Text className="text-[#a09d96] font-body-bold text-[9px] uppercase tracking-widest">HOUSIE SESSION</Text>
                     <Text className="text-[#594048] font-headline-bold text-base">{gameCode}</Text>
-                </View>
-                <View className="w-10 h-10 items-center justify-center rounded-full bg-white shadow-sm border border-stone-100">
-                    <Ionicons name="people" size={20} color="#594048" />
                 </View>
             </View>
 

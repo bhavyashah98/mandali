@@ -1,0 +1,18 @@
+# Environment files — NEVER commit these
+.env
+.env.local
+*.env
+
+# Dependencies
+node_modules/
+
+# Expo
+.expo/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

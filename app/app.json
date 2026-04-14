@@ -22,7 +22,8 @@
         "NSCameraUsageDescription": "Mandali uses your camera to add photos to group memories",
         "NSPhotoLibraryUsageDescription": "Mandali accesses your photos to add them to group memories",
         "NSPhotoLibraryAddUsageDescription": "Mandali saves photos to your library",
-        "NSUserNotificationUsageDescription": "Mandali sends notifications about your group activity"
+        "NSUserNotificationUsageDescription": "Mandali sends notifications about your group activity",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -36,11 +37,13 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
