@@ -15,4 +15,8 @@ router.get('/logo.png', (req, res) => {
   res.sendFile(path.join(__dirname, '../legal/logo.png'));
 });
 
+router.get('/delete-account', (req, res) => {
+  res.sendFile(path.join(__dirname, '../legal/delete-account.html'));
+});
+
 export default router;

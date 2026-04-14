@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Deletion Request | Mandali App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #b30069;
+            --primary-dark: #8c0052;
+            --bg: #fdf9f3;
+            --text: #31302d;
+            --text-light: #594048;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 90%;
+            background: white;
+            padding: 48px;
+            border-radius: 32px;
+            box-shadow: 0 20px 40px rgba(179, 0, 105, 0.05);
+            border: 1px solid rgba(179, 0, 105, 0.05);
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 32px;
+            color: var(--primary);
+            margin-bottom: 24px;
+            font-weight: 700;
+        }
+
+        p {
+            line-height: 1.6;
+            color: var(--text-light);
+            margin-bottom: 20px;
+        }
+
+        .steps {
+            background: #fff5f9;
+            padding: 24px;
+            border-radius: 20px;
+            border: 1px solid rgba(179, 0, 105, 0.1);
+            margin: 32px 0;
+        }
+
+        .steps h2 {
+            font-size: 18px;
+            margin-top: 0;
+            color: var(--primary);
+        }
+
+        .steps ol {
+            padding-left: 20px;
+            margin-bottom: 0;
+        }
+
+        .steps li {
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+
+        .data-info {
+            font-size: 14px;
+            color: #7c7a74;
+            border-top: 1px solid #eee;
+            padding-top: 24px;
+        }
+
+        .btn {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 16px 32px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(179, 0, 105, 0.2);
+        }
+
+        .footer {
+            margin-top: 40px;
+            font-size: 12px;
+            text-align: center;
+            color: #b0ada6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mandali Account Deletion</h1>
+        <p>At Mandali, we value your privacy and your control over your personal data. If you wish to stop using our platform, you can request to delete your account and all associated information.</p>
+
+        <div class="steps">
+            <h2>How to Request Deletion</h2>
+            <ol>
+                <li><strong>In-App (Recommended):</strong> Open the <b>Mandali</b> app, go to your <b>Profile</b> tab, tap <b>Settings</b>, and select <b>"Delete Account"</b>. This request is processed instantly.</li>
+                <li><strong>Via Web:</strong> If you no longer have the app installed, please click the button below to email our support team with your registered phone number/email.</li>
+            </ol>
+        </div>
+
+        <h3>What happens to my data?</h3>
+        <p>Upon deletion, the following data will be permanently removed from our active servers:</p>
+        <ul style="color: var(--text-light); line-height: 1.6;">
+            <li>Your personal profile information (Name, Avatar).</li>
+            <li>All Memories and photos you personally uploaded to any Mandali group.</li>
+            <li>Your membership in all Mandali groups.</li>
+        </ul>
+        <p class="data-info">
+            <strong>Retention Period:</strong> Your data is purged immediately upon deletion. Some anonymized logs may be kept for up to 30 days for security and analytical purposes before being completely scrubbed.
+        </p>
+
+        <a href="mailto:bhavyashah9873@gmail.com?subject=Account%20Deletion%20Request" class="btn">Request Deletion via Email</a>
+
+        <div class="footer">
+            &copy; 2026 Mandali. All rights reserved.
+        </div>
+    </div>
+</body>
+</html>
