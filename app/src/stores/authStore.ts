@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuth, signOut } from '@react-native-firebase/auth';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -17,6 +18,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   setAuthenticated: (status) => set({ isAuthenticated: status }),
   login: () => set({ isAuthenticated: true }),
   logout: async () => {
+      try {
+          await signOut(getAuth());
+      } catch (err) {
+          console.error('[Auth Store] Sign out error:', err);
+      }
       // Actively purge from permanent hardware storage so RootNavigator doesn't resume session on cold start
       await AsyncStorage.removeItem('mandali_token');
       await AsyncStorage.removeItem('mandali_user');

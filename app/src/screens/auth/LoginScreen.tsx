@@ -19,8 +19,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../stores/authStore';
 import CountryPicker, { Country, CountryCode } from 'react-native-country-picker-modal';
 import { sendOTP, verifyOTP } from '../../lib/auth';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
-import { firebaseConfig } from '../../lib/firebase';
+import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
+
 
 const LoginScreen = () => {
     const login = useAuthStore((state) => state.login);
@@ -29,7 +29,7 @@ const LoginScreen = () => {
     const [otp, setOtp] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [verificationId, setVerificationId] = useState('');
+    const [confirmationResult, setConfirmationResult] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
 
     // Country Picker State
     const [countryCode, setCountryCode] = useState<CountryCode>('IN');
@@ -40,8 +40,7 @@ const LoginScreen = () => {
     // Fade animation value
     const fadeAnim = useRef(new Animated.Value(1)).current;
 
-    // Recaptcha for correct mobile validation
-    const recaptchaVerifier = useRef(null);
+    // (Recaptcha not required for Native Firebase Auth)
 
     const onSelectCountry = (country: Country) => {
         setCountryCode(country.cca2);
@@ -72,8 +71,8 @@ const LoginScreen = () => {
             setLoading(true);
             try {
                 const fullPhoneNumber = `+${callingCode}${phoneNumber}`;
-                const vId = await sendOTP(fullPhoneNumber, recaptchaVerifier.current);
-                setVerificationId(vId);
+                const confirmation = await sendOTP(fullPhoneNumber);
+                setConfirmationResult(confirmation);
 
                 Animated.sequence([
                     Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
@@ -92,7 +91,8 @@ const LoginScreen = () => {
             }
             setLoading(true);
             try {
-                const response = await verifyOTP(verificationId, otp);
+                if (!confirmationResult) throw new Error("Missing confirmation data.");
+                const response = await verifyOTP(confirmationResult, otp);
                 // On success, backend returns the JWT and user data
                 const { setUser, login } = useAuthStore.getState();
                 setUser(response.user);
@@ -112,8 +112,8 @@ const LoginScreen = () => {
         setLoading(true);
         try {
             const fullPhoneNumber = `+${callingCode}${phoneNumber}`;
-            const vId = await sendOTP(fullPhoneNumber, recaptchaVerifier.current);
-            setVerificationId(vId);
+            const confirmation = await sendOTP(fullPhoneNumber);
+            setConfirmationResult(confirmation);
             setResendTimer(30); // Reset to 30 seconds
             setOtp('');
             Alert.alert('Sent!', 'A new verification code has been sent.');
@@ -137,12 +137,6 @@ const LoginScreen = () => {
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <SafeAreaView className="flex-1 bg-background">
-                {/* required for real mobile devices instead of crashing on 'RecaptchaVerifier is not defined' */}
-                <FirebaseRecaptchaVerifierModal
-                    ref={recaptchaVerifier}
-                    firebaseConfig={firebaseConfig}
-                    attemptInvisibleVerification={true}
-                />
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     className="flex-1"

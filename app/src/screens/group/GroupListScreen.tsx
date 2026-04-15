@@ -46,7 +46,7 @@ const GroupListScreen = () => {
             >
                 {/* Centered Header Section */}
                 <View className="items-center mb-10 mt-6 w-full">
-                    <Text 
+                    <Text
                         className="font-headline-bold text-on-surface text-center tracking-tight text-[#1c1c18]"
                         style={{ fontSize: 38 }}
                         adjustsFontSizeToFit
@@ -133,7 +133,7 @@ const GroupListScreen = () => {
                         style={{ elevation: 8 }}
                     >
                         <MaterialIcons name="add-circle" size={24} color="white" />
-                        <Text 
+                        <Text
                             className="text-white font-headline-bold ml-3"
                             style={{ fontSize: 20 }}
                             adjustsFontSizeToFit
@@ -149,7 +149,7 @@ const GroupListScreen = () => {
                         className="h-16 rounded-[28px] bg-[#fcecf2] flex-row items-center justify-center px-6 border border-[#b30069]/10"
                     >
                         <MaterialIcons name="qr-code-scanner" size={24} color="#b30069" />
-                        <Text 
+                        <Text
                             className="text-[#b30069] font-headline-bold ml-3"
                             style={{ fontSize: 20 }}
                             adjustsFontSizeToFit

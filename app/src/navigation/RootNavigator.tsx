@@ -8,6 +8,7 @@ import { TabNavigator } from './TabNavigator';
 import { useAuthStore } from '../stores/authStore';
 import SetupProfileScreen from '../screens/auth/SetupProfileScreen';
 import { registerForPushNotificationsAsync } from '../lib/pushNotifications';
+import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 
 const Stack = createStackNavigator();
 
@@ -39,24 +40,34 @@ export const RootNavigator = () => {
     }, []);
 
     useEffect(() => {
-        const loadSession = async () => {
+        const unsubscribe = onAuthStateChanged(getAuth(), async (firebaseUser) => {
             try {
-                const token = await AsyncStorage.getItem('mandali_token');
-                const userData = await AsyncStorage.getItem('mandali_user');
-
-                if (token && userData) {
-                    setAuthenticated(true);
-                    setUser(JSON.parse(userData));
-                    registerForPushNotificationsAsync();
+                if (firebaseUser) {
+                    // Try to restore Mandali user data from storage
+                    const userData = await AsyncStorage.getItem('mandali_user');
+                    if (userData) {
+                        setUser(JSON.parse(userData));
+                        setAuthenticated(true);
+                        registerForPushNotificationsAsync();
+                    } else {
+                        // Firebase session exists but local data is missing
+                        // This might happen on a new install or if storage was cleared
+                        // We set authenticated to true to let logic flow to SetupProfile if needed
+                        setAuthenticated(true);
+                    }
+                } else {
+                    // No firebase user, force logout state
+                    setAuthenticated(false);
+                    setUser(null);
                 }
             } catch (err) {
-                console.error('[Session] Load error:', err);
+                console.error('[Auth Listener] Error:', err);
             } finally {
                 setIsAppReady(true);
             }
-        };
+        });
 
-        loadSession();
+        return unsubscribe;
     }, []);
 
     const isProfileIncomplete = isAuthenticated && (!user?.name || user?.name.trim() === '');
