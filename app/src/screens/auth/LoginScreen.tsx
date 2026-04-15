@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../stores/authStore';
-import CountryPicker, { Country, CountryCode } from 'react-native-country-picker-modal';
+import { CountryPicker } from 'react-native-country-codes-picker';
 import { sendOTP, verifyOTP } from '../../lib/auth';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 
@@ -32,7 +32,7 @@ const LoginScreen = () => {
     const [confirmationResult, setConfirmationResult] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
 
     // Country Picker State
-    const [countryCode, setCountryCode] = useState<CountryCode>('IN');
+    const [countryCode, setCountryCode] = useState<string>('IN');
     const [callingCode, setCallingCode] = useState<string>('91');
     const [isCountryPickerVisible, setCountryPickerVisible] = useState(false);
     const [resendTimer, setResendTimer] = useState(0);
@@ -42,12 +42,7 @@ const LoginScreen = () => {
 
     // (Recaptcha not required for Native Firebase Auth)
 
-    const onSelectCountry = (country: Country) => {
-        setCountryCode(country.cca2);
-        setCallingCode(country.callingCode[0] || '');
-        setCountryPickerVisible(false);
-        if (error) setError('');
-    };
+
 
     // Countdown Timer Logic
     useEffect(() => {
@@ -209,27 +204,34 @@ const LoginScreen = () => {
                                                         <MaterialIcons name="keyboard-arrow-down" size={20} color="#1c1c18" />
                                                     </TouchableOpacity>
 
-                                                    {isCountryPickerVisible && (
-                                                        <CountryPicker
-                                                            withFilter
-                                                            withFlag
-                                                            withAlphaFilter
-                                                            withCallingCode
-                                                            withEmoji
-                                                            onSelect={onSelectCountry}
-                                                            onClose={() => setCountryPickerVisible(false)}
-                                                            visible={isCountryPickerVisible}
-                                                            countryCode={countryCode}
-                                                            translation="common"
-                                                            containerButtonStyle={{ display: 'none' }}
-                                                            theme={{
-                                                                fontFamily: 'System',
-                                                                primaryColor: '#fdf9f3',
+                                                    <CountryPicker
+                                                        show={isCountryPickerVisible}
+                                                        pickerButtonOnPress={(item) => {
+                                                            setCountryCode(item.code);
+                                                            setCallingCode(item.dial_code.replace('+', ''));
+                                                            setCountryPickerVisible(false);
+                                                            if (error) setError('');
+                                                        }}
+                                                        onBackdropPress={() => setCountryPickerVisible(false)}
+                                                        style={{
+                                                            modal: {
+                                                                height: 500,
                                                                 backgroundColor: '#fdf9f3',
-                                                                onBackgroundTextColor: '#1c1c18',
-                                                            }}
-                                                        />
-                                                    )}
+                                                            },
+                                                            countryName: {
+                                                                color: '#1c1c18',
+                                                                fontFamily: 'System',
+                                                            },
+                                                            dialCode: {
+                                                                color: '#1c1c18',
+                                                                fontFamily: 'System',
+                                                            },
+                                                            textInput: {
+                                                                backgroundColor: '#f5f1ea',
+                                                                color: '#1c1c18',
+                                                            }
+                                                        }}
+                                                    />
                                                 </View>
 
                                                 {/* Phone Number Field */}
