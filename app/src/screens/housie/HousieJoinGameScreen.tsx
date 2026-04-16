@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import * as React from 'react';
+import { useState } from 'react';
 import { 
     View, 
     Text, 
@@ -10,7 +11,8 @@ import {
     TouchableWithoutFeedback,
     Platform,
     ScrollView,
-    KeyboardAvoidingView
+    KeyboardAvoidingView,
+    useWindowDimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
@@ -19,6 +21,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchHousieGame, joinHousieGame } from '../../lib/api';
 
 const HousieJoinGameScreen = () => {
+    const { width } = useWindowDimensions();
+    const isTablet = width > 500;
     const navigation = useNavigation<any>();
     const route = useRoute();
     const { gameCode: passedGameCode, groupId } = (route.params as { gameCode?: string, groupId?: string }) || {};
@@ -87,15 +91,16 @@ const HousieJoinGameScreen = () => {
 
                         <View className="gap-6">
                             <View>
-                                <Text className="text-[#594048] font-body-bold text-xs uppercase tracking-widest mb-3 ml-2">Game Code</Text>
+                                <Text className={`text-[#594048] font-body-bold uppercase tracking-widest mb-3 ml-2 ${isTablet ? 'text-lg' : 'text-xs'}`}>Game Code</Text>
                                 <TextInput
                                     value={gameCode}
                                     onChangeText={setGameCode}
                                     placeholder="E.g. MB-4029"
                                     placeholderTextColor="#a09d96"
-                                    className="bg-white h-16 rounded-[24px] px-6 text-xl font-headline-bold text-on-surface shadow-sm border border-stone-100"
+                                    style={{ height: isTablet ? 80 : 64, fontSize: isTablet ? 32 : 20 }}
+                                    className="bg-white rounded-[24px] px-6 font-headline-bold text-on-surface shadow-sm border border-stone-100"
                                     autoCapitalize="characters"
-                                    maxLength={6}
+                                    maxLength={10}
                                 />
                             </View>
 

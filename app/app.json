@@ -15,6 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
+      "requireFullScreen": true,
       "bundleIdentifier": "com.mandaliapp.mandali",
       "buildNumber": "1",
       "googleServicesFile": "./GoogleService-Info.plist",
@@ -26,7 +27,10 @@
         "NSPhotoLibraryUsageDescription": "Mandali accesses your photos to add them to group memories",
         "NSPhotoLibraryAddUsageDescription": "Mandali saves photos to your library",
         "NSUserNotificationUsageDescription": "Mandali sends notifications about your group activity",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait"
+        ]
       }
     },
     "android": {

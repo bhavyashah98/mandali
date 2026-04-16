@@ -8,7 +8,8 @@ import {
     ActivityIndicator, 
     Alert,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    useWindowDimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
@@ -23,6 +24,8 @@ const HousieDefineBountyScreen = () => {
     const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};
 
     const [isStarting, setIsStarting] = useState(false);
+    const { width } = useWindowDimensions();
+    const isTablet = width > 500;
     
     // Standard Prizes
     const [prizes, setPrizes] = useState([
@@ -126,36 +129,70 @@ const HousieDefineBountyScreen = () => {
                 className="flex-1"
             >
                 {/* Header */}
-                <View className="px-8 py-6 flex-row items-center justify-between">
+                <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                     <TouchableOpacity 
-                        onPress={() => navigation.goBack()}
-                        className="w-12 h-12 rounded-full bg-white items-center justify-center shadow-sm"
+                        onPress={() => navigation.goBack()} 
+                        className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                     >
-                        <MaterialIcons name="arrow-back" size={24} color="#594048" />
+                        <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />
                     </TouchableOpacity>
-                    <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-[4px]">Bounty Session</Text>
-                    <View className="w-12" />
+                </View>
+
+                {/* Centered Header Section */}
+                <View 
+                    className="items-center w-full"
+                    style={{ 
+                        marginTop: isTablet ? 20 : 0,
+                        marginBottom: isTablet ? 40 : 20 
+                    }}
+                >
+                    <Text
+                        className="font-headline-bold text-on-surface text-center tracking-tight text-[#1c1c18]"
+                        style={{ fontSize: isTablet ? 72 : 38 }}
+                        adjustsFontSizeToFit
+                        numberOfLines={1}
+                    >
+                        Define Bounties
+                    </Text>
+                    <Text 
+                        className="font-body-medium text-on-surface-variant text-center leading-relaxed opacity-60"
+                        style={{ 
+                            fontSize: isTablet ? 22 : 15,
+                            marginTop: isTablet ? 20 : 12,
+                            paddingHorizontal: isTablet ? 80 : 32
+                        }}
+                    >
+                        Allocate the total prize pool across your desired claims
+                    </Text>
+                    <View 
+                        className="bg-primary/20 rounded-full"
+                        style={{ 
+                            height: 4, 
+                            width: isTablet ? 120 : 40,
+                            marginTop: isTablet ? 36 : 20 
+                        }} 
+                    />
                 </View>
 
                 {/* Compact Dashboard Widget (Sticky) */}
-                <View className="px-8 mt-2 mb-4">
-                    <View className="bg-white rounded-[32px] p-6 shadow-sm border border-stone-100">
+                <View className={`px-${isTablet ? '16' : '8'} mt-2 mb-4`}>
+                    <View className={`bg-white rounded-[32px] shadow-sm border border-stone-100 ${isTablet ? 'p-10' : 'p-6'}`}>
                         <View className="flex-row items-center justify-between">
                             {/* Left Side: Allocated Prizes */}
                             <View>
-                                <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-[2px] mb-1">Allocated So Far</Text>
-                                <Text className={`font-headline-bold text-3xl ${totalAllocated > totalPrizePool ? 'text-orange-600' : 'text-primary'}`}>
+                                <Text className={`text-stone-400 font-body-bold uppercase tracking-[2px] mb-2 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Allocated So Far</Text>
+                                <Text className={`font-headline-bold ${isTablet ? 'text-6xl' : 'text-3xl'} ${totalAllocated > totalPrizePool ? 'text-orange-600' : 'text-primary'}`}>
                                     ₹{totalAllocated.toLocaleString()}
                                 </Text>
                             </View>
                             
                             {/* Right Side: Pool Stats */}
                             <View className="items-end">
-                                <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-[2px] mb-1">Total Collection</Text>
-                                <Text className="text-on-surface font-headline-bold text-xl">₹{totalPrizePool.toLocaleString()}</Text>
-                                <View className="flex-row items-center mt-1">
-                                    <View className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5" />
-                                    <Text className="text-stone-400 font-body-bold text-[10px] uppercase">{stats?.participants?.length || 0} Players</Text>
+                                <Text className={`text-stone-400 font-body-bold uppercase tracking-[2px] mb-2 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Total Collection</Text>
+                                <Text className={`text-on-surface font-headline-bold ${isTablet ? 'text-4xl' : 'text-xl'}`}>₹{totalPrizePool.toLocaleString()}</Text>
+                                <View className="flex-row items-center mt-2">
+                                    <View className={`rounded-full bg-green-500 mr-2 ${isTablet ? 'w-3 h-3' : 'w-1.5 h-1.5'}`} />
+                                    <Text className={`text-stone-400 font-body-bold uppercase ${isTablet ? 'text-xl' : 'text-[10px]'}`}>{stats?.participants?.length || 0} Players</Text>
                                 </View>
                             </View>
                         </View>
@@ -173,49 +210,42 @@ const HousieDefineBountyScreen = () => {
                 </View>
 
                 <ScrollView 
-                    className="flex-1 px-8"
+                    className={`flex-1 px-${isTablet ? '16' : '8'}`}
                     showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingBottom: 150 }}
+                    contentContainerStyle={{ paddingBottom: isTablet ? 250 : 150 }}
                 >
-                    {/* Title Section */}
-                    <View className="mt-4 mb-6">
-                        <Text className="text-[44px] font-headline-bold text-on-surface leading-tight">
-                            Define Prizes
-                        </Text>
-                        <Text className="text-stone-500 font-body-medium text-base mt-3 leading-5">
-                            Allocate the total prize pool across your desired claims.
-                        </Text>
-                    </View>
+                            {/* Title (Hidden as we have centered header now) */}
+                            {/* <Text ... /> */}
 
                     {/* Claims Card */}
-                    <View className="bg-[#f7f2eb] rounded-[48px] p-8 mb-8 border border-stone-100">
-                        <Text className="text-on-surface font-headline-bold text-2xl mb-8">Standard Claims</Text>
+                    <View className={`bg-[#f7f2eb] rounded-[48px] border border-stone-100 mb-8 ${isTablet ? 'p-12' : 'p-8'}`}>
+                        <Text className={`text-on-surface font-headline-bold mb-10 ${isTablet ? 'text-4xl' : 'text-2xl'}`}>Standard Claims</Text>
                         
                         <View className="gap-8">
                             {prizes.map((prize) => (
                                 <View key={prize.id}>
-                                    <View className="flex-row items-center justify-between mb-3 ml-2">
-                                        <View className="flex-row items-center flex-1 mr-4">
-                                            {prize.isHighlight && <Ionicons name="star" size={16} color="#b30069" style={{ marginRight: 8 }} />}
+                                    <View className="flex-row items-center justify-between mb-4 ml-4">
+                                        <View className="flex-row items-center flex-1 mr-6">
+                                            {prize.isHighlight && <Ionicons name="star" size={isTablet ? 28 : 16} color="#b30069" style={{ marginRight: 10 }} />}
                                             <TextInput
                                                 value={prize.name}
                                                 onChangeText={(val) => updatePrizeName(prize.id, val)}
-                                                className={`flex-1 ${prize.isHighlight ? 'text-primary font-headline-bold' : 'text-stone-500 font-body-bold'} text-sm`}
+                                                className={`flex-1 ${prize.isHighlight ? 'text-primary font-headline-bold' : 'text-stone-500 font-body-bold'} ${isTablet ? 'text-2xl' : 'text-sm'}`}
                                                 placeholder="Prize Name"
                                                 placeholderTextColor="#c4b9b0"
                                             />
                                         </View>
                                         <TouchableOpacity onPress={() => deletePrize(prize.id)}>
-                                            <MaterialIcons name="delete-outline" size={20} color="#c4b9b0" />
+                                            <MaterialIcons name="delete-outline" size={isTablet ? 32 : 20} color="#c4b9b0" />
                                         </TouchableOpacity>
                                     </View>
-                                    <View className="flex-row items-center bg-[#efede8] h-16 rounded-3xl px-6 border border-white/50">
-                                        <Text className="text-stone-400 font-body-bold text-lg mr-3">₹</Text>
+                                    <View className={`flex-row items-center bg-[#efede8] rounded-3xl px-8 border border-white/50 ${isTablet ? 'h-24' : 'h-16'}`}>
+                                        <Text className={`text-stone-400 font-body-bold mr-4 ${isTablet ? 'text-3xl' : 'text-lg'}`}>₹</Text>
                                         <TextInput
                                             value={prize.amount}
                                             onChangeText={(val) => updatePrizeAmount(prize.id, val)}
                                             keyboardType="number-pad"
-                                            className="flex-1 text-xl font-headline-bold text-on-surface"
+                                            className={`flex-1 font-headline-bold text-on-surface ${isTablet ? 'text-4xl' : 'text-xl'}`}
                                             placeholder="0"
                                             placeholderTextColor="#c4b9b0"
                                         />
@@ -227,10 +257,10 @@ const HousieDefineBountyScreen = () => {
                         {/* Add Custom Button */}
                         <TouchableOpacity 
                             onPress={addCustomPrize}
-                            className="mt-10 h-16 rounded-3xl border-2 border-dashed border-stone-200 flex-row items-center justify-center"
+                            className={`mt-12 rounded-[32px] border-2 border-dashed border-stone-200 flex-row items-center justify-center ${isTablet ? 'h-24' : 'h-16'}`}
                         >
-                            <MaterialIcons name="add-circle" size={20} color="#a09d96" />
-                            <Text className="text-stone-400 font-body-bold text-base ml-3">Add Custom Prize</Text>
+                            <MaterialIcons name="add-circle" size={isTablet ? 32 : 20} color="#a09d96" />
+                            <Text className={`text-stone-400 font-body-bold ml-4 ${isTablet ? 'text-2xl' : 'text-base'}`}>Add Custom Prize</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -238,18 +268,22 @@ const HousieDefineBountyScreen = () => {
                 </ScrollView>
 
                 {/* Footer Action */}
-                <View className="absolute bottom-0 left-0 right-0 p-8 bg-[#fdf9f3]/95">
+                <View className={`bg-[#fdf9f3]/95 ${isTablet ? 'p-16' : 'p-8'}`}>
                     <TouchableOpacity 
                         onPress={handleStartGame}
                         disabled={isStarting || !isPoolBalanced}
-                        className={`h-20 rounded-[32px] flex-row items-center justify-center shadow-2xl ${isPoolBalanced ? 'bg-primary shadow-primary/30' : 'bg-stone-300 shadow-stone-200'}`}
+                        style={{ height: isTablet ? 110 : 80 }}
+                        className={`rounded-[40px] flex-row items-center justify-center shadow-2xl ${isPoolBalanced ? 'bg-primary shadow-primary/30' : 'bg-stone-300 shadow-stone-200'}`}
                     >
                         {isStarting ? (
-                            <ActivityIndicator color="white" />
+                            <ActivityIndicator color="white" size={isTablet ? 'large' : 'small'} />
                         ) : (
                             <>
-                                <Ionicons name="lock-closed" size={24} color="white" />
-                                <Text className="text-white font-headline-bold text-2xl ml-3">Lock & Start Game</Text>
+                                <Ionicons name="lock-closed" size={isTablet ? 36 : 24} color="white" />
+                                <Text 
+                                    className="text-white font-headline-bold ml-4"
+                                    style={{ fontSize: isTablet ? 32 : 24 }}
+                                >Lock & Start Game</Text>
                             </>
                         )}
                     </TouchableOpacity>

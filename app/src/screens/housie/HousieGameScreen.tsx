@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -12,9 +12,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import io from 'socket.io-client';
 import { getSocket } from '../../lib/socketService';
 
-const { width } = Dimensions.get('window');
-
 const HousieGameScreen = () => {
+    const { width } = useWindowDimensions();
+    const isTablet = width > 500;
     const route = useRoute();
     const navigation = useNavigation<any>();
     const queryClient = useQueryClient();
@@ -214,9 +214,14 @@ const HousieGameScreen = () => {
     });
 
     const renderBoard = () => {
-        const rows: any = [];
+        const itemSize = isTablet ? 54 : 26;
+        const itemMargin = isTablet ? 6 : 3;
+        const itemRadius = isTablet ? 12 : 6;
+        const fontSize = isTablet ? 20 : 10;
+
+        const rows: React.JSX.Element[] = [];
         for (let i = 0; i < 9; i++) {
-            const row = [];
+            const row: React.JSX.Element[] = [];
             for (let j = 1; j <= 10; j++) {
                 const num = i * 10 + j;
                 const isCalled = calledNumbers.includes(num);
@@ -224,14 +229,17 @@ const HousieGameScreen = () => {
                 row.push(
                     <View
                         key={num}
-                        className={`w-[26px] h-[26px] rounded-md items-center justify-center m-[3px] ${isCurrent
+                        style={{ width: itemSize, height: itemSize, borderRadius: itemRadius, margin: itemMargin }}
+                        className={`items-center justify-center ${isCurrent
                             ? 'bg-[#b30069]'
                             : isCalled
                                 ? 'bg-[#f59e0b]'
                                 : 'bg-[#f0ebe6]'
                             }`}
                     >
-                        <Text className={`text-[10px] font-headline-bold ${isCurrent
+                        <Text 
+                            style={{ fontSize }}
+                            className={`font-headline-bold ${isCurrent
                             ? 'text-white'
                             : isCalled
                                 ? 'text-white'
@@ -264,15 +272,15 @@ const HousieGameScreen = () => {
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, paddingTop: 5 }}>
                 {/* 1. NOW CALLING CARD */}
-                <View className="bg-white rounded-[40px] p-6 items-center shadow-2xl shadow-black/5 border border-black/5 mb-4" style={{ elevation: 8 }}>
-                    <Text className="text-stone-400 font-body-bold text-[11px] uppercase tracking-[3px] mb-4">NOW CALLING</Text>
+                <View className={`bg-white rounded-[40px] items-center shadow-2xl shadow-black/5 border border-black/5 mb-4 ${isTablet ? 'p-12' : 'p-6'}`} style={{ elevation: 8 }}>
+                    <Text className={`text-stone-400 font-body-bold uppercase tracking-[3px] mb-4 ${isTablet ? 'text-lg' : 'text-[11px]'}`}>NOW CALLING</Text>
 
                     <View
-                        className="w-40 h-40 rounded-full bg-[#b30069] items-center justify-center shadow-2xl shadow-[#b30069]/40 border-[10px] border-[#FAF7F2] mb-6"
-                        style={{ elevation: 12 }}
+                        style={{ width: isTablet ? 240 : 160, height: isTablet ? 240 : 160, borderRadius: 120, elevation: 12 }}
+                        className="bg-[#b30069] items-center justify-center shadow-2xl shadow-[#b30069]/40 border-[10px] border-[#FAF7F2] mb-6"
                     >
                         <Text
-                            style={{ fontSize: 64, lineHeight: 72 }}
+                            style={{ fontSize: isTablet ? 110 : 64, lineHeight: isTablet ? 120 : 72 }}
                             className="text-white font-headline-bold"
                             adjustsFontSizeToFit
                             numberOfLines={1}

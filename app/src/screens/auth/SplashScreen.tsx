@@ -4,18 +4,19 @@ import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 
-const { width, height } = Dimensions.get('window');
-
-// Dynamic Relative Sizing Constraints
-const MEDALLION_SIZE = Math.min(260, width * 0.65);
-const HALO_SIZES = [
-    MEDALLION_SIZE + 60,
-    MEDALLION_SIZE + 120,
-    MEDALLION_SIZE + 190
-];
+import { useWindowDimensions } from 'react-native';
 
 const SplashScreen = () => {
     const navigation = useNavigation<any>();
+    const { width, height } = useWindowDimensions();
+
+    // Dynamic Relative Sizing Constraints
+    const MEDALLION_SIZE = Math.min(260, width * 0.65);
+    const HALO_SIZES = [
+        MEDALLION_SIZE + 60,
+        MEDALLION_SIZE + 120,
+        MEDALLION_SIZE + 190
+    ];
 
     // Animations
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -153,7 +154,14 @@ const SplashScreen = () => {
                 <View className="items-center mt-20 px-8 w-full">
                     <Text
                         className="text-[#b30069] font-headline-bold text-center"
-                        style={styles.headline}
+                        style={[
+                            styles.headline,
+                            {
+                                fontSize: Math.min(38, width * 0.1),
+                                letterSpacing: Math.min(15, width * 0.035),
+                                marginLeft: Math.min(15, width * 0.035),
+                            }
+                        ]}
                         numberOfLines={1}
                         adjustsFontSizeToFit
                     >
@@ -206,9 +214,6 @@ const styles = StyleSheet.create({
         borderWidth: 1.5,
     },
     headline: {
-        fontSize: Math.min(38, width * 0.1),
-        letterSpacing: Math.min(15, width * 0.035),
-        marginLeft: Math.min(15, width * 0.035), // Counterbalances letterSpacing on the last character for perfect centering
         fontWeight: '900',
         textShadowColor: 'rgba(179,0,105,0.15)',
         textShadowOffset: { width: 0, height: 8 },

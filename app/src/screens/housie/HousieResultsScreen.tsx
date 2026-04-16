@@ -5,8 +5,11 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { API_URL, getAuthHeaders } from '../../lib/api';
 import axios from 'axios';
+import { useWindowDimensions } from 'react-native';
 
 const HousieResultsScreen = () => {
+    const { width } = useWindowDimensions();
+    const isTablet = width > 500;
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
     const { gameCode, groupId } = route.params;
@@ -31,11 +34,8 @@ const HousieResultsScreen = () => {
     };
 
     const handleClose = () => {
-        // Navigate back to the group screen
-        navigation.navigate('Housie', {
-            screen: 'HousieLobby',
-            params: { groupId }
-        });
+        // Just go back to the lobby where you came from
+        navigation.goBack();
     };
 
     if (isLoading) {
@@ -49,15 +49,43 @@ const HousieResultsScreen = () => {
 
     return (
         <SafeAreaView className="flex-1 bg-[#FDF9F3]">
-            {/* Header */}
-            <View className="px-6 py-8">
-                <View className="items-center mb-2">
-                    <View className="bg-primary/10 p-3 rounded-full mb-4">
-                        <MaterialIcons name="emoji-events" size={48} color="#b30069" />
-                    </View>
-                    <Text className="text-[#31302d] text-4xl font-headline-bold text-center">Game Over!</Text>
-                    <Text className="text-stone-400 text-lg font-body-medium mt-1">Here are our champions</Text>
+            {/* Centered Header Section */}
+            <View 
+                className="items-center w-full"
+                style={{ 
+                    marginTop: isTablet ? 60 : 40,
+                    marginBottom: isTablet ? 80 : 32 
+                }}
+            >
+                <View className={`bg-primary/10 rounded-full mb-8 items-center justify-center shadow-sm ${isTablet ? 'w-40 h-40' : 'w-24 h-24'}`}>
+                    <MaterialIcons name="emoji-events" size={isTablet ? 90 : 54} color="#b30069" />
                 </View>
+                <Text
+                    className="font-headline-bold text-on-surface text-center tracking-tight text-[#1c1c18]"
+                    style={{ fontSize: isTablet ? 72 : 38 }}
+                    adjustsFontSizeToFit
+                    numberOfLines={1}
+                >
+                    Game Over!
+                </Text>
+                <Text 
+                    className="font-body-medium text-on-surface-variant text-center leading-relaxed opacity-60"
+                    style={{ 
+                        fontSize: isTablet ? 22 : 15,
+                        marginTop: isTablet ? 20 : 12,
+                        paddingHorizontal: isTablet ? 80 : 32
+                    }}
+                >
+                    Here are the champions of the session
+                </Text>
+                <View 
+                    className="bg-primary/20 rounded-full"
+                    style={{ 
+                        height: 4, 
+                        width: isTablet ? 120 : 40,
+                        marginTop: isTablet ? 36 : 20 
+                    }} 
+                />
             </View>
 
             <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
@@ -70,28 +98,28 @@ const HousieResultsScreen = () => {
                     results.map((player, index) => (
                         <View
                             key={player.userId}
-                            className={`flex-row items-center p-5 rounded-[28px] mb-4 bg-white border border-stone-100 shadow-sm ${index === 0 ? 'border-primary/20 bg-primary/5' : ''}`}
+                            className={`flex-row items-center rounded-[32px] mb-6 bg-white border border-stone-100 shadow-sm ${index === 0 ? 'border-primary/30 bg-primary/5' : ''} ${isTablet ? 'p-10' : 'p-5'}`}
                         >
                             {/* Rank Icon */}
-                            <View className="w-10 items-center justify-center mr-2">
+                            <View className={`${isTablet ? 'w-20' : 'w-10'} items-center justify-center mr-4`}>
                                 {index === 0 ? (
-                                    <View className="bg-amber-400 w-8 h-8 rounded-full items-center justify-center shadow-sm">
-                                        <Text className="text-white font-headline-bold">1</Text>
+                                    <View className={`bg-amber-400 rounded-full items-center justify-center shadow-sm ${isTablet ? 'w-12 h-12' : 'w-8 h-8'}`}>
+                                        <Text className={`text-white font-headline-bold ${isTablet ? 'text-2xl' : 'text-base'}`}>1</Text>
                                     </View>
                                 ) : (
-                                    <Text className="text-stone-300 font-headline-bold text-lg">{index + 1}</Text>
+                                    <Text className={`text-stone-300 font-headline-bold ${isTablet ? 'text-3xl' : 'text-lg'}`}>{index + 1}</Text>
                                 )}
                             </View>
 
                             {/* Avatar */}
                             <View
-                                className="w-14 h-14 rounded-full bg-stone-100 mr-4 overflow-hidden border-2 border-white shadow-sm"
+                                className={`rounded-full bg-stone-100 overflow-hidden border-4 border-white shadow-md ${isTablet ? 'w-24 h-24 mr-8' : 'w-14 h-14 mr-4'}`}
                             >
                                 {player.avatarUrl ? (
                                     <Image source={{ uri: player.avatarUrl }} className="w-full h-full" />
                                 ) : (
                                     <View className="flex-1 items-center justify-center">
-                                        <Text className="text-stone-400 font-headline-bold text-lg">
+                                        <Text className={`text-stone-400 font-headline-bold ${isTablet ? 'text-3xl' : 'text-lg'}`}>
                                             {player.name.charAt(0).toUpperCase()}
                                         </Text>
                                     </View>
@@ -100,24 +128,24 @@ const HousieResultsScreen = () => {
 
                             {/* Info */}
                             <View className="flex-1">
-                                <Text className="text-[#31302d] text-lg font-headline-bold" numberOfLines={1}>
+                                <Text className={`text-[#31302d] font-headline-bold mb-1 ${isTablet ? 'text-4xl' : 'text-lg'}`} numberOfLines={1}>
                                     {player.name}
                                 </Text>
-                                <View className="flex-row items-center mt-1">
-                                    <View className="bg-stone-100 px-2 py-0.5 rounded-md mr-2">
-                                        <Text className="text-stone-500 text-[11px] font-body-bold">
+                                <View className="flex-row items-center">
+                                    <View className="bg-primary/10 px-3 py-1 rounded-full mr-3">
+                                        <Text className={`text-primary font-body-bold ${isTablet ? 'text-xl' : 'text-[11px]'}`}>
                                             {player.winCount} {player.winCount === 1 ? 'WIN' : 'WINS'}
                                         </Text>
                                     </View>
-                                    <Text className="text-stone-400 text-xs font-body-regular" numberOfLines={1}>
+                                    <Text className={`text-stone-400 font-body-regular flex-1 ${isTablet ? 'text-xl' : 'text-xs'}`} numberOfLines={1}>
                                         {player.prizes.map((p: any) => p.name).join(', ')}
                                     </Text>
                                 </View>
                             </View>
 
                             {/* Amount */}
-                            <View className="items-end ml-2">
-                                <Text className="text-[#b30069] text-xl font-headline-bold">₹{player.totalWon}</Text>
+                            <View className="items-end ml-4">
+                                <Text className={`text-[#b30069] font-headline-bold ${isTablet ? 'text-5xl' : 'text-xl'}`}>₹{player.totalWon}</Text>
                             </View>
                         </View>
                     ))
@@ -127,24 +155,16 @@ const HousieResultsScreen = () => {
             </ScrollView>
 
             {/* Bottom Button */}
-            <View className="px-8 pb-10 pt-4">
+            <View className={`px-8 pb-10 pt-4 ${isTablet ? 'px-20' : ''}`}>
                 <TouchableOpacity
                     onPress={handleClose}
-                    style={{
-                        height: 58,
-                        borderRadius: 29,
-                        backgroundColor: '#b30069',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        shadowColor: '#b30069',
-                        shadowOffset: { width: 0, height: 6 },
-                        shadowOpacity: 0.25,
-                        shadowRadius: 14,
-                        elevation: 8,
-                    }}
-                    activeOpacity={0.8}
+                    style={{ height: isTablet ? 110 : 64 }}
+                    className="bg-[#b30069] rounded-[32px] items-center justify-center shadow-xl shadow-primary/20"
                 >
-                    <Text className="text-white font-headline-bold text-xl">Done</Text>
+                    <Text 
+                        className="text-white font-headline-bold"
+                        style={{ fontSize: isTablet ? 32 : 20 }}
+                    >Done</Text>
                 </TouchableOpacity>
             </View>
         </SafeAreaView>

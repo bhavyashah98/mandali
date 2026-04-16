@@ -124,7 +124,7 @@ export const fetchTicketById = async (ticketId: string) => {
     return response.data?.ticket;
 };
 
-export const fetchActiveHousieGame = async (groupId: string): Promise<{ game: any }> => {
+export const fetchActiveHousieGame = async (groupId: string): Promise<{ activeGame: any, lastGame: any }> => {
     const headers = await getAuthHeaders();
     const response = await axios.get(`${API_URL}/housie/active/${groupId}`, { headers });
     return response.data;

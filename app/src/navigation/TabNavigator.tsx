@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useWindowDimensions } from 'react-native';
 
 import { GroupNavigator } from './GroupNavigator';
 import { HousieNavigator } from './HousieNavigator';
@@ -12,6 +13,8 @@ const Tab = createBottomTabNavigator();
 
 export const TabNavigator = () => {
     const insets = useSafeAreaInsets();
+    const { width } = useWindowDimensions();
+    const isTablet = width > 500;
     
     return (
         <Tab.Navigator
@@ -19,6 +22,19 @@ export const TabNavigator = () => {
                 headerShown: false,
                 tabBarActiveTintColor: '#b30069',
                 tabBarInactiveTintColor: '#594048',
+                tabBarLabelPosition: 'below-icon',
+                tabBarLabelStyle: {
+                    fontFamily: 'BeVietnamPro_600SemiBold',
+                    fontSize: isTablet ? 16 : 11,
+                    marginBottom: isTablet ? 12 : 0,
+                },
+                tabBarIconStyle: {
+                    width: isTablet ? 50 : 28,
+                    height: isTablet ? 50 : 28,
+                },
+                tabBarItemStyle: {
+                    paddingVertical: isTablet ? 10 : 5,
+                },
                 tabBarStyle: {
                     backgroundColor: '#fdf9f3',
                     borderTopWidth: 0,
@@ -27,18 +43,18 @@ export const TabNavigator = () => {
                     shadowOffset: { width: 0, height: -4 },
                     shadowOpacity: 0.05,
                     shadowRadius: 10,
-                    height: 60 + Math.max(insets.bottom, 8),
+                    height: (isTablet ? 110 : 64) + Math.max(insets.bottom, 8),
                     paddingBottom: Math.max(insets.bottom, 8),
-                    paddingTop: 8,
+                    paddingTop: isTablet ? 12 : 8,
                 },
-                tabBarIcon: ({ focused, color, size }) => {
+                tabBarIcon: ({ focused, color }) => {
                     let iconName: any;
                     if (route.name === 'Groups') iconName = focused ? 'people' : 'people-outline';
                     else if (route.name === 'Housie') iconName = focused ? 'game-controller' : 'game-controller-outline';
                     else if (route.name === 'Memories') iconName = focused ? 'images' : 'images-outline';
                     else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
                     
-                    return <Ionicons name={iconName} size={size} color={color} />;
+                    return <Ionicons name={iconName} size={isTablet ? 44 : 26} color={color} />;
                 },
             })}
         >

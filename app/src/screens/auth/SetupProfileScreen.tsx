@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../../stores/authStore';
+import { useWindowDimensions } from 'react-native';
 import { API_URL, getAuthHeaders, uploadProfileImage } from '../../lib/api';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,6 +25,8 @@ import * as WebBrowser from 'expo-web-browser';
 const SetupProfileScreen = () => {
     const { user, setUser, logout } = useAuthStore();
     const navigation = useNavigation<any>();
+    const { width } = useWindowDimensions();
+    const isTablet = width > 500;
 
     // Initialize states with user data if available (Edit Mode)
     const [name, setName] = useState(user?.name || '');
@@ -108,7 +111,7 @@ const SetupProfileScreen = () => {
                 setUser(updatedUser);
                 await AsyncStorage.setItem('mandali_user', JSON.stringify(updatedUser));
                 Alert.alert('Success', 'Profile updated successfully!');
-                
+
                 // If they came from menu, navigate back.
                 if (!isFirstTime && navigation.canGoBack()) {
                     navigation.goBack();
@@ -127,163 +130,202 @@ const SetupProfileScreen = () => {
     return (
         <SafeAreaView className="flex-1 bg-background" edges={['top']}>
             {/* Header */}
-            <View className="flex-row items-center justify-between px-4 py-3.5 bg-background">
-                {isFirstTime ? (
-                    <TouchableOpacity onPress={logout} className="w-10 h-10 items-center justify-center">
-                        <MaterialIcons name="logout" size={22} color="#b30069" />
-                    </TouchableOpacity>
-                ) : (
-                    <TouchableOpacity onPress={() => navigation.goBack()} className="w-10 h-10 items-center justify-center bg-stone-100 rounded-full">
-                        <MaterialIcons name="arrow-back" size={22} color="#1c1c18" />
-                    </TouchableOpacity>
-                )}
-                <Text className="text-[22px] font-headline-bold text-on-surface text-center">
-                    {isFirstTime ? 'Setup Profile' : 'My Profile'}
-                </Text>
-                <View style={{ width: 40 }} />
+            <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
+                <View style={{ width: isTablet ? 64 : 40 }}>
+                    {isFirstTime ? (
+                        <TouchableOpacity
+                            onPress={logout}
+                            className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                        >
+                            <MaterialIcons name="logout" size={isTablet ? 28 : 22} color="#b30069" />
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity
+                            onPress={() => navigation.goBack()}
+                            className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                        >
+                            <MaterialIcons name="arrow-back" size={isTablet ? 28 : 24} color="#1c1c18" />
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                <View className="flex-1 items-center">
+                    <Text 
+                        className="font-headline-bold text-on-surface text-[#1c1c18]"
+                        style={{ fontSize: isTablet ? 36 : 22 }}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                    >
+                        {isFirstTime ? 'Setup Profile' : 'My Profile'}
+                    </Text>
+                </View>
+
+                <View style={{ width: isTablet ? 64 : 40 }} />
             </View>
 
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                className="flex-1"
-            >
-                <ScrollView
-                    contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="always"
+            <View className="flex-1">
+
+
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    className="flex-1"
                 >
-                    {/* Profile Photo Section */}
-                    <View className="items-center mb-8 mt-2">
-                        <TouchableOpacity onPress={pickImage} activeOpacity={0.7} className="items-center">
-                            <View className="relative mb-2.5">
-                                <View
-                                    className="w-[124px] h-[124px] rounded-full items-center justify-center overflow-hidden border-[3px] border-white"
-                                    style={{
-                                        backgroundColor: '#f3e8ef',
-                                        shadowColor: '#b30069',
-                                        shadowOffset: { width: 0, height: 4 },
-                                        shadowOpacity: 0.12,
-                                        shadowRadius: 12,
-                                        elevation: 4,
-                                    }}
-                                >
-                                    {profileImage ? (
-                                        <Image source={{ uri: profileImage }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                                    ) : (
-                                        <Ionicons name="person" size={54} color="#b30069" />
-                                    )}
-                                </View>
-                                <View className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary border-2 border-background items-center justify-center">
-                                    <MaterialIcons name="camera-alt" size={14} color="white" />
-                                </View>
-                            </View>
-                            <Text className="text-sm font-body-bold text-on-surface-variant">Update Photo</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Name Input */}
-                    <View className="mb-6">
-                        <Text className="text-[15px] font-body-bold text-on-surface mb-2 ml-1">Your Name</Text>
-                        <View className="bg-surface-container rounded-[20px] px-5 justify-center" style={{ height: 56 }}>
-                            <TextInput
-                                placeholder="E.g. Arnav Shah"
-                                placeholderTextColor="#a09d96"
-                                style={{ height: 56, fontSize: 15, color: '#1c1c18' }}
-                                value={name}
-                                onChangeText={setName}
-                            />
-                        </View>
-                    </View>
-
-                    {/* Birthday Section */}
-                    <View className="mb-8">
-                        <Text className="text-[15px] font-body-bold text-on-surface mb-2 ml-1">Birthday (DD/MM/YYYY)</Text>
-                        <View className="flex-row gap-3">
-                            <View className="flex-1 bg-surface-container rounded-[20px] px-2 items-center justify-center" style={{ height: 56 }}>
-                                <TextInput
-                                    value={day}
-                                    onChangeText={(v) => {
-                                        setDay(v);
-                                        if (v.length === 2) monthRef.current?.focus();
-                                    }}
-                                    placeholder="DD"
-                                    placeholderTextColor="#a09d96"
-                                    keyboardType="number-pad"
-                                    maxLength={2}
-                                    style={{ height: 56, fontSize: 16, color: '#1c1c18', fontWeight: '700', textAlign: 'center' }}
-                                />
-                            </View>
-                            <View className="flex-1 bg-surface-container rounded-[20px] px-2 items-center justify-center" style={{ height: 56 }}>
-                                <TextInput
-                                    ref={monthRef}
-                                    value={month}
-                                    onChangeText={(v) => {
-                                        setMonth(v);
-                                        if (v.length === 2) yearRef.current?.focus();
-                                    }}
-                                    placeholder="MM"
-                                    placeholderTextColor="#a09d96"
-                                    keyboardType="number-pad"
-                                    maxLength={2}
-                                    style={{ height: 56, fontSize: 16, color: '#1c1c18', fontWeight: '700', textAlign: 'center' }}
-                                />
-                            </View>
-                            <View className="flex-[1.5] bg-surface-container rounded-[20px] px-2 items-center justify-center" style={{ height: 56 }}>
-                                <TextInput
-                                    ref={yearRef}
-                                    value={year}
-                                    onChangeText={setYear}
-                                    placeholder="YYYY"
-                                    placeholderTextColor="#a09d96"
-                                    keyboardType="number-pad"
-                                    maxLength={4}
-                                    style={{ height: 56, fontSize: 16, color: '#1c1c18', fontWeight: '700', textAlign: 'center' }}
-                                />
-                            </View>
-                        </View>
-                    </View>
-
-                    {/* Info Card - Different for Edit vs Setup */}
-                    <View className="flex-row items-start bg-primary/5 rounded-3xl p-5 mb-8 border border-primary/10">
-                        <View className="mr-3.5 mt-0.5">
-                            <MaterialIcons name={isFirstTime ? "stars" : "verified-user"} size={22} color="#b30069" />
-                        </View>
-                        <View className="flex-1">
-                            <Text className="text-[14px] font-body-bold text-on-surface mb-1">
-                                {isFirstTime ? 'Make it Yours' : 'Account Identity'}
-                            </Text>
-                            <Text className="text-[12px] font-body-regular text-on-surface-variant leading-4">
-                                {isFirstTime
-                                    ? 'Personalizing your profile helps your friends recognize you and join your Mandali gatherings.'
-                                    : 'Your Mandali profile is how you appear to others in games and memories. Keep it updated!'}
-                            </Text>
-                        </View>
-                    </View>
-
-                    {/* Save/Join Button */}
-                    <TouchableOpacity
-                        className={`w-full h-[58px] rounded-full items-center justify-center ${name.trim() && day && month && year && !isLoading ? 'bg-primary' : 'bg-primary/50'}`}
-                        style={{
-                            shadowColor: '#b30069',
-                            shadowOffset: { width: 0, height: 6 },
-                            shadowOpacity: 0.3,
-                            shadowRadius: 14,
-                            elevation: 8,
+                    <ScrollView
+                        contentContainerStyle={{
+                            padding: isTablet ? 40 : 20,
+                            paddingBottom: 60
                         }}
-                        disabled={!name.trim() || !day || isLoading}
-                        activeOpacity={0.85}
-                        onPress={handleSaveProfile}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="always"
                     >
-                        {isLoading ? (
-                            <ActivityIndicator color="white" />
-                        ) : (
-                            <Text className="text-lg font-headline-bold text-white">
-                                {isFirstTime ? 'Join Mandali' : 'Update Profile'}
-                            </Text>
-                        )}
-                    </TouchableOpacity>
-                </ScrollView>
-            </KeyboardAvoidingView>
+                        <View className="w-full">
+                            {/* Profile Photo Section */}
+                            <View className={`items-center mb-${isTablet ? '16' : '8'} mt-2`}>
+                                <TouchableOpacity onPress={pickImage} activeOpacity={0.7} className="items-center">
+                                    <View className="relative mb-6">
+                                        <View
+                                            className="rounded-full items-center justify-center overflow-hidden border-[4px] border-white"
+                                            style={{
+                                                width: isTablet ? 200 : 124,
+                                                height: isTablet ? 200 : 124,
+                                                backgroundColor: '#f3e8ef',
+                                                shadowColor: '#b30069',
+                                                shadowOffset: { width: 0, height: 4 },
+                                                shadowOpacity: 0.12,
+                                                shadowRadius: 12,
+                                                elevation: 4,
+                                            }}
+                                        >
+                                            {profileImage ? (
+                                                <Image source={{ uri: profileImage }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                                            ) : (
+                                                <Ionicons name="person" size={isTablet ? 90 : 54} color="#b30069" />
+                                            )}
+                                        </View>
+                                        <View className={`absolute bottom-1 right-1 items-center justify-center rounded-full bg-primary border-2 border-background ${isTablet ? 'w-12 h-12' : 'w-8 h-8'}`}>
+                                            <MaterialIcons name="camera-alt" size={isTablet ? 20 : 14} color="white" />
+                                        </View>
+                                    </View>
+                                    <Text className={`font-body-bold text-on-surface-variant ${isTablet ? 'text-2xl' : 'text-sm'}`}>Update Photo</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Name Input */}
+                            <View className={`mb-${isTablet ? '10' : '6'}`}>
+                                <Text className={`font-body-bold text-on-surface mb-3 ml-1 ${isTablet ? 'text-xl' : 'text-[15px]'}`}>Your Name</Text>
+                                <View className="bg-surface-container rounded-[20px] px-6 justify-center" style={{ height: isTablet ? 110 : 56 }}>
+                                    <TextInput
+                                        placeholder="E.g. Arnav Shah"
+                                        placeholderTextColor="#a09d96"
+                                        style={{ height: isTablet ? 110 : 56, fontSize: isTablet ? 32 : 16, color: '#1c1c18' }}
+                                        className="font-body-bold"
+                                        value={name}
+                                        onChangeText={setName}
+                                    />
+                                </View>
+                            </View>
+
+                            {/* Birthday Section */}
+                            <View className={`mb-${isTablet ? '12' : '8'}`}>
+                                <Text className={`font-body-bold text-on-surface mb-3 ml-1 ${isTablet ? 'text-xl' : 'text-[15px]'}`}>Birthday (DD/MM/YYYY)</Text>
+                                <View className="flex-row gap-4">
+                                    <View className="flex-1 bg-surface-container rounded-[20px] px-3 items-center justify-center" style={{ height: isTablet ? 110 : 56 }}>
+                                        <TextInput
+                                            value={day}
+                                            onChangeText={(v) => {
+                                                setDay(v);
+                                                if (v.length === 2) monthRef.current?.focus();
+                                            }}
+                                            placeholder="DD"
+                                            placeholderTextColor="#a09d96"
+                                            keyboardType="number-pad"
+                                            maxLength={2}
+                                            style={{ height: isTablet ? 110 : 56, fontSize: isTablet ? 32 : 16, color: '#1c1c18', fontWeight: '700', textAlign: 'center' }}
+                                        />
+                                    </View>
+                                    <View className="flex-1 bg-surface-container rounded-[20px] px-3 items-center justify-center" style={{ height: isTablet ? 110 : 56 }}>
+                                        <TextInput
+                                            ref={monthRef}
+                                            value={month}
+                                            onChangeText={(v) => {
+                                                setMonth(v);
+                                                if (v.length === 2) yearRef.current?.focus();
+                                            }}
+                                            placeholder="MM"
+                                            placeholderTextColor="#a09d96"
+                                            keyboardType="number-pad"
+                                            maxLength={2}
+                                            style={{ height: isTablet ? 110 : 56, fontSize: isTablet ? 32 : 16, color: '#1c1c18', fontWeight: '700', textAlign: 'center' }}
+                                        />
+                                    </View>
+                                    <View className="flex-[1.5] bg-surface-container rounded-[20px] px-3 items-center justify-center" style={{ height: isTablet ? 110 : 56 }}>
+                                        <TextInput
+                                            ref={yearRef}
+                                            value={year}
+                                            onChangeText={setYear}
+                                            placeholder="YYYY"
+                                            placeholderTextColor="#a09d96"
+                                            keyboardType="number-pad"
+                                            maxLength={4}
+                                            style={{ height: isTablet ? 110 : 56, fontSize: isTablet ? 32 : 16, color: '#1c1c18', fontWeight: '700', textAlign: 'center' }}
+                                        />
+                                    </View>
+                                </View>
+                            </View>
+
+                            {/* Info Card - Different for Edit vs Setup */}
+                            <View className={`flex-row items-start bg-primary/5 rounded-3xl mb-12 border border-primary/10 ${isTablet ? 'p-12' : 'p-5'}`}>
+                                <View className={`${isTablet ? 'mr-8 mt-2' : 'mr-5 mt-1'}`}>
+                                    <MaterialIcons name={isFirstTime ? "stars" : "verified-user"} size={isTablet ? 48 : 22} color="#b30069" />
+                                </View>
+                                <View className="flex-1">
+                                    <Text 
+                                        className="font-body-bold text-on-surface"
+                                        style={{ fontSize: isTablet ? 32 : 15, marginBottom: isTablet ? 12 : 4 }}
+                                    >
+                                        {isFirstTime ? 'Make it Yours' : 'Account Identity'}
+                                    </Text>
+                                    <Text 
+                                        className="font-body-regular text-on-surface-variant"
+                                        style={{ fontSize: isTablet ? 22 : 13, lineHeight: isTablet ? 36 : 20 }}
+                                    >
+                                        {isFirstTime
+                                            ? 'Personalizing your profile helps your friends recognize you and join your Mandali gatherings.'
+                                            : 'Your Mandali profile is how you appear to others in games and memories. Keep it updated!'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Save/Join Button */}
+                            <TouchableOpacity
+                                className={`w-full rounded-[32px] items-center justify-center ${name.trim() && day && month && year && !isLoading ? 'bg-[#b30069]' : 'bg-[#b30069]/50'}`}
+                                style={{
+                                    height: isTablet ? 110 : 64,
+                                    elevation: 8,
+                                    shadowColor: '#b30069',
+                                    shadowOffset: { width: 0, height: 6 },
+                                    shadowOpacity: 0.2,
+                                    shadowRadius: 12,
+                                }}
+                                disabled={!name.trim() || !day || isLoading}
+                                activeOpacity={0.85}
+                                onPress={handleSaveProfile}
+                            >
+                                {isLoading ? (
+                                    <ActivityIndicator color="white" />
+                                ) : (
+                                    <Text
+                                        className="font-headline-bold text-white text-center"
+                                        style={{ fontSize: isTablet ? 32 : 20 }}
+                                    >
+                                        {isFirstTime ? 'Join Mandali' : 'Update Profile'}
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </ScrollView>
+                </KeyboardAvoidingView>
+            </View>
         </SafeAreaView>
     );
 };

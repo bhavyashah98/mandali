@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Dimensions, FlatList, Alert, Modal } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, useWindowDimensions, FlatList, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -10,9 +10,9 @@ import { useAuthStore } from '../../stores/authStore';
 import { fetchHousieGame, joinHousieGame, fetchHousieTickets, API_URL } from '../../lib/api';
 import { getSocket } from '../../lib/socketService';
 
-const { width } = Dimensions.get('window');
-
 const HousieTicketScreen = () => {
+    const { width } = useWindowDimensions();
+    const isTablet = width > 500;
     const route = useRoute();
     const navigation = useNavigation<any>();
     const queryClient = useQueryClient();
@@ -269,7 +269,7 @@ const HousieTicketScreen = () => {
                                                 disabled={isBoggy}
                                                 className={`w-full h-full rounded-md items-center justify-center border ${(markedTickets[ticket.id] || []).includes(num) ? 'bg-primary border-primary' : 'bg-stone-50 border-stone-100'}`}
                                             >
-                                                <Text className={`font-headline-bold text-xs ${(markedTickets[ticket.id] || []).includes(num) ? 'text-white' : 'text-on-surface'}`}>
+                                                <Text className={`font-headline-bold ${(markedTickets[ticket.id] || []).includes(num) ? 'text-white' : 'text-on-surface'} ${isTablet ? 'text-2xl' : 'text-xs'}`}>
                                                     {num}
                                                 </Text>
                                             </TouchableOpacity>
@@ -306,13 +306,13 @@ const HousieTicketScreen = () => {
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
                 ListHeaderComponent={() => (
-                    <View className="mb-10 mt-4 items-center">
-                        <Text className="text-stone-400 font-body-bold text-[11px] uppercase tracking-[3px] mb-6">NOW CALLING</Text>
+                    <View className={`mb-10 mt-4 items-center ${isTablet ? 'py-10' : ''}`}>
+                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[3px] mb-6 ${isTablet ? 'text-lg' : 'text-[11px]'}`}>NOW CALLING</Text>
                         <View
-                            className="w-36 h-36 rounded-full bg-primary items-center justify-center shadow-2xl shadow-primary/40 border-[10px] border-white"
-                            style={{ elevation: 12 }}
+                            style={{ width: isTablet ? 220 : 144, height: isTablet ? 220 : 144, borderRadius: 110, elevation: 12 }}
+                            className="bg-primary items-center justify-center shadow-2xl shadow-primary/40 border-[10px] border-white"
                         >
-                            <Text className="text-white text-[56px] font-headline-bold">
+                            <Text className={`text-white font-headline-bold ${isTablet ? 'text-8xl' : 'text-[56px]'}`}>
                                 {latestNumber || "--"}
                             </Text>
                         </View>

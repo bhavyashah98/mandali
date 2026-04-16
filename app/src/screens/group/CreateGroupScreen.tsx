@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { createGroup, updateGroup, uploadImage } from '../../lib/api';
 import { Image } from 'expo-image';
@@ -22,6 +23,8 @@ const CreateGroupScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute();
     const queryClient = useQueryClient();
+    const { width } = useWindowDimensions();
+    const isTablet = width > 500;
 
     // Check if we are in Edit Mode
     const editGroup = (route.params as any)?.group;
@@ -36,7 +39,7 @@ const CreateGroupScreen = () => {
         mutationFn: async () => {
             if (isEdit) {
                 let uploadedUrl = groupImage;
-                
+
                 // Only upload if it's a new local URI
                 if (hasNewImage && groupImage) {
                     uploadedUrl = await uploadImage(groupImage, editGroup.id);
@@ -54,7 +57,7 @@ const CreateGroupScreen = () => {
                     name: groupName.trim(),
                     description: description.trim(),
                 };
-                
+
                 // 1. Create group first to obtain the legitimate ID
                 const response = await createGroup(payload);
                 const newGroupId = response.group.id;
@@ -72,9 +75,18 @@ const CreateGroupScreen = () => {
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['groups'] });
             if (isEdit) queryClient.invalidateQueries({ queryKey: ['group', editGroup.id] });
-            
+
             Alert.alert('Success', isEdit ? 'Mandali updated!' : `"${data.group.name}" created!`, [
-                { text: 'OK', onPress: () => navigation.goBack() },
+                { 
+                    text: 'OK', 
+                    onPress: () => {
+                        if (navigation.canGoBack()) {
+                            navigation.goBack();
+                        } else {
+                            navigation.navigate('GroupList');
+                        }
+                    } 
+                },
             ]);
         },
         onError: (err: any) => {
@@ -113,19 +125,32 @@ const CreateGroupScreen = () => {
     return (
         <SafeAreaView className="flex-1 bg-background" edges={['top']}>
             {/* Top Bar */}
-            <View className="flex-row items-center justify-between px-4 py-3.5 bg-background">
-                <TouchableOpacity onPress={() => navigation.goBack()} className="w-10 h-10 items-center justify-center">
-                    <MaterialIcons name="arrow-back" size={24} color="#b30069" />
-                </TouchableOpacity>
-                <Text 
-                    className="flex-1 font-headline-bold text-on-surface text-center mx-2"
-                    style={{ fontSize: 22 }}
-                    adjustsFontSizeToFit
-                    numberOfLines={1}
-                >
-                    {isEdit ? 'Edit Mandali' : 'New Group'}
-                </Text>
-                <View style={{ width: 40 }} />
+            <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
+                <View style={{ width: isTablet ? 64 : 40 }}>
+                    <TouchableOpacity 
+                        onPress={() => {
+                            if (navigation.canGoBack()) {
+                                navigation.goBack();
+                            } else {
+                                navigation.navigate('GroupList');
+                            }
+                        }} 
+                        className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                    >
+                        <MaterialIcons name="arrow-back" size={isTablet ? 28 : 24} color="#b30069" />
+                    </TouchableOpacity>
+                </View>
+                <View className="flex-1 items-center">
+                    <Text 
+                        className="font-headline-bold text-on-surface text-[#1c1c18]"
+                        style={{ fontSize: isTablet ? 36 : 20 }}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                    >
+                        {isEdit ? 'Edit Mandali' : 'New Mandali'}
+                    </Text>
+                </View>
+                <View style={{ width: isTablet ? 64 : 40 }} />
             </View>
 
             <KeyboardAvoidingView
@@ -133,111 +158,120 @@ const CreateGroupScreen = () => {
                 className="flex-1"
             >
                 <ScrollView
-                    contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
+                    contentContainerStyle={{
+                        paddingHorizontal: isTablet ? 60 : 24,
+                        paddingBottom: 60,
+                    }}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="always"
                 >
-                    {/* Add Group Photo */}
-                    <View className="items-center mb-8 mt-2">
-                        <TouchableOpacity onPress={pickImage} activeOpacity={0.7} className="items-center">
-                            <View className="relative mb-2.5">
-                                <View
-                                    className="w-[120px] h-[120px] rounded-full items-center justify-center overflow-hidden border-[3px] border-white"
-                                    style={{
-                                        backgroundColor: '#f3e8ef',
-                                        shadowColor: '#b30069',
-                                        shadowOffset: { width: 0, height: 4 },
-                                        shadowOpacity: 0.12,
-                                        shadowRadius: 12,
-                                        elevation: 4,
-                                    }}
-                                >
-                                    {groupImage ? (
-                                        <Image source={{ uri: groupImage }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={200} />
-                                    ) : (
-                                        <MaterialIcons name="group" size={48} color="#b30069" />
-                                    )}
+
+                    <View className="w-full">
+                        {/* Add Group Photo */}
+                        <View className={`items-center mb-${isTablet ? '12' : '8'} mt-2`}>
+                            <TouchableOpacity onPress={pickImage} activeOpacity={0.7} className="items-center">
+                                <View className="relative mb-4">
+                                    <View
+                                        className="rounded-full items-center justify-center overflow-hidden border-[3px] border-white"
+                                        style={{
+                                            width: isTablet ? 180 : 120,
+                                            height: isTablet ? 180 : 120,
+                                            backgroundColor: '#f3e8ef',
+                                            shadowColor: '#b30069',
+                                            shadowOffset: { width: 0, height: 4 },
+                                            shadowOpacity: 0.12,
+                                            shadowRadius: 12,
+                                            elevation: 4,
+                                        }}
+                                    >
+                                        {groupImage ? (
+                                            <Image source={{ uri: groupImage }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={200} />
+                                        ) : (
+                                            <MaterialIcons name="group" size={isTablet ? 72 : 48} color="#b30069" />
+                                        )}
+                                    </View>
+                                    <View className={`absolute bottom-1 right-1 items-center justify-center rounded-full bg-primary border-2 border-white ${isTablet ? 'w-12 h-12' : 'w-8 h-8'}`}>
+                                        <MaterialIcons name="camera-alt" size={isTablet ? 20 : 14} color="white" />
+                                    </View>
                                 </View>
-                                <View className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary border-2 border-background items-center justify-center">
-                                    <MaterialIcons name="camera-alt" size={14} color="white" />
-                                </View>
+                                <Text className={`font-body-bold text-on-surface-variant ${isTablet ? 'text-xl' : 'text-sm'}`}>
+                                    {isEdit ? 'Change Photo' : 'Add Group Photo'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Group Name */}
+                        <View className="mb-8">
+                            <Text className={`font-body-bold text-on-surface mb-3 ml-1 ${isTablet ? 'text-xl' : 'text-[15px]'}`}>Group Name</Text>
+                            <View className="bg-surface-container rounded-[20px] px-6 justify-center" style={{ height: isTablet ? 72 : 56 }}>
+                                <TextInput
+                                    placeholder="Family Reunion"
+                                    placeholderTextColor="#a09d96"
+                                    style={{ height: isTablet ? 72 : 56, padding: 0, margin: 0, fontSize: isTablet ? 20 : 15, color: '#1c1c18', letterSpacing: 0, textAlignVertical: 'center', includeFontPadding: false, paddingVertical: 0 }}
+                                    value={groupName}
+                                    onChangeText={setGroupName}
+                                />
                             </View>
-                            <Text className="text-sm font-body-bold text-on-surface-variant">
-                                {isEdit ? 'Change Photo' : 'Add Group Photo'}
-                            </Text>
+                        </View>
+
+                        {/* Description */}
+                        <View className="mb-10">
+                            <Text className={`font-body-bold text-on-surface mb-3 ml-1 ${isTablet ? 'text-xl' : 'text-[15px]'}`}>Description (Optional)</Text>
+                            <View className="bg-surface-container rounded-3xl px-6 pt-5" style={{ minHeight: isTablet ? 180 : 120 }}>
+                                <TextInput
+                                    placeholder="A place for our games, laughs and memories"
+                                    placeholderTextColor="#a09d96"
+                                    style={{ padding: 0, margin: 0, textAlignVertical: 'top', fontSize: isTablet ? 20 : 15, color: '#1c1c18', letterSpacing: 0 }}
+                                    multiline
+                                    numberOfLines={isTablet ? 6 : 4}
+                                    value={description}
+                                    onChangeText={setDescription}
+                                />
+                            </View>
+                        </View>
+
+                        {/* Privacy Info Card */}
+                        <View className="flex-row items-start bg-primary/5 rounded-3xl p-6 mb-12 border border-primary/10">
+                            <View className="mr-5 mt-1">
+                                <MaterialIcons name="lock" size={isTablet ? 32 : 22} color="#b30069" />
+                            </View>
+                            <View className="flex-1">
+                                <Text className={`font-body-bold text-on-surface mb-2 ${isTablet ? 'text-xl' : 'text-[15px]'}`}>Private by Default</Text>
+                                <Text className={`font-body-regular text-on-surface-variant leading-6 ${isTablet ? 'text-lg' : 'text-[13px]'}`}>
+                                    Your group and its conversations are private. Only people you invite will be able to see or join your Mandali.
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* Submit Button */}
+                        <TouchableOpacity
+                            className={`w-full rounded-[40px] flex-row items-center justify-center px-8 ${groupName.trim() && !loading ? 'bg-[#b30069]' : 'bg-[#b30069]/50'}`}
+                            style={{
+                                height: isTablet ? 110 : 64,
+                                elevation: 8,
+                                shadowColor: '#b30069',
+                                shadowOffset: { width: 0, height: 6 },
+                                shadowOpacity: 0.2,
+                                shadowRadius: 12,
+                            }}
+                            disabled={!groupName.trim() || loading}
+                            activeOpacity={0.85}
+                            onPress={handleSubmit}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <Text
+                                    className="font-headline-bold text-white text-center"
+                                    style={{ fontSize: isTablet ? 32 : 20 }}
+                                    adjustsFontSizeToFit
+                                    numberOfLines={1}
+                                >
+                                    {isEdit ? 'Save Changes' : 'Create Mandali'}
+                                </Text>
+                            )}
                         </TouchableOpacity>
                     </View>
-
-                    {/* Group Name */}
-                    <View className="mb-5">
-                        <Text className="text-[15px] font-body-bold text-on-surface mb-2 ml-1">Group Name</Text>
-                        <View className="bg-surface-container rounded-[20px] px-5 justify-center" style={{ height: 56 }}>
-                            <TextInput
-                                placeholder="Family Reunion"
-                                placeholderTextColor="#a09d96"
-                                style={{ height: 56, padding: 0, margin: 0, fontSize: 15, color: '#1c1c18', letterSpacing: 0, textAlignVertical: 'center', includeFontPadding: false, paddingVertical: 0 }}
-                                value={groupName}
-                                onChangeText={setGroupName}
-                            />
-                        </View>
-                    </View>
-
-                    {/* Description */}
-                    <View className="mb-6">
-                        <Text className="text-[15px] font-body-bold text-on-surface mb-2 ml-1">Description (Optional)</Text>
-                        <View className="bg-surface-container rounded-3xl px-5 pt-4" style={{ minHeight: 120 }}>
-                            <TextInput
-                                placeholder="A place for our games, laughs and memories"
-                                placeholderTextColor="#a09d96"
-                                style={{ padding: 0, margin: 0, textAlignVertical: 'top', fontSize: 15, color: '#1c1c18', letterSpacing: 0 }}
-                                multiline
-                                numberOfLines={4}
-                                value={description}
-                                onChangeText={setDescription}
-                            />
-                        </View>
-                    </View>
-
-                    {/* Privacy Info Card */}
-                    <View className="flex-row items-start bg-primary/5 rounded-3xl p-5 mb-7 border border-primary/10">
-                        <View className="mr-3.5 mt-0.5">
-                            <MaterialIcons name="lock" size={22} color="#b30069" />
-                        </View>
-                        <View className="flex-1">
-                            <Text className="text-[15px] font-body-bold text-on-surface mb-1">Private by Default</Text>
-                            <Text className="text-[13px] font-body-regular text-on-surface-variant leading-5">
-                                Your group and its conversations are private. Only people you invite will be able to see or join your Mandali.
-                            </Text>
-                        </View>
-                    </View>
-
-                    {/* Submit Button */}
-                    <TouchableOpacity
-                        className={`w-full h-[58px] rounded-full flex-row items-center justify-center px-4 ${groupName.trim() && !loading ? 'bg-primary' : 'bg-primary/50'}`}
-                        style={{
-                            shadowColor: '#b30069',
-                            shadowOffset: { width: 0, height: 6 },
-                            shadowOpacity: 0.3,
-                            shadowRadius: 14,
-                            elevation: 8,
-                        }}
-                        disabled={!groupName.trim() || loading}
-                        activeOpacity={0.85}
-                        onPress={handleSubmit}
-                    >
-                        {loading ? (
-                            <ActivityIndicator color="white" />
-                        ) : (
-                            <Text 
-                                className="font-headline-bold text-white text-center"
-                                style={{ fontSize: 18 }}
-                                adjustsFontSizeToFit
-                                numberOfLines={1}
-                            >
-                                {isEdit ? 'Save Changes' : 'Create Group'}
-                            </Text>
-                        )}
-                    </TouchableOpacity>
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>

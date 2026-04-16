@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Dimensions, Alert, Share, FlatList } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, Share, FlatList, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -8,9 +8,9 @@ import { useAuthStore } from '../../stores/authStore';
 import { deleteMemory } from '../../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 
-const { width, height } = Dimensions.get('window');
-
 const MemoryDetailScreen = () => {
+    const { width, height } = useWindowDimensions();
+    const isTablet = width > 500;
     const navigation = useNavigation<any>();
     const route = useRoute();
     const queryClient = useQueryClient();
@@ -77,22 +77,22 @@ const MemoryDetailScreen = () => {
             <View style={{ width, height: '100%' }}>
                 <SafeAreaView className="flex-1" edges={['top', 'bottom']}>
                     {/* 1. Modal Header */}
-                    <View className="flex-row items-center justify-between px-6 py-4 bg-black/50 z-30">
+                    <View className={`flex-row items-center justify-between bg-black/50 z-30 ${isTablet ? 'px-12 py-10' : 'px-6 py-4'}`}>
                         <TouchableOpacity 
                             onPress={() => navigation.goBack()}
-                            className="w-12 h-12 rounded-full bg-white/10 items-center justify-center border border-white/20"
+                            className={`rounded-full bg-white/10 items-center justify-center border border-white/20 ${isTablet ? 'w-20 h-20' : 'w-12 h-12'}`}
                         >
-                            <Ionicons name="close" size={32} color="white" />
+                            <Ionicons name="close" size={isTablet ? 48 : 32} color="white" />
                         </TouchableOpacity>
                         
-                        <View className="flex-row items-center bg-white/10 px-4 py-2 rounded-full border border-white/10">
-                            <View className="items-end mr-3">
-                                <Text className="text-white font-headline-bold text-sm">{item.memory.user?.name}</Text>
-                                <Text className="text-white/60 font-body-bold text-[9px] uppercase tracking-tighter">
+                        <View className={`flex-row items-center bg-white/10 rounded-full border border-white/10 ${isTablet ? 'px-8 py-4' : 'px-4 py-2'}`}>
+                            <View className="items-end mr-4">
+                                <Text className={`text-white font-headline-bold ${isTablet ? 'text-2xl' : 'text-sm'}`}>{item.memory.user?.name}</Text>
+                                <Text className={`text-white/60 font-body-bold uppercase tracking-widest ${isTablet ? 'text-xs mt-1' : 'text-[9px]'}`}>
                                     {new Date(memoryDate).toLocaleDateString()}
                                 </Text>
                             </View>
-                            <View className="w-8 h-8 rounded-full border border-white/30 overflow-hidden">
+                            <View className={`rounded-full border border-white/30 overflow-hidden ${isTablet ? 'w-16 h-16' : 'w-8 h-8'}`}>
                                 {item.memory.user?.avatar_url ? (
                                     <Image 
                                         source={{ uri: item.memory.user.avatar_url }} 
@@ -101,7 +101,7 @@ const MemoryDetailScreen = () => {
                                     />
                                 ) : (
                                     <View className="w-full h-full bg-stone-500 items-center justify-center">
-                                        <Ionicons name="person" size={14} color="white" />
+                                        <Ionicons name="person" size={isTablet ? 24 : 14} color="white" />
                                     </View>
                                 )}
                             </View>
@@ -129,33 +129,42 @@ const MemoryDetailScreen = () => {
                         </ScrollView>
 
                         {/* Floating Side Actions */}
-                        <View className="absolute right-6 top-1/2 -mt-24 gap-5 z-40">
+                        <View className={`absolute right-6 top-1/2 -mt-32 gap-6 z-40 ${isTablet ? 'right-12' : 'right-6'}`}>
                             {isOwner && (
-                                <TouchableOpacity onPress={() => handleDelete(item.memory.id)} className="w-14 h-14 rounded-full bg-red-500/80 items-center justify-center shadow-lg">
-                                    <MaterialCommunityIcons name="delete-outline" size={26} color="white" />
+                                <TouchableOpacity 
+                                    onPress={() => handleDelete(item.memory.id)} 
+                                    className={`rounded-full bg-red-500/80 items-center justify-center shadow-lg ${isTablet ? 'w-24 h-24' : 'w-14 h-14'}`}
+                                >
+                                    <MaterialCommunityIcons name="delete-outline" size={isTablet ? 42 : 26} color="white" />
                                 </TouchableOpacity>
                             )}
-                            <TouchableOpacity onPress={handleDownload} className="w-14 h-14 rounded-full bg-black/50 border border-white/20 items-center justify-center shadow-lg">
-                                <Ionicons name="download-outline" size={26} color="white" />
+                            <TouchableOpacity 
+                                onPress={handleDownload} 
+                                className={`rounded-full bg-black/50 border border-white/20 items-center justify-center shadow-lg ${isTablet ? 'w-24 h-24' : 'w-14 h-14'}`}
+                            >
+                                <Ionicons name="download-outline" size={isTablet ? 42 : 26} color="white" />
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={() => handleShare(item.url)} className="w-14 h-14 rounded-full bg-[#25D366]/90 items-center justify-center shadow-lg">
-                                <Ionicons name="logo-whatsapp" size={28} color="white" />
+                            <TouchableOpacity 
+                                onPress={() => handleShare(item.url)} 
+                                className={`rounded-full bg-[#25D366]/90 items-center justify-center shadow-lg ${isTablet ? 'w-24 h-24' : 'w-14 h-14'}`}
+                            >
+                                <Ionicons name="logo-whatsapp" size={isTablet ? 48 : 28} color="white" />
                             </TouchableOpacity>
                         </View>
                     </View>
 
                     {/* 3. Story / Description (Bottom) */}
-                    <View className="bg-black/80 border-t border-white/10 pb-10 pt-6 px-8 min-h-[120px] justify-center z-30">
-                        <View className="w-8 h-1 bg-white/20 rounded-full self-center mb-6" />
+                    <View className={`bg-black/80 border-t border-white/10 pb-16 pt-10 justify-center z-30 ${isTablet ? 'px-40 min-h-[220px]' : 'px-8 min-h-[120px]'}`}>
+                        <View className={`bg-white/20 rounded-full self-center mb-8 ${isTablet ? 'w-16 h-1.5' : 'w-8 h-1'}`} />
                         {item.memory.story ? (
-                            <Text className="text-white/90 font-body-medium text-lg leading-7 text-center">
+                            <Text className={`text-white/90 font-body-medium text-center leading-relaxed ${isTablet ? 'text-3xl' : 'text-lg'}`}>
                                 {item.memory.story}
                             </Text>
                         ) : (
-                            <Text className="text-white/30 font-body-bold italic text-center">No story attached</Text>
+                            <Text className={`text-white/30 font-body-bold italic text-center ${isTablet ? 'text-2xl' : ''}`}>No story attached</Text>
                         )}
-                        <TouchableOpacity onPress={handleReport} className="mt-8 self-center">
-                            <Text className="text-white/20 font-body-bold text-[10px] uppercase tracking-widest">Report Content</Text>
+                        <TouchableOpacity onPress={handleReport} className="mt-12 self-center">
+                            <Text className={`text-white/20 font-body-bold uppercase tracking-widest ${isTablet ? 'text-sm' : 'text-[10px]'}`}>Report Content</Text>
                         </TouchableOpacity>
                     </View>
                 </SafeAreaView>

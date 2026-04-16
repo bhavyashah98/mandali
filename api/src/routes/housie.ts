@@ -99,18 +99,27 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/active/:groupId', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const { groupId } = req.params;
-        const { data: game, error } = await supabase
+        // 1. Get the current active game (not ended)
+        const { data: activeGame } = await supabase
             .from('housie_games')
             .select('*')
             .eq('group_id', groupId)
-            .neq('status', 'ended') // Ensure we only get truly active games
+            .neq('status', 'ended')
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
 
-        if (error) throw error;
+        // 2. Get the most recent ended game for the leaderboard
+        const { data: lastGame } = await supabase
+            .from('housie_games')
+            .select('*')
+            .eq('group_id', groupId)
+            .eq('status', 'ended')
+            .order('last_activity_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-        res.json({ game });
+        res.json({ activeGame, lastGame });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

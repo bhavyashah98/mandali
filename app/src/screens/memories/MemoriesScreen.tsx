@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -8,10 +8,10 @@ import { fetchMemories, fetchGroupDetail } from '../../lib/api';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 
-const { width } = Dimensions.get('window');
-const COLUMN_COUNT = 3;
-
 const MemoriesScreen = () => {
+    const { width } = useWindowDimensions();
+    const isTablet = width > 500;
+    const COLUMN_COUNT = isTablet ? 5 : 3;
     const navigation = useNavigation<any>();
     const route = useRoute();
     const params = route.params as { groupId: string } | undefined;
@@ -135,32 +135,54 @@ const MemoriesScreen = () => {
             <SafeAreaView edges={['top']} className="bg-white" />
 
             {/* Header */}
-            <View className="px-6 py-4 flex-row items-center justify-between bg-white border-b border-stone-100">
-                <TouchableOpacity onPress={() => navigation.goBack()} className="w-10 h-10 items-center justify-center">
-                    <MaterialIcons name="arrow-back-ios" size={20} color="#b30069" style={{ marginLeft: 5 }} />
-                </TouchableOpacity>
-                <View className="flex-1 items-center px-4">
-                    <Text className="text-[#31302d] font-headline-bold text-lg" numberOfLines={1}>
+            <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
+                {/* Left Action - Fixed Width for Centering Balance */}
+                <View style={{ width: isTablet ? 64 : 44 }}>
+                    <TouchableOpacity
+                        onPress={() => navigation.goBack()}
+                        className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                    >
+                        <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />
+                    </TouchableOpacity>
+                </View>
+                
+                {/* Centered Title Stack */}
+                <View className="flex-1 items-center">
+                    <Text 
+                        className="font-headline-bold text-[#1c1c18] text-center"
+                        style={{ fontSize: isTablet ? 32 : 20 }}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                    >
                         {group?.group?.name || 'Mandali'}
                     </Text>
-                    <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-widest mt-0.5">Gallery</Text>
+                    <Text 
+                        className="font-body-bold text-[#b30069] opacity-60 uppercase tracking-widest text-center"
+                        style={{ fontSize: isTablet ? 18 : 10, marginTop: isTablet ? 2 : 0 }}
+                    >
+                        Gallery
+                    </Text>
                 </View>
-                <TouchableOpacity
-                    onPress={() => navigation.navigate('CreateMemory', { groupId })}
-                    className="w-10 h-10 items-center justify-center rounded-full bg-primary/5"
-                >
-                    <Ionicons name="add" size={24} color="#b30069" />
-                </TouchableOpacity>
+
+                {/* Right Action - Fixed Width for Centering Balance */}
+                <View style={{ width: isTablet ? 64 : 44 }} className="items-end">
+                    <TouchableOpacity
+                        onPress={() => navigation.navigate('CreateMemory', { groupId })}
+                        className={`items-center justify-center rounded-full bg-[#b30069] shadow-md ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                    >
+                        <Ionicons name="add" size={isTablet ? 36 : 24} color="white" />
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
 
                 {/* ── ON THIS DAY SECTION ── */}
                 {onThisDayMemories.length > 0 && (
-                    <View className="mt-6 px-5">
-                        <View className="flex-row items-center mb-4">
-                            <Ionicons name="sparkles" size={18} color="#b38b00" />
-                            <Text className="ml-2 text-[#b38b00] font-headline-bold text-lg uppercase tracking-tight">On This Day</Text>
+                    <View className={`mt-${isTablet ? '10' : '6'} px-5`}>
+                        <View className="flex-row items-center mb-8">
+                            <Ionicons name="sparkles" size={isTablet ? 42 : 18} color="#b38b00" />
+                            <Text className={`ml-4 text-[#b38b00] font-headline-bold tracking-tight ${isTablet ? 'text-4xl' : 'text-lg'}`}>On This Day</Text>
                         </View>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row overflow-visible">
                             {onThisDayMemories.map((memory, index) => {
@@ -170,12 +192,12 @@ const MemoriesScreen = () => {
                                     <TouchableOpacity
                                         key={index}
                                         onPress={() => openDetail(globalIndex >= 0 ? globalIndex : 0)}
-                                        className="mr-3 rounded-[32px] overflow-hidden bg-stone-100 shadow-sm"
-                                        style={{ width: 150, height: 200 }}
+                                        className="mr-6 rounded-[48px] overflow-hidden bg-stone-100 shadow-xl"
+                                        style={{ width: isTablet ? 320 : 150, height: isTablet ? 440 : 200 }}
                                     >
                                         <Image source={{ uri: memory.image_urls[0] }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-                                        <BlurView tint="dark" intensity={20} className="absolute inset-x-0 bottom-0 p-3 h-16 justify-center">
-                                            <Text className="text-white font-body-bold text-xs uppercase tracking-widest">
+                                        <BlurView tint="dark" intensity={25} className={`absolute inset-x-0 bottom-0 p-6 justify-center ${isTablet ? 'h-32' : 'h-16'}`}>
+                                            <Text className={`text-white font-body-bold uppercase tracking-widest text-center ${isTablet ? 'text-xl' : 'text-xs'}`}>
                                                 {today.getFullYear() - new Date(memory.memory_date || memory.created_at).getFullYear()} Years Ago
                                             </Text>
                                         </BlurView>
@@ -189,24 +211,33 @@ const MemoriesScreen = () => {
 
                 {groupedMemories.length === 0 ? (
                     <View className="items-center justify-center py-40 px-12">
-                        <View className="w-20 h-20 rounded-full bg-[#fdf9f3] items-center justify-center mb-6">
-                            <Ionicons name="images-outline" size={32} color="#e8c4d8" />
+                        <View className={`rounded-full bg-[#fdf9f3] items-center justify-center mb-8 ${isTablet ? 'w-32 h-32' : 'w-20 h-20'}`}>
+                            <Ionicons name="images-outline" size={isTablet ? 48 : 32} color="#e8c4d8" />
                         </View>
-                        <Text className="text-[#594048] font-headline-bold text-xl text-center mb-2">No moments captured yet</Text>
+                        <Text className={`text-[#594048] font-headline-bold text-center mb-4 ${isTablet ? 'text-4xl' : 'text-xl'}`}>No moments captured yet</Text>
                         <TouchableOpacity
                             onPress={() => navigation.navigate('CreateMemory', { groupId })}
-                            className="mt-6 bg-[#b30069] px-6 py-2.5 rounded-full"
+                            style={{
+                                height: isTablet ? 110 : 54,
+                                width: isTablet ? 400 : 'auto'
+                            }}
+                            className={`mt-10 bg-[#b30069] rounded-[32px] items-center justify-center shadow-xl shadow-primary/20 ${isTablet ? 'px-16' : 'px-8'}`}
                         >
-                            <Text className="text-white font-body-bold">Preserve a Moment</Text>
+                            <Text className={`text-white font-headline-bold ${isTablet ? 'text-2xl' : 'text-lg'}`}>Preserve a Moment</Text>
                         </TouchableOpacity>
                     </View>
                 ) : (
                     groupedMemories.map((section, sidx) => (
-                        <View key={sidx} className="mb-4">
-                            <View className="px-5 py-6 flex-row items-center justify-between">
-                                <Text className="text-[#31302d] font-headline-bold text-2xl">{section.label}</Text>
-                                <View className="bg-stone-50 px-3 py-1 rounded-full border border-stone-100">
-                                    <Text className="text-stone-300 font-body-bold text-[10px] uppercase tracking-widest">{section.count} Photos</Text>
+                        <View key={sidx} className={`mb-${isTablet ? '16' : '4'}`}>
+                            <View className={`px-5 py-${isTablet ? '12' : '6'} flex-row items-center justify-between`}>
+                                <Text
+                                    className="text-[#31302d] font-headline-bold"
+                                    style={{ fontSize: isTablet ? 52 : 28 }}
+                                >
+                                    {section.label}
+                                </Text>
+                                <View className={`bg-stone-50 rounded-full border border-stone-100 ${isTablet ? 'px-8 py-3' : 'px-3 py-1'}`}>
+                                    <Text className={`text-stone-300 font-body-bold uppercase tracking-widest ${isTablet ? 'text-xl' : 'text-[10px]'}`}>{section.count} Photos</Text>
                                 </View>
                             </View>
 

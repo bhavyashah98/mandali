@@ -4,13 +4,20 @@ import { Platform } from 'react-native';
 import axios from 'axios';
 import { API_URL, getAuthHeaders } from './api';
 
+import { useSettingsStore } from '../stores/settingsStore';
+
 // Configures how the app handles notifications while foregrounded
 Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-    }),
+    handleNotification: async () => {
+        const isEnabled = useSettingsStore.getState().notificationsEnabled;
+        return {
+            shouldShowAlert: isEnabled,
+            shouldPlaySound: isEnabled,
+            shouldSetBadge: false,
+            shouldShowBanner: isEnabled,
+            shouldShowList: isEnabled,
+        };
+    },
 });
 
 export const registerForPushNotificationsAsync = async () => {

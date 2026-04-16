@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     View, Text, TouchableOpacity, Image,
-    ScrollView, ActivityIndicator, SafeAreaView
+    ScrollView, ActivityIndicator, useWindowDimensions
 } from 'react-native';
 import { SafeAreaView as SafeAreaViewContext } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
@@ -28,6 +28,8 @@ const TOP_BG = [
 const HousieLeaderboardScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute();
+    const { width } = useWindowDimensions();
+    const isTablet = width > 500;
     const { groupId, groupName } = (route.params as any) || {};
     const [activePeriod, setActivePeriod] = useState<Period>('all_time');
 
@@ -50,40 +52,69 @@ const HousieLeaderboardScreen = () => {
     return (
         <SafeAreaViewContext className="flex-1 bg-[#fdf9f3]" edges={['top']}>
             {/* Header */}
-            <View className="px-6 py-4 flex-row items-center justify-between">
+            <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                 <TouchableOpacity
                     onPress={() => navigation.goBack()}
-                    className="w-10 h-10 rounded-full bg-white items-center justify-center shadow-sm border border-stone-100"
+                    className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                 >
-                    <MaterialIcons name="arrow-back-ios" size={18} color="#594048" style={{ marginLeft: 4 }} />
+                    <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 18} color="#594048" style={{ marginLeft: isTablet ? 12 : 4 }} />
                 </TouchableOpacity>
-                <View className="items-center">
-                    <Text className="text-stone-400 font-body-bold text-[9px] uppercase tracking-widest">
-                        {groupName || 'Mandali'}
-                    </Text>
-                    <Text className="text-[#594048] font-headline-bold text-lg">Leaderboard</Text>
-                </View>
-                <View className="w-10" />
+            </View>
+
+            {/* Centered Header Section */}
+            <View 
+                className="items-center w-full"
+                style={{ 
+                    marginTop: isTablet ? 20 : 0,
+                    marginBottom: isTablet ? 80 : 32 
+                }}
+            >
+                <Text
+                    className="font-headline-bold text-on-surface text-center tracking-tight text-[#1c1c18]"
+                    style={{ fontSize: isTablet ? 72 : 38 }}
+                    adjustsFontSizeToFit
+                    numberOfLines={1}
+                >
+                    Leaderboard
+                </Text>
+                <Text 
+                    className="font-body-medium text-on-surface-variant text-center leading-relaxed opacity-60"
+                    style={{ 
+                        fontSize: isTablet ? 22 : 15,
+                        marginTop: isTablet ? 20 : 12,
+                        paddingHorizontal: isTablet ? 80 : 32
+                    }}
+                >
+                    Hall of Fame for {groupName || 'this Mandali'}
+                </Text>
+                <View 
+                    className="bg-primary/20 rounded-full"
+                    style={{ 
+                        height: 4, 
+                        width: isTablet ? 120 : 40,
+                        marginTop: isTablet ? 36 : 20 
+                    }} 
+                />
             </View>
 
             {/* Period Tabs */}
-            <View className="flex-row mx-6 mb-6 bg-white rounded-[20px] p-1.5 border border-stone-100 shadow-sm">
+            <View className={`flex-row bg-white border border-stone-100 shadow-sm ${isTablet ? 'mx-16 mb-12 p-3 rounded-[32px]' : 'mx-6 mb-6 p-1.5 rounded-[20px]'}`}>
                 {TABS.map(tab => {
                     const isActive = activePeriod === tab.key;
                     return (
                         <TouchableOpacity
                             key={tab.key}
                             onPress={() => setActivePeriod(tab.key)}
-                            className={`flex-1 flex-row items-center justify-center py-2.5 rounded-[14px] ${isActive ? 'bg-primary' : ''}`}
+                            className={`flex-1 flex-row items-center justify-center rounded-[18px] ${isTablet ? 'py-6' : 'py-2.5'} ${isActive ? 'bg-[#b30069]' : ''}`}
                             activeOpacity={0.7}
                         >
                             <MaterialIcons
                                 name={tab.icon as any}
-                                size={14}
+                                size={isTablet ? 32 : 14}
                                 color={isActive ? 'white' : '#a09d96'}
                             />
                             <Text
-                                className={`font-body-bold text-xs ml-1 ${isActive ? 'text-white' : 'text-stone-400'}`}
+                                className={`font-body-bold ml-2 ${isTablet ? 'text-2xl' : 'text-xs'} ${isActive ? 'text-white' : 'text-stone-400'}`}
                                 numberOfLines={1}
                             >
                                 {tab.label}
@@ -121,7 +152,7 @@ const HousieLeaderboardScreen = () => {
                         </Text>
                     </View>
                 ) : (
-                    <View className="gap-3">
+                    <View className={`gap-${isTablet ? '6' : '3'}`}>
                         {leaderboard.map((player: any, index: number) => {
                             const isTop3 = index < 3;
                             const topStyle = isTop3 ? TOP_BG[index] : null;
@@ -129,29 +160,32 @@ const HousieLeaderboardScreen = () => {
                             return (
                                 <View
                                     key={player.userId}
-                                    className="flex-row items-center p-4 rounded-[24px] border"
+                                    className={`flex-row items-center rounded-[32px] border ${isTablet ? 'p-8' : 'p-4'}`}
                                     style={isTop3
                                         ? { backgroundColor: topStyle!.bg, borderColor: topStyle!.border, elevation: 2 }
                                         : { backgroundColor: '#ffffff', borderColor: '#f1ede8' }
                                     }
                                 >
                                     {/* Rank */}
-                                    <View className="w-10 items-center mr-2">
+                                    <View className={`${isTablet ? 'w-16' : 'w-10'} items-center mr-4`}>
                                         {isTop3 ? (
                                             <MaterialIcons
                                                 name="emoji-events"
-                                                size={28}
+                                                size={isTablet ? 54 : 28}
                                                 color={MEDAL_COLORS[index]}
                                             />
                                         ) : (
-                                            <Text className="text-stone-400 font-headline-bold text-base w-6 text-center">
+                                            <Text 
+                                                className="text-stone-400 font-headline-bold text-center"
+                                                style={{ fontSize: isTablet ? 32 : 16 }}
+                                            >
                                                 {index + 1}
                                             </Text>
                                         )}
                                     </View>
 
                                     {/* Avatar */}
-                                    <View className="w-12 h-12 rounded-full bg-stone-100 mr-3 overflow-hidden border-2 border-white"
+                                    <View className={`rounded-full bg-stone-100 mr-6 overflow-hidden border-2 border-white ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}
                                         style={{ shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 }}>
                                         {player.avatarUrl ? (
                                             <Image
@@ -161,7 +195,10 @@ const HousieLeaderboardScreen = () => {
                                             />
                                         ) : (
                                             <View className="w-full h-full items-center justify-center bg-primary/10">
-                                                <Text className="text-primary font-headline-bold text-lg">
+                                                <Text 
+                                                    className="text-primary font-headline-bold"
+                                                    style={{ fontSize: isTablet ? 36 : 18 }}
+                                                >
                                                     {player.name?.[0]?.toUpperCase() || '?'}
                                                 </Text>
                                             </View>
@@ -170,10 +207,17 @@ const HousieLeaderboardScreen = () => {
 
                                     {/* Info */}
                                     <View className="flex-1">
-                                        <Text className="text-[#594048] font-headline-bold text-base" numberOfLines={1}>
+                                        <Text 
+                                            className="text-[#594048] font-headline-bold" 
+                                            style={{ fontSize: isTablet ? 32 : 16 }}
+                                            numberOfLines={1}
+                                        >
                                             {player.name}
                                         </Text>
-                                        <Text className="text-stone-400 font-body-medium text-xs mt-0.5">
+                                        <Text 
+                                            className="text-stone-400 font-body-medium mt-1.5"
+                                            style={{ fontSize: isTablet ? 20 : 12 }}
+                                        >
                                             {player.winCount} prize{player.winCount !== 1 ? 's' : ''} · {player.gamesPlayed} game{player.gamesPlayed !== 1 ? 's' : ''}
                                         </Text>
                                     </View>
@@ -181,12 +225,18 @@ const HousieLeaderboardScreen = () => {
                                     {/* Prize */}
                                     <View className="items-end">
                                         <Text
-                                            className="font-headline-bold text-xl"
-                                            style={{ color: isTop3 ? '#b30069' : '#594048' }}
+                                            className="font-headline-bold"
+                                            style={{ 
+                                                fontSize: isTablet ? 42 : 20,
+                                                color: isTop3 ? '#b30069' : '#594048' 
+                                            }}
                                         >
                                             ₹{player.totalWon.toLocaleString()}
                                         </Text>
-                                        <Text className="text-stone-300 font-body-medium text-[10px]">total won</Text>
+                                        <Text 
+                                            className="text-stone-300 font-body-medium"
+                                            style={{ fontSize: isTablet ? 18 : 10 }}
+                                        >total won</Text>
                                     </View>
                                 </View>
                             );

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Dimensions, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Dimensions, ActivityIndicator, Alert, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -10,13 +10,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-const { width } = Dimensions.get('window');
-const GRID_SIZE = (width - 48 - 24) / 3;
-
 const CreateMemoryScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute();
     const queryClient = useQueryClient();
+    const { width } = useWindowDimensions();
+    const isTablet = width > 500;
+    const GRID_SIZE = isTablet ? (width - 120 - 48) / 3 : (width - 48 - 24) / 3;
     const { groupId } = (route.params as { groupId: string }) || {};
 
     const [selectedImages, setSelectedImages] = useState<string[]>([]);
@@ -97,49 +97,69 @@ const CreateMemoryScreen = () => {
             <SafeAreaView edges={['top']} className="bg-[#fdf9f3]" />
 
             {/* Header */}
-            <View className="px-6 py-4 flex-row items-center border-b border-stone-100/50">
-                <TouchableOpacity onPress={() => navigation.goBack()} className="w-10 h-10 items-center justify-center rounded-full bg-white shadow-sm">
-                    <MaterialIcons name="arrow-back-ios" size={18} color="#b30069" style={{ marginLeft: 5 }} />
-                </TouchableOpacity>
-                <Text className="text-[#b30069] font-headline-bold text-xl ml-4">Add Memory</Text>
+            <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
+                <View style={{ width: isTablet ? 64 : 40 }}>
+                    <TouchableOpacity 
+                        onPress={() => navigation.goBack()} 
+                        className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                    >
+                        <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />
+                    </TouchableOpacity>
+                </View>
+
+                <View className="flex-1 items-center">
+                    <Text 
+                        className="font-headline-bold text-on-surface text-[#1c1c18]"
+                        style={{ fontSize: isTablet ? 36 : 22 }}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                    >
+                        Preserve a Moment
+                    </Text>
+                </View>
+
+                <View style={{ width: isTablet ? 64 : 40 }} />
             </View>
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-                <View className="p-6">
-                    <View className="flex-row items-center justify-between mb-6">
-                        <Text className="text-[#594048] font-headline-bold text-lg">Preserve a Moment</Text>
+                <View className={isTablet ? 'p-12' : 'p-6'}>
+                    <View className="flex-row items-center justify-between mb-8">
+                        <View className="flex-1" />
                         {selectedImages.length > 0 && (
-                            <View className="bg-[#fad4e8] px-3 py-1 rounded-full">
-                                <Text className="text-[#b30069] font-body-bold text-[10px] uppercase tracking-widest">{selectedImages.length} selected</Text>
+                            <View className={`bg-[#fad4e8] rounded-full ${isTablet ? 'px-6 py-2' : 'px-3 py-1'}`}>
+                                <Text className={`text-[#b30069] font-body-bold uppercase tracking-widest ${isTablet ? 'text-sm' : 'text-[10px]'}`}>{selectedImages.length} selected</Text>
                             </View>
                         )}
                     </View>
 
                     {/* Image Selector Grid */}
-                    <View className="flex-row flex-wrap gap-3">
+                    <View className={`flex-row flex-wrap ${isTablet ? 'gap-6' : 'gap-3'}`}>
                         {/* Gallery Trigger */}
                         <TouchableOpacity
                             onPress={pickImages}
-                            className="bg-white border-2 border-dashed border-stone-200 rounded-[24px] items-center justify-center"
-                            style={{ width: selectedImages.length === 0 ? width - 48 : GRID_SIZE, height: selectedImages.length === 0 ? 180 : GRID_SIZE }}
+                            className={`bg-white border-2 border-dashed border-stone-200 rounded-[32px] items-center justify-center`}
+                            style={{ 
+                                width: selectedImages.length === 0 ? (isTablet ? width - 120 : width - 48) : GRID_SIZE, 
+                                height: selectedImages.length === 0 ? (isTablet ? 300 : 180) : GRID_SIZE 
+                            }}
                         >
-                            <View className="w-10 h-10 rounded-full bg-[#fde8f3] items-center justify-center mb-2">
-                                <MaterialIcons name="add-a-photo" size={20} color="#b30069" />
+                            <View className={`rounded-full bg-[#fde8f3] items-center justify-center mb-6 ${isTablet ? 'w-24 h-24' : 'w-10 h-10'}`}>
+                                <MaterialIcons name="add-a-photo" size={isTablet ? 48 : 20} color="#b30069" />
                             </View>
-                            <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-widest">Add Photos</Text>
+                            <Text className={`text-stone-400 font-body-bold uppercase tracking-widest text-center ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Add Photos</Text>
                         </TouchableOpacity>
                         {/* Selected Previews */}
                         {selectedImages.map((uri, idx) => (
-                            <View key={idx} style={{ width: GRID_SIZE, height: GRID_SIZE }} className="rounded-[24px] overflow-hidden bg-stone-100 shadow-sm border border-white">
+                            <View key={idx} style={{ width: GRID_SIZE, height: GRID_SIZE }} className="rounded-[32px] overflow-hidden bg-stone-100 shadow-sm border border-white">
                                 <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={200} />
                                 <TouchableOpacity
                                     onPress={() => removeImage(idx)}
-                                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/40 items-center justify-center"
+                                    className={`absolute top-2 right-2 rounded-full bg-black/40 items-center justify-center ${isTablet ? 'w-10 h-10' : 'w-6 h-6'}`}
                                 >
-                                    <Ionicons name="close" size={16} color="white" />
+                                    <Ionicons name="close" size={isTablet ? 24 : 16} color="white" />
                                 </TouchableOpacity>
-                                <View className="absolute bottom-2 right-2 bg-white/80 rounded-full w-5 h-5 items-center justify-center">
-                                    <Ionicons name="checkmark-circle" size={14} color="#b30069" />
+                                <View className={`absolute bottom-3 right-3 bg-white rounded-full items-center justify-center ${isTablet ? 'w-8 h-8' : 'w-5 h-5'}`}>
+                                    <Ionicons name="checkmark-circle" size={isTablet ? 24 : 14} color="#b30069" />
                                 </View>
                             </View>
                         ))}
@@ -147,10 +167,14 @@ const CreateMemoryScreen = () => {
 
                     {/* Story Input */}
                     <View className="mt-10">
-                        <Text className="text-[#594048] font-headline-bold text-lg mb-4">The Story Behind the Moment</Text>
-                        <View className="bg-white rounded-[24px] p-5 shadow-sm border border-stone-100 min-h-[120px]">
+                        <Text className={`text-[#594048] font-headline-bold mb-6 ${isTablet ? 'text-4xl' : 'text-lg'}`}>The Story Behind the Moment</Text>
+                        <View 
+                            className="bg-white rounded-[32px] p-8 shadow-sm border border-stone-100"
+                            style={{ minHeight: isTablet ? 300 : 120 }}
+                        >
                             <TextInput
-                                className="text-[#594048] font-body-medium text-base leading-6"
+                                className="text-[#594048] font-body-medium"
+                                style={{ fontSize: isTablet ? 28 : 16, lineHeight: isTablet ? 42 : 24 }}
                                 placeholder="What's the story behind this moment?"
                                 placeholderTextColor="#a09d96"
                                 value={story}
@@ -158,27 +182,28 @@ const CreateMemoryScreen = () => {
                                 textAlignVertical="top"
                                 multiline={true}
                             />
-                            <View className="absolute bottom-6 right-6">
-                                <Text className="text-stone-300 font-body-bold text-[10px] uppercase">{group?.group?.name || 'Group'}</Text>
+                            <View className="absolute bottom-8 right-8">
+                                <Text className={`text-stone-300 font-body-bold uppercase ${isTablet ? 'text-sm' : 'text-[10px]'}`}>{group?.group?.name || 'Group'}</Text>
                             </View>
                         </View>
                     </View>
 
                     {/* Date Selector */}
-                    <View className="mt-8">
-                        <Text className="text-[#594048] font-headline-bold text-lg mb-4">When did this happen?</Text>
+                    <View className="mt-12">
+                        <Text className={`text-[#594048] font-headline-bold mb-6 ${isTablet ? 'text-4xl' : 'text-lg'}`}>When did this happen?</Text>
                         <TouchableOpacity
                             onPress={() => setShowDatePicker(true)}
                             activeOpacity={0.7}
-                            className="bg-white rounded-full h-14 flex-row items-center px-6 shadow-sm border border-stone-100"
+                            style={{ height: isTablet ? 110 : 64 }}
+                            className="bg-white rounded-full flex-row items-center px-8 shadow-sm border border-stone-100"
                         >
-                            <View className="w-10 h-10 rounded-full bg-[#e8f3fe] items-center justify-center mr-4">
-                                <MaterialIcons name="event" size={20} color="#0057b3" />
+                            <View className={`rounded-full bg-[#e8f3fe] items-center justify-center mr-6 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}>
+                                <MaterialIcons name="event" size={isTablet ? 32 : 20} color="#0057b3" />
                             </View>
-                            <Text className="text-[#594048] font-body-bold flex-1">
+                            <Text className={`text-[#594048] font-body-bold flex-1 ${isTablet ? 'text-2xl' : 'text-base'}`}>
                                 {memoryDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
                             </Text>
-                            <MaterialIcons name="chevron-right" size={20} color="#a09d96" />
+                            <MaterialIcons name="chevron-right" size={isTablet ? 32 : 20} color="#a09d96" />
                         </TouchableOpacity>
 
                         {showDatePicker && (
@@ -195,12 +220,12 @@ const CreateMemoryScreen = () => {
                         )}
                     </View>
 
-                    <View className="mt-8 flex-row items-center px-2">
-                        <View className="w-10 h-10 rounded-full bg-[#fdf2d0] items-center justify-center mr-4">
-                            <Ionicons name="people" size={20} color="#b38b00" />
+                    <View className="mt-12 flex-row items-center px-4">
+                        <View className={`rounded-full bg-[#fdf2d0] items-center justify-center mr-6 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}>
+                            <Ionicons name="people" size={isTablet ? 32 : 20} color="#b38b00" />
                         </View>
-                        <Text className="text-stone-400 font-body-medium flex-1">
-                            This will be shared with <Text className="text-[#594048] font-body-bold">{group?.group?.name || 'the Mandali'}</Text>
+                        <Text className={`text-stone-400 font-body-medium flex-1 ${isTablet ? 'text-2xl' : 'text-base'}`}>
+                            This will be shared with <Text className="font-body-bold text-[#b30069]">{group?.group?.name || 'the Mandali'}</Text>
                         </Text>
                     </View>
 
@@ -209,18 +234,22 @@ const CreateMemoryScreen = () => {
             </ScrollView>
 
             {/* Footer Action */}
-            <View className="p-6 bg-white border-t border-stone-100">
+            <View className={`bg-white border-t border-stone-100 ${isTablet ? 'p-12' : 'p-6'}`}>
                 <TouchableOpacity
                     onPress={handleUpload}
                     disabled={isUploading}
-                    className="bg-[#b30069] h-14 rounded-full flex-row items-center justify-center shadow-lg shadow-[#b30069]/30"
+                    style={{ height: isTablet ? 110 : 64 }}
+                    className="bg-[#b30069] rounded-[32px] flex-row items-center justify-center shadow-lg shadow-[#b30069]/30"
                 >
                     {isUploading ? (
                         <ActivityIndicator color="white" />
                     ) : (
                         <>
-                            <Ionicons name="sparkles" size={20} color="white" />
-                            <Text className="text-white font-headline-bold text-xl ml-3">Upload to Gallery</Text>
+                            <Ionicons name="sparkles" size={isTablet ? 32 : 20} color="white" />
+                            <Text 
+                                className="text-white font-headline-bold ml-4"
+                                style={{ fontSize: isTablet ? 32 : 20 }}
+                            >Upload to Gallery</Text>
                         </>
                     )}
                 </TouchableOpacity>

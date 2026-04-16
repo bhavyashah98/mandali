@@ -12,7 +12,8 @@ import {
     TouchableWithoutFeedback,
     Keyboard,
     Alert,
-    ScrollView
+    ScrollView,
+    useWindowDimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -24,6 +25,8 @@ import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 
 const LoginScreen = () => {
     const login = useAuthStore((state) => state.login);
+    const { width } = useWindowDimensions();
+    const isTablet = width > 500;
     const [step, setStep] = useState<'phone' | 'otp'>('phone');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [otp, setOtp] = useState('');
@@ -138,10 +141,10 @@ const LoginScreen = () => {
                 >
                     {step === 'otp' && (
                         <TouchableOpacity
-                            className="w-10 h-10 bg-surface-container rounded-full items-center justify-center absolute top-2 left-6 z-20"
+                            className={`bg-surface-container rounded-full items-center justify-center absolute left-8 z-20 ${isTablet ? 'top-10 w-16 h-16' : 'top-2 w-10 h-10'}`}
                             onPress={handleBack}
                         >
-                            <MaterialIcons name="arrow-back" size={24} color="#1c1c18" />
+                            <MaterialIcons name="arrow-back" size={isTablet ? 32 : 24} color="#1c1c18" />
                         </TouchableOpacity>
                     )}
 
@@ -149,7 +152,7 @@ const LoginScreen = () => {
                         contentContainerStyle={{ flexGrow: 1 }}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
-                        className="px-6 py-10"
+                        className={`px-${isTablet ? '16' : '6'} py-${isTablet ? '20' : '10'}`}
                     >
                         <Animated.View style={{ opacity: fadeAnim }} className="flex-1">
                             <View className="flex-1 justify-center gap-8">
@@ -158,8 +161,10 @@ const LoginScreen = () => {
                                         {/* Brand Header - Pop-out Seal */}
                                         <View className="items-center">
                                             <View
-                                                className="w-[170px] h-[170px] rounded-full bg-white items-center justify-center border-8 border-primary shadow-2xl"
+                                                className="rounded-full bg-white items-center justify-center border-8 border-primary shadow-2xl"
                                                 style={{
+                                                    width: isTablet ? 280 : 170,
+                                                    height: isTablet ? 280 : 170,
                                                     elevation: 24,
                                                     shadowColor: '#b30069',
                                                     shadowOffset: { width: 0, height: 10 },
@@ -169,24 +174,37 @@ const LoginScreen = () => {
                                             >
                                                 <Image
                                                     source={require('../../../assets/icon.png')}
-                                                    style={{ width: 140, height: 140, borderRadius: 70 }}
+                                                    style={{ width: isTablet ? 220 : 140, height: isTablet ? 220 : 140, borderRadius: isTablet ? 110 : 70 }}
                                                     resizeMode="contain"
                                                 />
                                             </View>
                                         </View>
 
                                         {/* Typography Hub */}
-                                        <View className="items-center w-full px-2">
+                                        <View
+                                            className="items-center w-full px-2"
+                                            style={{
+                                                marginTop: isTablet ? 20 : 10,
+                                                marginBottom: isTablet ? 20 : 10
+                                            }}
+                                        >
                                             <Text
-                                                className="font-headline-bold text-primary mb-2 tracking-tight text-center w-full"
-                                                style={{ fontSize: 32 }}
+                                                className="font-headline-bold text-primary mb-3 tracking-tight text-center w-full"
+                                                style={{ fontSize: isTablet ? 48 : 32 }}
                                                 numberOfLines={1}
                                                 adjustsFontSizeToFit
                                             >
                                                 Welcome to Mandali
                                             </Text>
-                                            <Text className="font-body-regular text-on-surface-variant text-[15px] text-center">
-                                                Join your group and start the fun
+                                            <Text
+                                                className="font-body-regular text-on-surface-variant text-center opacity-70"
+                                                style={{
+                                                    fontSize: isTablet ? 24 : 15,
+                                                    marginTop: isTablet ? 10 : 5,
+                                                    lineHeight: isTablet ? 36 : 22
+                                                }}
+                                            >
+                                                Join your mandali and start the fun.
                                             </Text>
                                         </View>
 
@@ -194,14 +212,18 @@ const LoginScreen = () => {
                                         <View className="w-full">
                                             <View className="flex-row w-full">
                                                 {/* Code Field */}
-                                                <View className="mr-3 w-[100px]">
-                                                    <Text className="font-body-bold text-[#594048] text-xs mb-2 ml-1 opacity-70">Code</Text>
+                                                <View className={`mr-4 ${isTablet ? 'w-[180px]' : 'w-[100px]'}`}>
+                                                    <Text className={`font-body-bold text-[#594048] mb-3 ml-1 opacity-70 ${isTablet ? 'text-xl' : 'text-xs'}`}>Code</Text>
                                                     <TouchableOpacity
                                                         onPress={() => setCountryPickerVisible(true)}
-                                                        className={`bg-surface-container-high h-[52px] rounded-2xl flex-row items-center px-4 justify-between border ${error ? 'border-error' : 'border-transparent'}`}
+                                                        className={`bg-surface-container-high rounded-2xl flex-row items-center px-6 justify-between border ${error ? 'border-error' : 'border-transparent'}`}
+                                                        style={{ height: isTablet ? 110 : 56 }}
                                                     >
-                                                        <Text className="font-body-bold text-on-surface text-[15px]">+{callingCode}</Text>
-                                                        <MaterialIcons name="keyboard-arrow-down" size={20} color="#1c1c18" />
+                                                        <Text 
+                                                            className="font-body-bold text-on-surface"
+                                                            style={{ fontSize: isTablet ? 32 : 16 }}
+                                                        >+{callingCode}</Text>
+                                                        <MaterialIcons name="keyboard-arrow-down" size={isTablet ? 36 : 20} color="#1c1c18" />
                                                     </TouchableOpacity>
 
                                                     <CountryPicker
@@ -215,20 +237,30 @@ const LoginScreen = () => {
                                                         onBackdropPress={() => setCountryPickerVisible(false)}
                                                         style={{
                                                             modal: {
-                                                                height: 500,
+                                                                height: isTablet ? 700 : 500,
                                                                 backgroundColor: '#fdf9f3',
                                                             },
                                                             countryName: {
                                                                 color: '#1c1c18',
                                                                 fontFamily: 'System',
+                                                                fontSize: isTablet ? 24 : 16,
+                                                                fontWeight: '600'
                                                             },
                                                             dialCode: {
                                                                 color: '#1c1c18',
                                                                 fontFamily: 'System',
+                                                                fontSize: isTablet ? 24 : 16,
+                                                                fontWeight: '700'
                                                             },
                                                             textInput: {
                                                                 backgroundColor: '#f5f1ea',
                                                                 color: '#1c1c18',
+                                                                fontSize: isTablet ? 24 : 16,
+                                                                height: isTablet ? 70 : 50
+                                                            },
+                                                            countryButtonStyles: {
+                                                                height: isTablet ? 80 : 60,
+                                                                borderRadius: 16
                                                             }
                                                         }}
                                                     />
@@ -236,11 +268,14 @@ const LoginScreen = () => {
 
                                                 {/* Phone Number Field */}
                                                 <View className="flex-1">
-                                                    <Text className="font-body-bold text-[#594048] text-xs mb-2 ml-1 opacity-70">Phone Number</Text>
-                                                    <View className={`bg-surface-container-high h-[52px] rounded-2xl px-5 justify-center border ${error ? 'border-error' : 'border-transparent'}`}>
+                                                    <Text className={`font-body-bold text-[#594048] mb-3 ml-1 opacity-70 ${isTablet ? 'text-xl' : 'text-xs'}`}>Phone Number</Text>
+                                                    <View 
+                                                        className={`bg-surface-container-high rounded-2xl px-6 justify-center border ${error ? 'border-error' : 'border-transparent'}`}
+                                                        style={{ height: isTablet ? 110 : 56 }}
+                                                    >
                                                         <TextInput
-                                                            style={{ paddingVertical: 0, margin: 0, height: '100%' }}
-                                                            className="font-body-medium text-[16px] text-on-surface opacity-80 w-full"
+                                                            style={{ paddingVertical: 0, margin: 0, height: '100%', fontSize: isTablet ? 32 : 16 }}
+                                                            className="font-body-bold text-on-surface w-full"
                                                             textAlignVertical="center"
                                                             placeholder="00000 00000"
                                                             placeholderTextColor="#a09d96"
@@ -257,28 +292,32 @@ const LoginScreen = () => {
                                             </View>
 
                                             {/* Phone Validation Error Space */}
-                                            <View className="h-6 justify-center pl-2 mt-1">
+                                            <View className="h-6 justify-center pl-2 mt-2">
                                                 {error && step === 'phone' ? (
-                                                    <Text className="text-error font-body-medium text-xs">{error}</Text>
+                                                    <Text className="text-error font-body-medium" style={{ fontSize: isTablet ? 18 : 12 }}>{error}</Text>
                                                 ) : null}
                                             </View>
                                         </View>
                                     </View>
                                 ) : (
-                                    <View className="items-center w-full gap-6">
-                                        <View className="items-center mb-4">
-                                            <Text className="font-headline-bold text-[32px] text-on-surface mb-2 text-center">
+                                    <View className="items-center w-full gap-8">
+                                        <View className="items-center mb-8">
+                                            <Text className={`font-headline-bold text-on-surface mb-3 text-center ${isTablet ? 'text-5xl' : 'text-[32px]'}`}>
                                                 Verify your number
                                             </Text>
-                                            <Text className="font-body-regular text-on-surface-variant text-base text-center px-4">
+                                            <Text className={`font-body-regular text-on-surface-variant text-center px-10 ${isTablet ? 'text-2xl mt-4' : 'text-base'}`}>
                                                 Enter the code we just sent to +{callingCode} {phoneNumber}
                                             </Text>
                                         </View>
 
                                         <View className="w-full items-center">
-                                            <View className={`w-full bg-surface-container-high h-[60px] rounded-2xl px-5 justify-center border ${error ? 'border-error' : 'border-transparent'}`}>
+                                            <View
+                                                className={`w-full bg-surface-container-high rounded-2xl px-5 justify-center border ${error ? 'border-error' : 'border-transparent'}`}
+                                                style={{ height: isTablet ? 100 : 60 }}
+                                            >
                                                 <TextInput
-                                                    className="font-body-bold text-3xl text-center text-primary tracking-[0.6em]"
+                                                    className="font-body-bold text-primary text-center"
+                                                    style={{ fontSize: isTablet ? 48 : 30, letterSpacing: isTablet ? 12 : 6 }}
                                                     placeholder="······"
                                                     placeholderTextColor="#e1bdc8"
                                                     keyboardType="number-pad"
@@ -292,17 +331,17 @@ const LoginScreen = () => {
                                                 />
                                             </View>
                                             {/* OTP Validation Error Space */}
-                                            <View className="h-6 justify-center pt-2">
+                                            <View className="h-10 justify-center pt-4">
                                                 {error && step === 'otp' ? (
-                                                    <Text className="text-error font-body-medium text-xs text-center">{error}</Text>
+                                                    <Text className={`text-error font-body-medium text-center ${isTablet ? 'text-xl' : 'text-xs'}`}>{error}</Text>
                                                 ) : null}
                                             </View>
                                             <TouchableOpacity
-                                                className="items-center"
+                                                className="items-center mt-4"
                                                 onPress={handleResendOTP}
                                                 disabled={resendTimer > 0 || loading}
                                             >
-                                                <Text className={`font-body-medium ${resendTimer > 0 ? 'text-on-surface-variant opacity-40' : 'text-primary'}`}>
+                                                <Text className={`font-body-medium ${resendTimer > 0 ? 'text-on-surface-variant opacity-40' : 'text-primary'} ${isTablet ? 'text-2xl' : ''}`}>
                                                     {resendTimer > 0 ? `Resend Code in ${resendTimer}s` : 'Resend Code'}
                                                 </Text>
                                             </TouchableOpacity>
@@ -312,19 +351,27 @@ const LoginScreen = () => {
 
                                 {/* Submit Button */}
                                 <TouchableOpacity
-                                    className="w-full h-14 rounded-full items-center justify-center flex-row shadow-md shadow-primary/30 bg-primary"
+                                    className={`w-full rounded-[32px] items-center justify-center flex-row shadow-lg shadow-primary/20 bg-primary`}
+                                    style={{
+                                        height: isTablet ? 110 : 64,
+                                        marginTop: isTablet ? 20 : 0
+                                    }}
                                     onPress={handleNext}
                                     disabled={loading}
+                                    activeOpacity={0.9}
                                 >
                                     {loading ? (
-                                        <ActivityIndicator color="#fff" />
+                                        <ActivityIndicator color="#fff" size={isTablet ? 'large' : 'small'} />
                                     ) : (
-                                        <Text className="font-body-bold text-lg text-white">
+                                        <Text
+                                            className="font-headline-bold text-white text-center"
+                                            style={{ fontSize: isTablet ? 32 : 20 }}
+                                        >
                                             {step === 'phone' ? 'Send OTP' : 'Verify & Continue'}
                                         </Text>
                                     )}
                                     {!loading && (
-                                        <MaterialIcons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
+                                        <MaterialIcons name="arrow-forward" size={isTablet ? 36 : 24} color="white" style={{ marginLeft: 12 }} />
                                     )}
                                 </TouchableOpacity>
                             </View>

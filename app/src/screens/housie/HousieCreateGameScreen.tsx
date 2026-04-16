@@ -11,7 +11,8 @@ import {
     Platform,
     KeyboardAvoidingView,
     ScrollView,
-    useWindowDimensions
+    useWindowDimensions,
+    Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
@@ -27,13 +28,14 @@ const HousieCreateGameScreen = () => {
     const [ticketPrice, setTicketPrice] = useState('50');
     const [isLoading, setIsLoading] = useState(false);
 
-    const { height } = useWindowDimensions();
+    const { height, width } = useWindowDimensions();
+    const isTablet = width > 500;
 
     // Responsive scaling — base is 812pt (iPhone 13)
-    const scale = Math.min(Math.max(height / 812, 0.75), 1.2);
-    const priceFontSize = Math.round(72 * scale);
-    const titleFontSize = Math.round(38 * scale);
-    const cardPadding = Math.round(24 * scale);
+    const scale = Math.min(Math.max(height / 812, 0.75), isTablet ? 2.5 : 1.25);
+    const priceFontSize = Math.round(isTablet ? 120 : 72 * scale);
+    const titleFontSize = Math.round(isTablet ? 72 : 38 * scale);
+    const cardPadding = Math.round(isTablet ? 100 : 24 * scale);
     const isSmall = height < 700;
 
     const handleCreateGame = async () => {
@@ -67,25 +69,56 @@ const HousieCreateGameScreen = () => {
                     style={{ flex: 1 }}
                 >
                     {/* Header */}
-                    <View
-                        style={{ paddingHorizontal: 24, paddingTop: isSmall ? 8 : 16, paddingBottom: 8 }}
-                        className="flex-row items-center justify-between"
-                    >
-                        <TouchableOpacity
-                            onPress={() => navigation.goBack()}
-                            className="w-10 h-10 rounded-full bg-white items-center justify-center shadow-sm border border-stone-100"
+                    <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
+                        <TouchableOpacity 
+                            onPress={() => navigation.goBack()} 
+                            className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                         >
-                            <MaterialIcons name="close" size={20} color="#594048" />
+                            <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />
                         </TouchableOpacity>
-                        <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-[4px]">Housie Host</Text>
-                        <View className="w-10" />
+                    </View>
+
+                    {/* Centered Header Section */}
+                    <View 
+                        className="items-center w-full"
+                        style={{ 
+                            marginTop: isTablet ? 20 : 0,
+                            marginBottom: isTablet ? 40 : 20 
+                        }}
+                    >
+                        <Text
+                            className="font-headline-bold text-on-surface text-center tracking-tight text-[#1c1c18]"
+                            style={{ fontSize: isTablet ? 72 : 38 }}
+                            adjustsFontSizeToFit
+                            numberOfLines={1}
+                        >
+                            Set Game Stakes
+                        </Text>
+                        <Text 
+                            className="font-body-medium text-on-surface-variant text-center leading-relaxed opacity-60"
+                            style={{ 
+                                fontSize: isTablet ? 22 : 15,
+                                marginTop: isTablet ? 20 : 12,
+                                paddingHorizontal: isTablet ? 80 : 32
+                            }}
+                        >
+                            Configure the ticket price and bounties for this session
+                        </Text>
+                        <View 
+                            className="bg-primary/20 rounded-full"
+                            style={{ 
+                                height: 4, 
+                                width: isTablet ? 120 : 40,
+                                marginTop: isTablet ? 36 : 20 
+                            }} 
+                        />
                     </View>
 
                     <ScrollView
                         contentContainerStyle={{
                             flexGrow: 1,
-                            paddingHorizontal: 24,
-                            paddingBottom: 40,
+                            paddingHorizontal: isTablet ? 60 : 24,
+                            paddingBottom: isTablet ? 80 : 40,
                         }}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
@@ -94,26 +127,21 @@ const HousieCreateGameScreen = () => {
                         {/* Top section */}
                         <View>
                             {/* Badge row */}
-                            <View className="flex-row items-center" style={{ marginTop: isSmall ? 4 : 12, marginBottom: isSmall ? 8 : 16 }}>
-                                <View className="w-11 h-11 rounded-2xl bg-primary/10 items-center justify-center">
-                                    <FontAwesome5 name="medal" size={20} color="#b30069" />
+                            <View className="flex-row items-center" style={{ marginTop: isTablet ? 32 : (isSmall ? 4 : 12), marginBottom: isTablet ? 32 : (isSmall ? 8 : 16) }}>
+                                <View className={`rounded-2xl bg-primary/10 items-center justify-center ${isTablet ? 'w-20 h-20' : 'w-11 h-11'}`}>
+                                    <FontAwesome5 name="medal" size={isTablet ? 36 : 20} color="#b30069" />
                                 </View>
-                                <View className="ml-3">
-                                    <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-[3px]">Mandali Master</Text>
-                                    <Text className="text-primary font-headline-bold text-sm">Session Host</Text>
+                                <View className="ml-5">
+                                    <Text className={`text-stone-400 font-body-bold uppercase tracking-[3px] ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Mandali Master</Text>
+                                    <Text className={`text-primary font-headline-bold ${isTablet ? 'text-3xl mt-1' : 'text-sm'}`}>Session Host</Text>
                                 </View>
                             </View>
 
-                            {/* Title */}
+                            {/* Title (Hidden as we have centered header now) */}
+                            {/* <Text ... /> */}
                             <Text
-                                style={{ fontSize: titleFontSize, lineHeight: titleFontSize * 1.1 }}
-                                className="font-headline-bold text-on-surface"
-                            >
-                                Set the{"\n"}Stakes
-                            </Text>
-                            <Text
-                                className="text-stone-500 font-body-medium leading-5"
-                                style={{ fontSize: isSmall ? 13 : 15, marginTop: 6, marginBottom: isSmall ? 12 : 20 }}
+                                className="text-stone-500 font-body-medium leading-8 text-center"
+                                style={{ fontSize: isTablet ? 28 : 15, marginTop: 12, marginBottom: isTablet ? 40 : 20 }}
                             >
                                 Choose a ticket price to define the prize pool.
                             </Text>
@@ -121,10 +149,10 @@ const HousieCreateGameScreen = () => {
 
                         {/* Price Input Card */}
                         <View
-                            className="bg-white rounded-[32px] shadow-md shadow-black/5 border border-stone-100 items-center"
-                            style={{ padding: cardPadding, marginBottom: isSmall ? 12 : 20 }}
+                            className="bg-white rounded-[40px] shadow-md shadow-black/5 border border-stone-100 items-center"
+                            style={{ padding: cardPadding, marginBottom: isTablet ? 40 : (isSmall ? 12 : 20) }}
                         >
-                            <Text className="text-stone-300 font-body-bold text-xs uppercase tracking-[3px]" style={{ marginBottom: isSmall ? 8 : 12 }}>
+                            <Text className={`text-stone-300 font-body-bold uppercase tracking-[3px] mb-6 ${isTablet ? 'text-xl' : 'text-xs'}`}>
                                 Ticket Value (₹)
                             </Text>
 
@@ -155,13 +183,13 @@ const HousieCreateGameScreen = () => {
                             {/* Preset pills */}
                             <View
                                 className="flex-row items-center justify-center"
-                                style={{ gap: isSmall ? 8 : 12, marginTop: isSmall ? 12 : 16 }}
+                                style={{ gap: isTablet ? 20 : (isSmall ? 8 : 12), marginTop: isTablet ? 24 : (isSmall ? 12 : 16) }}
                             >
                                 {PRESETS.map((p) => (
                                     <TouchableOpacity
                                         key={p}
                                         onPress={() => setTicketPrice(p)}
-                                        style={{ width: isSmall ? 52 : 56, height: isSmall ? 40 : 46 }}
+                                        style={{ width: isTablet ? 120 : (isSmall ? 52 : 56), height: isTablet ? 80 : (isSmall ? 40 : 46) }}
                                         className={`rounded-full border items-center justify-center ${
                                             ticketPrice === p
                                                 ? 'bg-primary border-primary'
@@ -169,7 +197,7 @@ const HousieCreateGameScreen = () => {
                                         }`}
                                     >
                                         <Text
-                                            style={{ fontSize: isSmall ? 11 : 13 }}
+                                            style={{ fontSize: isTablet ? 24 : (isSmall ? 11 : 13) }}
                                             className={`font-body-bold ${ticketPrice === p ? 'text-white' : 'text-stone-400'}`}
                                         >
                                             ₹{p}
@@ -194,8 +222,8 @@ const HousieCreateGameScreen = () => {
                             onPress={handleCreateGame}
                             disabled={isLoading || !ticketPrice || ticketPrice === '0'}
                             activeOpacity={0.9}
-                            style={{ height: isSmall ? 56 : 64 }}
-                            className={`bg-primary rounded-[28px] flex-row items-center justify-center shadow-lg shadow-primary/30 ${
+                            style={{ height: isTablet ? 110 : 64 }}
+                            className={`bg-primary rounded-[40px] flex-row items-center justify-center shadow-lg shadow-primary/30 ${
                                 isLoading || !ticketPrice || ticketPrice === '0' ? 'opacity-50' : 'opacity-100'
                             }`}
                         >
@@ -203,10 +231,10 @@ const HousieCreateGameScreen = () => {
                                 <ActivityIndicator color="white" />
                             ) : (
                                 <>
-                                    <MaterialIcons name="bolt" size={22} color="white" />
+                                    <MaterialIcons name="bolt" size={isTablet ? 42 : 22} color="white" />
                                     <Text
-                                        style={{ fontSize: isSmall ? 17 : 20 }}
-                                        className="text-white font-headline-bold ml-2"
+                                        style={{ fontSize: isTablet ? 32 : 20 }}
+                                        className="text-white font-headline-bold ml-4"
                                     >
                                         Initialize Game
                                     </Text>

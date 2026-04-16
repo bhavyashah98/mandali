@@ -22,7 +22,7 @@ export const RootNavigator = () => {
 
     const navigateToFeature = (feature: string, data: string) => {
         if (!navigationRef.current) return;
-        
+
         switch (feature) {
             case 'join':
                 navigationRef.current.navigate('Main', {
@@ -49,13 +49,13 @@ export const RootNavigator = () => {
     const handleDeepLink = async (url: string | null) => {
         if (!url) return;
         const parsed = Linking.parse(url);
-        
+
         const feature = parsed.hostname;
         const data = parsed.path?.includes('/') ? parsed.path.split('/')[1] : parsed.path;
 
         if (feature && data) {
             console.log(`[DeepLink] Processing: ${feature} -> ${data}`);
-            
+
             // Check current readiness state
             if (isAppReady && isAuthenticated && !isProfileIncomplete) {
                 navigateToFeature(feature, data);
@@ -69,7 +69,7 @@ export const RootNavigator = () => {
     useEffect(() => {
         // Detect initial URL (Cold Boot)
         Linking.getInitialURL().then(handleDeepLink);
-        
+
         // Detect live foreground URL changes
         const subscription = Linking.addEventListener('url', (e) => handleDeepLink(e.url));
         return () => subscription.remove();
@@ -100,7 +100,7 @@ export const RootNavigator = () => {
                             console.log('[Root Navigator] Profile fetch failed');
                             setAuthenticated(true);
                         }
-                    } 
+                    }
                 } else {
                     setAuthenticated(false);
                     setUser(null);

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
+import { Dimensions, useWindowDimensions } from 'react-native';
 import { fetchGroups } from '../../lib/api';
 import { Image } from 'expo-image';
 import { useAuthStore } from '../../stores/authStore';
@@ -12,6 +13,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 const GroupListScreen = () => {
     const navigation = useNavigation<any>();
     const { user } = useAuthStore();
+    const { width } = useWindowDimensions();
+    const isTablet = width > 500;
 
     const { data: groups = [], isLoading, isRefetching, refetch } = useQuery({
         queryKey: ['groups'],
@@ -43,19 +46,39 @@ const GroupListScreen = () => {
                 }
             >
                 {/* Centered Header Section */}
-                <View className="items-center mb-10 mt-6 w-full">
+                <View
+                    className="items-center w-full"
+                    style={{
+                        marginTop: isTablet ? 40 : 20,
+                        marginBottom: isTablet ? 40 : 20
+                    }}
+                >
                     <Text
                         className="font-headline-bold text-on-surface text-center tracking-tight text-[#1c1c18]"
-                        style={{ fontSize: 38 }}
+                        style={{ fontSize: isTablet ? 72 : 38 }}
                         adjustsFontSizeToFit
                         numberOfLines={1}
                     >
                         My Mandalis
                     </Text>
-                    <Text className="text-[15px] font-body-medium text-on-surface-variant text-center px-8 mt-3 leading-5 opacity-60">
-                        All your groups, in one place
+                    <Text
+                        className="font-body-medium text-on-surface-variant text-center leading-relaxed opacity-60"
+                        style={{
+                            fontSize: isTablet ? 24 : 15,
+                            marginTop: isTablet ? 24 : 12,
+                            paddingHorizontal: isTablet ? 120 : 32
+                        }}
+                    >
+                        Relive your moments and manage your circles
                     </Text>
-                    <View className="w-10 h-[3px] bg-primary/20 mt-8 rounded-full" />
+                    <View
+                        className="bg-primary/20 rounded-full"
+                        style={{
+                            height: 4,
+                            width: isTablet ? 120 : 40,
+                            marginTop: isTablet ? 40 : 24
+                        }}
+                    />
                 </View>
 
                 {/* Loading state */}
@@ -77,17 +100,17 @@ const GroupListScreen = () => {
                 )}
 
                 {/* Group List (Vertical stacking) */}
-                <View style={{ gap: 12 }}>
+                <View style={{ gap: isTablet ? 20 : 12 }}>
                     {groups.map((group: any) => (
                         <TouchableOpacity
                             key={group.id}
                             onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
                             activeOpacity={0.7}
-                            className="bg-white rounded-[24px] px-4 py-4 flex-row items-center border border-stone-100 shadow-sm"
+                            className={`bg-white rounded-[24px] px-${isTablet ? '6' : '4'} py-${isTablet ? '6' : '4'} flex-row items-center border border-stone-100 shadow-sm`}
                             style={{ elevation: 2 }}
                         >
                             {/* Group Avatar */}
-                            <View className="w-16 h-16 rounded-2xl overflow-hidden bg-stone-50 border border-stone-100">
+                            <View className={`rounded-[28px] overflow-hidden bg-stone-50 border border-stone-100 ${isTablet ? 'w-28 h-28' : 'w-16 h-16'}`}>
                                 {group.cover_photo_url ? (
                                     <Image
                                         source={{ uri: group.cover_photo_url }}
@@ -96,7 +119,7 @@ const GroupListScreen = () => {
                                     />
                                 ) : (
                                     <View className="w-full h-full items-center justify-center bg-primary/5">
-                                        <Text className="font-headline-bold text-xl text-primary opacity-30">
+                                        <Text className={`font-headline-bold text-primary opacity-30 ${isTablet ? 'text-5xl' : 'text-xl'}`}>
                                             {group.name.charAt(0).toUpperCase()}
                                         </Text>
                                     </View>
@@ -104,36 +127,43 @@ const GroupListScreen = () => {
                             </View>
 
                             {/* Group Details */}
-                            <View className="flex-1 ml-4 justify-center">
-                                <Text className="text-lg font-headline-bold text-[#1c1c18] mb-0.5" numberOfLines={1}>
+                            <View className="flex-1 ml-8 justify-center">
+                                <Text className={`font-headline-bold text-[#1c1c18] mb-2 ${isTablet ? 'text-4xl' : 'text-lg'}`} numberOfLines={1}>
                                     {group.name}
                                 </Text>
                                 <View className="flex-row items-center">
-                                    <View className="w-1.5 h-1.5 rounded-full bg-primary/40 mr-2" />
-                                    <Text className="text-[13px] font-body-bold text-[#594048] opacity-60">
+                                    <View className={`rounded-full bg-primary/40 mr-3 ${isTablet ? 'w-3 h-3' : 'w-1.5 h-1.5'}`} />
+                                    <Text className={`font-body-bold text-[#594048] opacity-60 ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
                                         {group.is_admin ? 'Admin • ' : ''}{group.memberCount || 0} Members
                                     </Text>
                                 </View>
                             </View>
 
                             {/* Navigation Icon */}
-                            <MaterialIcons name="chevron-right" size={24} color="#b3006969" />
+                            <MaterialIcons name="chevron-right" size={isTablet ? 48 : 24} color="#b3006969" />
                         </TouchableOpacity>
                     ))}
                 </View>
 
-                {/* Primary Action Section - Matching Game Style */}
-                <View className="mt-12 gap-4">
+                {/* Primary Action Section - Stacked High-Density Rows */}
+                <View className={`mt-12 gap-6`}>
                     <TouchableOpacity
                         onPress={() => navigation.navigate('CreateGroup')}
                         activeOpacity={0.9}
-                        className="h-16 rounded-[28px] overflow-hidden shadow-xl shadow-primary/20 bg-[#b30069] flex-row items-center justify-center px-6"
-                        style={{ elevation: 8 }}
+                        style={{
+                            height: isTablet ? 110 : 64,
+                            elevation: 8,
+                            shadowColor: '#b30069',
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 8
+                        }}
+                        className="rounded-[32px] overflow-hidden bg-[#b30069] flex-row items-center justify-center px-8"
                     >
-                        <MaterialIcons name="add-circle" size={24} color="white" />
+                        <MaterialIcons name="add-circle" size={isTablet ? 42 : 24} color="white" />
                         <Text
-                            className="text-white font-headline-bold ml-3"
-                            style={{ fontSize: 20 }}
+                            className="text-white font-headline-bold ml-4"
+                            style={{ fontSize: isTablet ? 32 : 20 }}
                             adjustsFontSizeToFit
                             numberOfLines={1}
                         >
@@ -144,12 +174,16 @@ const GroupListScreen = () => {
                     <TouchableOpacity
                         onPress={() => navigation.navigate('JoinGroup')}
                         activeOpacity={0.7}
-                        className="h-16 rounded-[28px] bg-[#fcecf2] flex-row items-center justify-center px-6 border border-[#b30069]/10"
+                        style={{
+                            height: isTablet ? 110 : 64,
+                            borderWidth: 2,
+                            borderColor: '#b3006915'
+                        }}
+                        className="rounded-[32px] bg-[#fcecf2] flex-row items-center justify-center px-8"
                     >
-                        <MaterialIcons name="qr-code-scanner" size={24} color="#b30069" />
+                        <MaterialIcons name="qr-code-scanner" size={isTablet ? 42 : 24} color="#b30069" />
                         <Text
-                            className="text-[#b30069] font-headline-bold ml-3"
-                            style={{ fontSize: 20 }}
+                            className={`text-[#b30069] font-headline-bold ml-4 ${isTablet ? 'text-3xl' : 'text-xl'}`}
                             adjustsFontSizeToFit
                             numberOfLines={1}
                         >
@@ -158,10 +192,14 @@ const GroupListScreen = () => {
                     </TouchableOpacity>
                 </View>
 
-                {/* Social Proof (Updated) */}
-                <View className="mt-16 items-center px-10">
-                    <View className="h-[1px] w-12 bg-stone-200 mb-6" />
-                    <Text className="text-[11px] font-body-bold tracking-[0.15em] uppercase text-[#594048]/60 text-center leading-5 transition-opacity">
+                <View 
+                    className="items-center px-10"
+                    style={{ marginTop: isTablet ? 80 : 48 }}
+                >
+                    <View className="bg-stone-200 mb-6" style={{ height: 1, width: isTablet ? 120 : 40 }} />
+                    <Text 
+                        className={`font-body-bold tracking-[0.15em] uppercase text-[#594048]/60 text-center transition-opacity ${isTablet ? 'text-2xl px-20 leading-9' : 'text-[11px] leading-5'}`}
+                    >
                         Trusted by Family, Friends, Colleagues & Community Circles
                     </Text>
                 </View>
