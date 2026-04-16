@@ -20,7 +20,7 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
                 user:user_id(name, avatar_url)
             `)
             .eq('group_id', groupId)
-            .order('created_at', { ascending: false });
+            .order('memory_date', { ascending: false });
 
         if (error) throw error;
 
@@ -37,7 +37,7 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
  */
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const { groupId, imageUrls, story } = req.body;
+        const { groupId, imageUrls, story, memoryDate } = req.body;
         const userId = req.userId;
 
         if (!groupId || !imageUrls || imageUrls.length === 0) {
@@ -52,6 +52,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
                 user_id: userId,
                 image_urls: imageUrls,
                 story,
+                memory_date: memoryDate || new Date(),
                 created_at: new Date()
             })
             .select()
@@ -70,7 +71,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
             userId!, 
             '✨ New Memory Shared!', 
             'Someone just added a new memory to your group. Tap to view it!',
-            { type: 'memory', groupId }
+            { type: 'memory', groupId, url: `mandali://memories/${groupId}` }
         ).catch((err: any) => console.error('[Push Failed]:', err));
 
         res.json(data);

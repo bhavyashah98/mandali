@@ -39,6 +39,11 @@ const HousieTicketScreen = () => {
         refetchOnWindowFocus: false
     });
 
+    const getParticipantName = (userId: string) => {
+        const participant = game?.participants?.find((p: any) => p.id === userId);
+        return participant?.name || 'Player';
+    };
+
     useEffect(() => {
         if (game?.status === 'ended') {
             setIsGameEnded(true);
@@ -67,6 +72,17 @@ const HousieTicketScreen = () => {
     // 4. Marking state
     const [markedTickets, setMarkedTickets] = useState<Record<string, number[]>>({});
     const [deniedClaims, setDeniedClaims] = useState<Record<string, string[]>>({});
+
+    // Initialize marks from server data
+    useEffect(() => {
+        if (ticketData?.tickets) {
+            const initialMarks: Record<string, number[]> = {};
+            ticketData.tickets.forEach((t: any) => {
+                initialMarks[t.id] = t.marked_numbers || [];
+            });
+            setMarkedTickets(initialMarks);
+        }
+    }, [ticketData?.tickets]);
 
     const handleClaimPrize = (prizeId: string) => {
         if (!socket || !gameCode || !claimingTicketId) return;
@@ -175,14 +191,22 @@ const HousieTicketScreen = () => {
 
     const toggleMark = (ticketId: string, num: number) => {
         if (isGameEnded) return;
-        setMarkedTickets(prev => {
-            const ticketMarks = prev[ticketId] || [];
-            if (ticketMarks.includes(num)) {
-                return { ...prev, [ticketId]: ticketMarks.filter(n => n !== num) };
-            } else {
-                return { ...prev, [ticketId]: [...ticketMarks, num] };
-            }
-        });
+        
+        const currentMarks = markedTickets[ticketId] || [];
+        const newMarks = currentMarks.includes(num)
+            ? currentMarks.filter(n => n !== num)
+            : [...currentMarks, num];
+
+        // Update local state for UI responsiveness
+        setMarkedTickets(prev => ({ ...prev, [ticketId]: newMarks }));
+
+        // Sync with server via socket
+        if (socket) {
+            socket.emit('sync_marks', {
+                ticketId,
+                markedNumbers: newMarks
+            });
+        }
     };
 
     const tickets = ticketData?.tickets || [];
@@ -317,7 +341,9 @@ const HousieTicketScreen = () => {
                                             {winners.length > 0 && (
                                                 <Text className={`text-[9px] uppercase font-body-bold ${isGlobalClosed ? 'text-stone-400' : 'text-orange-500'}`}>
                                                     {isGlobalClosed
-                                                        ? `${winners.length} Prize${winners.length > 1 ? 's' : ''} Claimed ✓`
+                                                        ? winners.length > 1 
+                                                            ? `${winners.length} WINNERS ✓`
+                                                            : `Winner: ${getParticipantName(winners[0].userId)} ✓`
                                                         : 'Pending verification...'}
                                                 </Text>
                                             )}
@@ -405,7 +431,7 @@ const HousieTicketScreen = () => {
                                     bgColor = 'bg-green-100';
                                     statusColor = 'text-green-700';
                                 } else if (isGlobalClosed) {
-                                    status = 'Claimed';
+                                    status = winners.length > 1 ? `${winners.length} Winners` : `Won: ${getParticipantName(winners[0].userId)}`;
                                     bgColor = 'bg-stone-50';
                                     statusColor = 'text-stone-400';
                                 } else if (isLocalDenied) {

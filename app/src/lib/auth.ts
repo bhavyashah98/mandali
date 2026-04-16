@@ -21,7 +21,6 @@ export const verifyOTP = async (
     // Get Firebase ID token
     const firebaseToken = await result.user.getIdToken();
 
-    console.log(firebaseToken);
     // Step 3 — Send to backend
     const response = await axios.post(`${API_URL}/auth/verify`, {
         firebaseToken,

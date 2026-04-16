@@ -19,7 +19,7 @@
       "buildNumber": "1",
       "googleServicesFile": "./GoogleService-Info.plist",
       "associatedDomains": [
-          "applinks:api.mandaliapp.com"
+        "applinks:api.mandaliapp.com"
       ],
       "infoPlist": {
         "NSCameraUsageDescription": "Mandali uses your camera to add photos to group memories",
@@ -74,7 +74,13 @@
       "@react-native-firebase/auth",
       "expo-font",
       "expo-web-browser",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#ffffff"
+        }
+      ],
       [
         "expo-camera",
         {
@@ -98,7 +104,8 @@
             ]
           }
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {

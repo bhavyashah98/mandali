@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Dimensions, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute, useIsFocused } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
 import { fetchGroupDetail, fetchActiveHousieGame, fetchHousieTickets, createHousieGame, cancelHousieGame, API_URL } from '../../lib/api';
@@ -13,7 +13,6 @@ const { width } = Dimensions.get('window');
 const HousieLobbyScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute();
-    const isFocused = useIsFocused(); // Track if we are currently looking at the lobby
     const { groupId } = (route.params as { groupId: string }) || {};
     const [isLoading, setIsLoading] = useState(false);
     const { user } = useAuthStore();
@@ -29,7 +28,7 @@ const HousieLobbyScreen = () => {
     const { data: activeGameData, isFetching: isGameFetching } = useQuery({
         queryKey: ['activeHousieGame', groupId],
         queryFn: () => fetchActiveHousieGame(groupId!),
-        enabled: !!groupId && isFocused,
+        enabled: !!groupId,
         staleTime: 0,
     });
 
@@ -49,8 +48,6 @@ const HousieLobbyScreen = () => {
         };
     }, [groupId]);
 
-    console.log(activeGameData);
-
     const activeGame = activeGameData?.game;
     const groupName = groupData?.group?.name || 'Your';
 
@@ -58,7 +55,7 @@ const HousieLobbyScreen = () => {
     const { data: ticketData } = useQuery({
         queryKey: ['housieTickets', activeGame?.game_code],
         queryFn: () => fetchHousieTickets(activeGame?.game_code!),
-        enabled: !!activeGame?.game_code && isFocused,
+        enabled: !!activeGame?.game_code,
         staleTime: 0
     });
 
@@ -66,10 +63,10 @@ const HousieLobbyScreen = () => {
 
     // --- Stuck game escape hatch logic ---
     const INACTIVITY_LIMITS_MINS: Record<string, number> = {
-        not_started: 2,
-        waiting: 30,
-        bounty: 15,
-        active: 60,
+        not_started: 10,
+        waiting: 10,
+        bounty: 5,
+        active: 15,
     };
 
     const getInactiveMinutes = (game: any): number => {
@@ -79,12 +76,13 @@ const HousieLobbyScreen = () => {
         return (Date.now() - new Date(refTime).getTime()) / 1000 / 60;
     };
 
+    const isHostOfActiveGame = activeGame && activeGame.host_id === user?.id && activeGame.status !== 'ended';
     const isStuck = activeGame &&
         activeGame.status !== 'ended' &&
         INACTIVITY_LIMITS_MINS[activeGame.status] !== undefined &&
         getInactiveMinutes(activeGame) > INACTIVITY_LIMITS_MINS[activeGame.status];
 
-    const showCancelCTA = isStuck;
+    const showCancelCTA = isStuck && !isHostOfActiveGame;
 
     if (!user || isGroupLoading) {
         return (
@@ -168,7 +166,6 @@ const HousieLobbyScreen = () => {
     const joinConfig = getJoinButtonConfig();
 
     // UI Helpers
-    const isHostOfActiveGame = activeGame && activeGame.host_id === user?.id && activeGame.status !== 'ended';
     const hasEndedGame = activeGame?.status === 'ended';
 
     return (

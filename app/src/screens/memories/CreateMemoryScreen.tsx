@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Dimensions, ActivityIndicator, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { uploadImage, createMemory, fetchGroupDetail } from '../../lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const { width } = Dimensions.get('window');
 const GRID_SIZE = (width - 48 - 24) / 3;
@@ -20,6 +21,8 @@ const CreateMemoryScreen = () => {
 
     const [selectedImages, setSelectedImages] = useState<string[]>([]);
     const [story, setStory] = useState('');
+    const [memoryDate, setMemoryDate] = useState(new Date());
+    const [showDatePicker, setShowDatePicker] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
 
     const { data: group } = useQuery({
@@ -72,7 +75,8 @@ const CreateMemoryScreen = () => {
             await createMemory({
                 groupId: groupId!,
                 imageUrls,
-                story
+                story,
+                memoryDate // New field
             });
 
             queryClient.invalidateQueries({ queryKey: ['memories', groupId] });
@@ -116,13 +120,13 @@ const CreateMemoryScreen = () => {
                         {/* Gallery Trigger */}
                         <TouchableOpacity
                             onPress={pickImages}
-                            className="bg-white border-2 border-dashed border-stone-200 rounded-[32px] items-center justify-center"
-                            style={{ width: selectedImages.length === 0 ? width - 48 : GRID_SIZE, height: selectedImages.length === 0 ? 240 : GRID_SIZE }}
+                            className="bg-white border-2 border-dashed border-stone-200 rounded-[24px] items-center justify-center"
+                            style={{ width: selectedImages.length === 0 ? width - 48 : GRID_SIZE, height: selectedImages.length === 0 ? 180 : GRID_SIZE }}
                         >
-                            <View className="w-12 h-12 rounded-full bg-[#fde8f3] items-center justify-center mb-2">
-                                <MaterialIcons name="add-a-photo" size={24} color="#b30069" />
+                            <View className="w-10 h-10 rounded-full bg-[#fde8f3] items-center justify-center mb-2">
+                                <MaterialIcons name="add-a-photo" size={20} color="#b30069" />
                             </View>
-                            <Text className="text-stone-400 font-body-bold text-xs uppercase tracking-widest">Gallery</Text>
+                            <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-widest">Add Photos</Text>
                         </TouchableOpacity>
                         {/* Selected Previews */}
                         {selectedImages.map((uri, idx) => (
@@ -144,20 +148,51 @@ const CreateMemoryScreen = () => {
                     {/* Story Input */}
                     <View className="mt-10">
                         <Text className="text-[#594048] font-headline-bold text-lg mb-4">The Story Behind the Moment</Text>
-                        <View className="bg-white rounded-[32px] p-6 shadow-sm border border-stone-100 min-h-[160px]">
+                        <View className="bg-white rounded-[24px] p-5 shadow-sm border border-stone-100 min-h-[120px]">
                             <TextInput
-                                multiline
-                                placeholder="Write a story..."
-                                placeholderTextColor="#a09d96"
                                 className="text-[#594048] font-body-medium text-base leading-6"
+                                placeholder="What's the story behind this moment?"
+                                placeholderTextColor="#a09d96"
                                 value={story}
                                 onChangeText={setStory}
                                 textAlignVertical="top"
+                                multiline={true}
                             />
                             <View className="absolute bottom-6 right-6">
                                 <Text className="text-stone-300 font-body-bold text-[10px] uppercase">{group?.group?.name || 'Group'}</Text>
                             </View>
                         </View>
+                    </View>
+
+                    {/* Date Selector */}
+                    <View className="mt-8">
+                        <Text className="text-[#594048] font-headline-bold text-lg mb-4">When did this happen?</Text>
+                        <TouchableOpacity
+                            onPress={() => setShowDatePicker(true)}
+                            activeOpacity={0.7}
+                            className="bg-white rounded-full h-14 flex-row items-center px-6 shadow-sm border border-stone-100"
+                        >
+                            <View className="w-10 h-10 rounded-full bg-[#e8f3fe] items-center justify-center mr-4">
+                                <MaterialIcons name="event" size={20} color="#0057b3" />
+                            </View>
+                            <Text className="text-[#594048] font-body-bold flex-1">
+                                {memoryDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            </Text>
+                            <MaterialIcons name="chevron-right" size={20} color="#a09d96" />
+                        </TouchableOpacity>
+
+                        {showDatePicker && (
+                            <DateTimePicker
+                                value={memoryDate}
+                                mode="date"
+                                display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
+                                maximumDate={new Date()}
+                                onChange={(event, selectedDate) => {
+                                    setShowDatePicker(false);
+                                    if (selectedDate) setMemoryDate(selectedDate);
+                                }}
+                            />
+                        )}
                     </View>
 
                     <View className="mt-8 flex-row items-center px-2">
@@ -178,7 +213,7 @@ const CreateMemoryScreen = () => {
                 <TouchableOpacity
                     onPress={handleUpload}
                     disabled={isUploading}
-                    className="bg-[#b30069] h-16 rounded-full flex-row items-center justify-center shadow-lg shadow-[#b30069]/30"
+                    className="bg-[#b30069] h-14 rounded-full flex-row items-center justify-center shadow-lg shadow-[#b30069]/30"
                 >
                     {isUploading ? (
                         <ActivityIndicator color="white" />

@@ -76,6 +76,11 @@ const HousieGameScreen = () => {
         });
     }, [game?.winners?.['__pending']?.length, game?.host_id, user?.id]);
 
+    const getParticipantName = (userId: string) => {
+        const participant = game?.participants?.find((p: any) => p.id === userId);
+        return participant?.name || 'Player';
+    };
+
     // 2. Socket Integration
     React.useEffect(() => {
         if (!gameCode) return;
@@ -209,7 +214,7 @@ const HousieGameScreen = () => {
     });
 
     const renderBoard = () => {
-        const rows = [];
+        const rows: any = [];
         for (let i = 0; i < 9; i++) {
             const row = [];
             for (let j = 1; j <= 10; j++) {
@@ -220,17 +225,17 @@ const HousieGameScreen = () => {
                     <View
                         key={num}
                         className={`w-[26px] h-[26px] rounded-md items-center justify-center m-[3px] ${isCurrent
-                                ? 'bg-[#b30069]'
-                                : isCalled
-                                    ? 'bg-[#f59e0b]'
-                                    : 'bg-[#f0ebe6]'
+                            ? 'bg-[#b30069]'
+                            : isCalled
+                                ? 'bg-[#f59e0b]'
+                                : 'bg-[#f0ebe6]'
                             }`}
                     >
                         <Text className={`text-[10px] font-headline-bold ${isCurrent
+                            ? 'text-white'
+                            : isCalled
                                 ? 'text-white'
-                                : isCalled
-                                    ? 'text-white'
-                                    : 'text-[#b0a09a]'
+                                : 'text-[#b0a09a]'
                             }`}>
                             {num}
                         </Text>
@@ -354,17 +359,44 @@ const HousieGameScreen = () => {
                                         </View>
                                     </View>
                                     <View className={`px-3 py-1.5 rounded-full ${prize.status === 'CLAIMED' ? 'bg-green-100' : 'bg-stone-50'}`}>
-                                        <Text className={`text-[9px] font-body-bold tracking-widest uppercase ${prize.status === 'CLAIMED' ? 'text-green-700' : 'text-stone-400'}`}>
-                                            {prize.winners?.length > 1 ? `${prize.winners.length} WINNERS` : prize.status}
+                                        <Text
+                                            style={{ maxWidth: 120 }}
+                                            numberOfLines={1}
+                                            className={`text-[9px] font-body-bold tracking-widest uppercase ${prize.status === 'CLAIMED' ? 'text-green-700' : 'text-stone-400'}`}
+                                        >
+                                            {prize.winners?.length > 1
+                                                ? `${prize.winners.length} WINNERS`
+                                                : prize.winners?.length === 1
+                                                    ? `WINNER: ${getParticipantName(prize.winners[0].userId)}`
+                                                    : prize.status
+                                            }
                                         </Text>
                                     </View>
                                 </View>
 
-                                {prize.winners?.length > 0 && (
-                                    <View className="mt-2 pt-2 border-t border-stone-50">
-                                        <Text className="text-[10px] text-stone-400 font-body-medium">Winners: {prize.winners.map((w: any) => `Ticket #${w.ticketId?.slice(-4).toUpperCase()}`).join(', ')}</Text>
+                             </View>
+                        ))}
+                    </View>
+                </View>
+
+                {/* Detailed Winners Breakdown */}
+                <View className="mt-4 px-2">
+                    <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-[2px] mb-4">Winners List</Text>
+                    <View className="gap-2 pb-10">
+                        {prizesArr.filter((p: any) => p.winners?.length > 0).map((prize: any, idx: number) => (
+                            <View key={idx} className="bg-white rounded-2xl p-4 border border-stone-100 shadow-sm">
+                                <View className="flex-row items-center justify-between">
+                                    <View className="flex-row items-center">
+                                       <MaterialIcons name={prize.icon || 'stars'} size={16} color="#b30069" />
+                                       <Text className="text-[#594048] font-headline-bold text-sm ml-2">{prize.name}</Text>
                                     </View>
-                                )}
+                                    <View className="bg-green-100 px-2 py-0.5 rounded-md">
+                                        <Text className="text-green-700 text-[10px] font-body-bold">{prize.winners.length} won</Text>
+                                    </View>
+                                </View>
+                                <Text className="text-stone-400 text-[11px] font-body-medium mt-2">
+                                    {prize.winners.map((w: any) => getParticipantName(w.userId)).join(', ')}
+                                </Text>
                             </View>
                         ))}
                     </View>

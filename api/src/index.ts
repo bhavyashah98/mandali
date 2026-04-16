@@ -213,6 +213,18 @@ io.on('connection', (socket) => {
         });
     });
 
+    socket.on('sync_marks', async (data) => {
+        const { ticketId, markedNumbers } = data;
+        try {
+            await supabase
+                .from('housie_tickets')
+                .update({ marked_numbers: markedNumbers })
+                .eq('id', ticketId);
+        } catch (e) {
+            console.error("[Socket] Failed to sync marks:", e);
+        }
+    });
+
     socket.on('disconnect', () => {
         console.log(`[Socket] User disconnected: ${socket.id}`);
     });

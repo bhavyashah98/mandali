@@ -18,8 +18,6 @@ const GroupListScreen = () => {
         queryFn: fetchGroups,
     });
 
-    console.log(groups, isLoading);
-
     return (
         <SafeAreaView className="flex-1 bg-[#FDF9F3]" edges={['top']}>
             {/* Top Brand Bar */}

@@ -185,7 +185,7 @@ export const fetchMemories = async (groupId: string) => {
     return response.data;
 };
 
-export const createMemory = async (memoryData: { groupId: string, imageUrls: string[], story?: string }) => {
+export const createMemory = async (memoryData: { groupId: string, imageUrls: string[], story?: string, memoryDate?: Date }) => {
     const headers = await getAuthHeaders();
     const response = await axios.post(`${API_URL}/memories`, memoryData, { headers });
     return response.data;

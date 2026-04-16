@@ -26,18 +26,6 @@ const HousieSpectatorScreen = () => {
         refetchOnWindowFocus: false,
     });
 
-    // Fetch participants for winner names
-    const { data: stats } = useQuery({
-        queryKey: ['housieParticipants', gameCode],
-        queryFn: async () => {
-            const headers = await getAuthHeaders();
-            const response = await axios.get(`${API_URL}/housie/${gameCode}/participants`, { headers });
-            return response.data;
-        },
-        staleTime: 30_000,
-        refetchOnWindowFocus: false,
-    });
-
     // Socket — listen for number calls and game end
     useEffect(() => {
         const socket = getSocket();
@@ -77,7 +65,8 @@ const HousieSpectatorScreen = () => {
     const prizes: any[] = game?.prizes || [];
 
     const getParticipantName = (userId: string) => {
-        return stats?.participants?.find((p: any) => p.id === userId)?.name || 'Player';
+        const participant = game?.participants?.find((p: any) => p.id === userId);
+        return participant?.name || 'Player';
     };
 
     if (isLoading) {

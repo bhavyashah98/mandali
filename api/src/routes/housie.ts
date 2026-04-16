@@ -43,7 +43,24 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
             return res.status(403).json({ error: 'You must be a member of the group to start a game' });
         }
 
-        // 2. Create the game in not_started state
+        // 2. CHECK FOR EXISTING ACTIVE GAME: Prevent multiple live games in one group
+        const { data: existingGame } = await supabase
+            .from('housie_games')
+            .select('id, game_code, status')
+            .eq('group_id', groupId)
+            .neq('status', 'ended')
+            .limit(1)
+            .maybeSingle();
+
+        if (existingGame) {
+            return res.status(400).json({ 
+                error: 'An active game already exists for this group.',
+                gameCode: existingGame.game_code,
+                status: existingGame.status
+            });
+        }
+
+        // 3. Create the game in not_started state
         const { data, error } = await supabase
             .from('housie_games')
             .insert({
@@ -91,6 +108,7 @@ router.get('/active/:groupId', authMiddleware, async (req: AuthRequest, res) => 
             .maybeSingle();
 
         if (error) throw error;
+
         res.json({ game });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -153,7 +171,7 @@ router.patch('/:gameCode/setup', authMiddleware, async (req: AuthRequest, res) =
             userId,
             '🎟️ Housie Room Open!',
             'A group member is hosting a new game! Jump into the waiting room to grab your tickets before it starts.',
-            { type: 'housie', gameCode: gameCode }
+            { type: 'housie', gameCode: gameCode, url: `mandali://housie/${gameCode}` }
         ).catch((err: any) => console.error('[Push Failed]:', err));
 
         res.json({ success: true, game: updatedGame });
@@ -222,32 +240,10 @@ router.post('/:gameCode/cancel', authMiddleware, async (req: AuthRequest, res) =
             .single();
 
         if (fetchError || !game) return res.status(404).json({ error: 'Game not found' });
-        if (game.host_id === userId) return res.status(403).json({ error: 'Host cannot cancel their own game this way.' });
+        const isHost = game.host_id === userId;
 
-        const INACTIVITY_LIMITS_MINS: Record<string, number> = {
-            not_started: 30,
-            waiting: 30,
-            bounty: 15,
-            active: 60,
-        };
-
-        const limitMins = INACTIVITY_LIMITS_MINS[game.status];
-        if (!limitMins) {
+        if (game.status === 'ended') {
             return res.status(400).json({ error: 'Game is already ended.' });
-        }
-
-        const refTime = game.status === 'active'
-            ? (game.last_number_called_at || game.last_activity_at || game.created_at)
-            : (game.last_activity_at || game.created_at);
-
-        const inactiveMins = (Date.now() - new Date(refTime).getTime()) / 1000 / 60;
-
-        if (inactiveMins < limitMins) {
-            const remaining = Math.ceil(limitMins - inactiveMins);
-            return res.status(400).json({
-                error: `Host is not yet inactive. Cancel available in ${remaining} minute${remaining !== 1 ? 's' : ''}.`,
-                remainingMins: remaining
-            });
         }
 
         const { data: cancelledGame, error: updateError } = await supabase
@@ -388,7 +384,7 @@ router.post('/:gameCode/call', authMiddleware, async (req: AuthRequest, res) => 
 
         const { data, error: updateError } = await supabase
             .from('housie_games')
-            .update({ 
+            .update({
                 called_numbers: updatedNumbers,
                 last_number_called_at: new Date().toISOString(),
                 last_activity_at: new Date().toISOString()
@@ -651,6 +647,10 @@ router.patch('/:gameCode/status', authMiddleware, async (req: AuthRequest, res) 
                 message: 'The game has been ended by the host.',
                 status: updatedGame.status,
                 endedAt: new Date()
+            });
+            io.to(gameCode).emit('game_created', {
+                gameCode,
+                status,
             });
         }
 
