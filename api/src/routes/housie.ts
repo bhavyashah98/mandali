@@ -53,7 +53,7 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
             .maybeSingle();
 
         if (existingGame) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 error: 'An active game already exists for this group.',
                 gameCode: existingGame.game_code,
                 status: existingGame.status
@@ -103,6 +103,7 @@ router.get('/active/:groupId', authMiddleware, async (req: AuthRequest, res) => 
             .from('housie_games')
             .select('*')
             .eq('group_id', groupId)
+            .neq('status', 'ended') // Ensure we only get truly active games
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
@@ -260,10 +261,10 @@ router.post('/:gameCode/cancel', authMiddleware, async (req: AuthRequest, res) =
 
         if (updateError) throw updateError;
 
-        req.app.get('io').to(game.group_id).emit('game_cancelled', {
+        // Notify the group lobby that the active game slot has changed/freed up
+        req.app.get('io').to(game.group_id).emit('game_created', {
             gameCode,
-            reason: 'host_inactive',
-            cancelledBy: userId
+            status: 'ended'
         });
 
         res.json({ success: true, game: cancelledGame });
@@ -648,7 +649,7 @@ router.patch('/:gameCode/status', authMiddleware, async (req: AuthRequest, res) 
                 status: updatedGame.status,
                 endedAt: new Date()
             });
-            io.to(gameCode).emit('game_created', {
+            io.to(game.group_id).emit('game_created', {
                 gameCode,
                 status,
             });
