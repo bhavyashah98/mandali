@@ -14,6 +14,7 @@ import legalRoutes from './routes/legal';
 import wellKnownRoutes from './routes/well-known';
 import deepLinksRoutes from './routes/deepLinks';
 import moderationRoutes from './routes/moderation';
+import hisaabRoutes from './routes/hisaab';
 import { supabase } from './lib/supabase';
 
 const app = express();
@@ -47,8 +48,7 @@ app.use('/groups', groupRoutes);
 app.use('/upload', uploadRoutes);
 app.use('/housie', housieRoutes);
 app.use('/memories', memoriesRoutes);
-app.use('/.well-known', wellKnownRoutes);
-app.use('/', deepLinksRoutes);
+app.use('/hisaab', hisaabRoutes);
 app.use('/', legalRoutes);
 app.use('/moderation', moderationRoutes);
 
@@ -59,7 +59,7 @@ app.get('/health', (req, res) => {
 // Socket.io Connection Logic
 io.on('connection', (socket) => {
     console.log(`[Socket] New user connected: ${socket.id}`);
-    
+
     socket.on('join_game', (gameCode) => {
         socket.join(gameCode);
     });
@@ -70,7 +70,7 @@ io.on('connection', (socket) => {
 
     socket.on('claim_prize', async (data) => {
         const { gameCode, prizeId, userId, ticketId, markedNumbers } = data;
-        
+
         try {
             // Get current game state
             const { data: game } = await supabase
@@ -78,7 +78,7 @@ io.on('connection', (socket) => {
                 .select('called_numbers, winners')
                 .eq('game_code', gameCode)
                 .single();
-            
+
             const currentNumberIndex = game?.called_numbers?.length || 0;
             const lastNumber = game?.called_numbers?.[currentNumberIndex - 1];
 
@@ -111,7 +111,7 @@ io.on('connection', (socket) => {
 
     socket.on('verify_claim', async (data) => {
         const { gameCode, prizeId, userId, ticketId, status, claimedOnIndex } = data;
-        
+
         try {
             // Fetch current winners and prizes
             const { data: game } = await supabase
@@ -119,7 +119,7 @@ io.on('connection', (socket) => {
                 .select('id, group_id, winners, called_numbers, prizes')
                 .eq('game_code', gameCode)
                 .single();
-            
+
             if (!game) return;
 
             const winners = game.winners || {};
@@ -132,11 +132,11 @@ io.on('connection', (socket) => {
 
                 // Check if prize was already taken on a PREVIOUS number
                 const existingWinners = Array.isArray(winners[prizeId]) ? winners[prizeId] : (winners[prizeId] ? [winners[prizeId]] : []);
-                
+
                 if (existingWinners.length > 0) {
                     const firstWinnerIndex = existingWinners[0].claimedOnIndex;
                     if (firstWinnerIndex && firstWinnerIndex < (claimedOnIndex || currentCalledCount)) {
-                         io.to(gameCode).emit('claim_result', {
+                        io.to(gameCode).emit('claim_result', {
                             prizeId, userId, ticketId, status: 'denied', message: 'Prize already claimed'
                         });
                         return;
@@ -144,11 +144,11 @@ io.on('connection', (socket) => {
                 }
 
                 // Add to the winners list (Shared prize logic)
-                const newWinner = { 
-                    userId, 
-                    ticketId, 
+                const newWinner = {
+                    userId,
+                    ticketId,
                     claimedAt: new Date(),
-                    claimedOnIndex: claimedOnIndex || currentCalledCount 
+                    claimedOnIndex: claimedOnIndex || currentCalledCount
                 };
 
                 const updatedWinnersList = [...existingWinners, newWinner];
@@ -174,9 +174,9 @@ io.on('connection', (socket) => {
                             prize_name: prize ? prize.name : prizeId,
                             prize_amount: splitAmount
                         }, {
-                            onConflict: 'game_id,user_id,prize_name' 
+                            onConflict: 'game_id,user_id,prize_name'
                         });
-                    
+
                     if (upsertError) {
                         console.error('[Results] Upsert failure:', upsertError.message);
                     }
@@ -185,7 +185,7 @@ io.on('connection', (socket) => {
             } else if (status === 'denied') {
                 const deniedMap = winners['__denied'] || {};
                 const ticketDeniedInfo = deniedMap[ticketId] || [];
-                
+
                 if (!ticketDeniedInfo.includes(prizeId)) {
                     ticketDeniedInfo.push(prizeId);
                 }
@@ -212,7 +212,7 @@ io.on('connection', (socket) => {
             prizeId,
             userId,
             ticketId,
-            status 
+            status
         });
     });
 

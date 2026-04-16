@@ -92,8 +92,8 @@ const GroupListScreen = () => {
                 {/* Empty State */}
                 {!isLoading && groups.length === 0 && (
                     <View className="py-12 items-center">
-                        <View className="w-20 h-20 bg-primary/5 rounded-full items-center justify-center mb-6">
-                            <Ionicons name="people-outline" size={32} color="#b30069" opacity={0.4} />
+                        <View className="w-20 h-20 bg-primary/5 rounded-full items-center justify-center mb-6" style={{ opacity: 0.4 }}>
+                            <Ionicons name="people-outline" size={32} color="#b30069" />
                         </View>
                         <Text className="font-headline-bold text-lg text-on-surface-variant">No groups yet</Text>
                         <Text className="font-body-regular text-sm text-on-surface-variant opacity-60 mt-1">Start your first Mandali below</Text>
