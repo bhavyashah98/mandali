@@ -190,11 +190,11 @@ export const createHousieGame = async (groupId: string, settings?: HousieSetting
     const headers = await getAuthHeaders();
     // Move prizes out of settings to the top level for the backend to handle specifically if needed
     const { prizes, ...otherSettings } = settings || {};
-    const response = await axios.post(`${API_URL}/housie/create`, { 
-        groupId, 
-        settings: otherSettings, 
-        prizes, 
-        title, 
+    const response = await axios.post(`${API_URL}/housie/create`, {
+        groupId,
+        settings: otherSettings,
+        prizes,
+        title,
         scheduledAt,
         ticketPrice
     }, { headers });
@@ -363,5 +363,36 @@ export const unblockUser = async (blockedId: string) => {
 export const fetchBlockedUsers = async () => {
     const headers = await getAuthHeaders();
     const response = await axios.get(`${API_URL}/moderation/blocked`, { headers });
+    return response.data;
+};
+
+// --- HISAAB API ---
+export const fetchHisaabBalances = async () => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/hisaab/balances`, { headers });
+    return response.data.balances;
+};
+
+export const fetchHisaabLedger = async (groupId: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/hisaab/ledger/${groupId}`, { headers });
+    return response.data.ledger;
+};
+
+export const fetchHisaabMembers = async (groupId: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/hisaab/members/${groupId}`, { headers });
+    return response.data.members;
+};
+
+export const createHisaabExpense = async (expenseData: any) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/hisaab/expense`, expenseData, { headers });
+    return response.data;
+};
+
+export const settleHisaabBalance = async (groupId: string, toUserId: string, amount: number) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/hisaab/settle`, { groupId, toUserId, amount }, { headers });
     return response.data;
 };

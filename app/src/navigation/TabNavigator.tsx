@@ -9,6 +9,7 @@ import { GroupNavigator } from './GroupNavigator';
 import { HousieNavigator } from './HousieNavigator';
 import { MemoriesNavigator } from './MemoriesNavigator';
 import { ProfileNavigator } from './ProfileNavigator';
+import { HisaabNavigator } from './HisaabNavigator';
 
 const Tab = createBottomTabNavigator();
 
@@ -53,6 +54,7 @@ export const TabNavigator = () => {
                     if (route.name === 'Groups') iconName = focused ? 'people' : 'people-outline';
                     else if (route.name === 'Housie') iconName = focused ? 'game-controller' : 'game-controller-outline';
                     else if (route.name === 'Memories') iconName = focused ? 'images' : 'images-outline';
+                    else if (route.name === 'Hisaab') iconName = focused ? 'receipt' : 'receipt-outline';
                     else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
                     
                     return <Ionicons name={iconName} size={isTablet ? 44 : 26} color={color} />;
@@ -62,6 +64,7 @@ export const TabNavigator = () => {
             <Tab.Screen name="Groups" component={GroupNavigator} />
             <Tab.Screen name="Housie" component={HousieNavigator} />
             <Tab.Screen name="Memories" component={MemoriesNavigator} />
+            <Tab.Screen name="Hisaab" component={HisaabNavigator} />
             <Tab.Screen name="Profile" component={ProfileNavigator} />
         </Tab.Navigator>
     );
