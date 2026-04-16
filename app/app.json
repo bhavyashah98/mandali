@@ -18,6 +18,9 @@
       "bundleIdentifier": "com.mandaliapp.mandali",
       "buildNumber": "1",
       "googleServicesFile": "./GoogleService-Info.plist",
+      "associatedDomains": [
+          "applinks:api.mandaliapp.com"
+      ],
       "infoPlist": {
         "NSCameraUsageDescription": "Mandali uses your camera to add photos to group memories",
         "NSPhotoLibraryUsageDescription": "Mandali accesses your photos to add them to group memories",
@@ -34,6 +37,23 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#fdf9f3"
       },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "api.mandaliapp.com",
+              "pathPrefix": "/join"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [

@@ -12,19 +12,13 @@ const JoinGroupScreen = () => {
     const queryClient = useQueryClient();
     const [inviteCode, setInviteCode] = useState(route.params?.inviteCode || '');
 
-    // Auto-trigger if we came from a deep link
-    React.useEffect(() => {
-        if (route.params?.inviteCode) {
-            setInviteCode(route.params.inviteCode);
-        }
-    }, [route.params?.inviteCode]);
 
     const joinMutation = useMutation({
         mutationFn: (code: string) => joinGroup(code.trim().toUpperCase()),
         onSuccess: (data) => {
             // CRITICAL: Invalidate the groups list so the new group shows up!
             queryClient.invalidateQueries({ queryKey: ['groups'] });
-            
+
             Alert.alert('Success', `You have joined "${data.group.name}"!`, [
                 { text: 'Great!', onPress: () => navigation.goBack() }
             ]);
@@ -34,6 +28,15 @@ const JoinGroupScreen = () => {
             Alert.alert('Error', err?.response?.data?.error || 'Failed to join group. Please check the code.');
         }
     });
+
+    // Auto-trigger if we came from a deep link
+    React.useEffect(() => {
+        if (route.params?.inviteCode) {
+            setInviteCode(route.params.inviteCode);
+            // Auto-join if user is already logged in (which they are if they see this screen)
+            joinMutation.mutate(route.params.inviteCode);
+        }
+    }, [route.params?.inviteCode]);
 
     const handleJoinGroup = () => {
         if (!inviteCode.trim()) {
@@ -60,9 +63,9 @@ const JoinGroupScreen = () => {
                 <Text className="font-body-regular text-on-surface-variant mb-8 text-[15px]">
                     Paste the 8-character invite code shared with you to join your digital gathering circle.
                 </Text>
-                
+
                 <View className="bg-surface-container rounded-2xl px-5 justify-center border border-dashed border-primary/30 h-16 mb-8">
-                    <TextInput 
+                    <TextInput
                         placeholder="e.g. AB12CD34"
                         placeholderTextColor="#a09d96"
                         className="font-body-medium text-lg text-primary"
@@ -99,7 +102,7 @@ const JoinGroupScreen = () => {
                 </View>
 
                 {/* Submit Action */}
-                <TouchableOpacity 
+                <TouchableOpacity
                     className={`w-full h-14 mt-auto mb-10 rounded-full items-center justify-center flex-row ${inviteCode.trim() ? 'bg-primary' : 'bg-primary/50'}`}
                     disabled={!inviteCode.trim() || loading}
                     onPress={handleJoinGroup}

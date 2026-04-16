@@ -63,13 +63,13 @@ const GroupDetailScreen = () => {
     const handleShareLink = async () => {
         if (!data?.group.invite_code) return;
         try {
-            // Mobile scheme for internal routing
-            const appUrl = Linking.createURL(`join/${data.group.invite_code}`);
-            // HTTPS format so WhatsApp natively highlights it as a clickable link
-            const webUrl = `https://mandali.onrender.com/join/${data.group.invite_code}`;
+            // Custom scheme link (reliable for opening the app directly if installed)
+            const appUrl = `mandali://join/${data.group.invite_code}`;
+            // Universal Link (for SEO and fallback to web if app not installed)
+            const webUrl = `https://api.mandaliapp.com/join/${data.group.invite_code}`;
 
             await Share.share({
-                message: `Join our Mandali circle!\n\nOpen this link to join directly:\n${webUrl}\n\n(Or use invite code: ${data.group.invite_code})`,
+                message: `Join our Mandali circle!\n\nTap to join directly:\n${appUrl}\n\nWeb Link:\n${webUrl}\n\nInvite code: ${data.group.invite_code}`,
             });
         } catch (err) {
             console.error('[Share] Error:', err);
@@ -253,7 +253,7 @@ const GroupDetailScreen = () => {
                             >Housie Gathering</Text>
                             <Text className="text-white/60 text-xs font-body-medium">Gather everyone for a game</Text>
                         </View>
-                        <MaterialIcons name="chevron-right" size={20} color="white" opacity={0.6} />
+                        <MaterialIcons name="chevron-right" size={20} color="white" style={{ opacity: 0.6 }} />
                     </TouchableOpacity>
 
                     <TouchableOpacity

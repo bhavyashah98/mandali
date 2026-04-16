@@ -8,6 +8,7 @@ import { TabNavigator } from './TabNavigator';
 import { useAuthStore } from '../stores/authStore';
 import SetupProfileScreen from '../screens/auth/SetupProfileScreen';
 import { registerForPushNotificationsAsync } from '../lib/pushNotifications';
+import * as Notifications from 'expo-notifications';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 
 const Stack = createStackNavigator();
@@ -21,13 +22,23 @@ export const RootNavigator = () => {
     const handleDeepLink = async (url: string | null) => {
         if (!url) return;
         const parsed = Linking.parse(url);
-        // e.g. mandali://join/XYZA1234
+        
+        // mandali://join/CODE
         if (parsed.path?.startsWith('join/')) {
             const inviteCode = parsed.path.split('/')[1];
-            if (inviteCode) {
-                // Store temporarily across app lifecycle
-                await AsyncStorage.setItem('pending_invite_code', inviteCode);
-            }
+            if (inviteCode) await AsyncStorage.setItem('pending_invite_code', inviteCode);
+        }
+        
+        // mandali://housie/CODE
+        if (parsed.path?.startsWith('housie/')) {
+            const gameCode = parsed.path.split('/')[1];
+            if (gameCode) await AsyncStorage.setItem('pending_housie_code', gameCode);
+        }
+
+        // mandali://memories/GROUP_ID
+        if (parsed.path?.startsWith('memories/')) {
+            const groupId = parsed.path.split('/')[1];
+            if (groupId) await AsyncStorage.setItem('pending_memories_group_id', groupId);
         }
     };
 
@@ -72,27 +83,60 @@ export const RootNavigator = () => {
 
     const isProfileIncomplete = isAuthenticated && (!user?.name || user?.name.trim() === '');
 
-    // Execute Join Navigation whenever App completes state
+    // Handle Push Notification Clicks
     useEffect(() => {
-        const processPendingInvite = async () => {
+        const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+            const data = response.notification.request.content.data;
+            if (data?.url) handleDeepLink(String(data.url));
+        });
+        return () => subscription.remove();
+    }, []);
+
+    // Execute Join/Game/Memory Navigation whenever App completes state
+    useEffect(() => {
+        const processPendingActions = async () => {
             if (isAppReady && isAuthenticated && !isProfileIncomplete) {
+                // 1. Check for Group Invites
                 const pendingCode = await AsyncStorage.getItem('pending_invite_code');
                 if (pendingCode) {
                     await AsyncStorage.removeItem('pending_invite_code');
-                    // Give a slight delay to let Stack render
                     setTimeout(() => {
                         navigationRef.current?.navigate('Main', {
                             screen: 'Groups',
-                            params: {
-                                screen: 'JoinGroup',
-                                params: { inviteCode: pendingCode }
-                            }
+                            params: { screen: 'JoinGroup', params: { inviteCode: pendingCode } }
                         });
                     }, 500);
+                    return;
+                }
+
+                // 2. Check for Housie Games
+                const pendingHousie = await AsyncStorage.getItem('pending_housie_code');
+                if (pendingHousie) {
+                    await AsyncStorage.removeItem('pending_housie_code');
+                    setTimeout(() => {
+                        navigationRef.current?.navigate('Main', {
+                            screen: 'Groups',
+                            params: { screen: 'HousieGame', params: { gameCode: pendingHousie } }
+                        });
+                    }, 500);
+                    return;
+                }
+
+                // 3. Check for Group Memories
+                const pendingMemories = await AsyncStorage.getItem('pending_memories_group_id');
+                if (pendingMemories) {
+                    await AsyncStorage.removeItem('pending_memories_group_id');
+                    setTimeout(() => {
+                        navigationRef.current?.navigate('Main', {
+                            screen: 'Groups',
+                            params: { screen: 'GroupDetail', params: { groupId: pendingMemories } }
+                        });
+                    }, 500);
+                    return;
                 }
             }
         };
-        processPendingInvite();
+        processPendingActions();
     }, [isAppReady, isAuthenticated, isProfileIncomplete]);
 
     if (!isAppReady) return null;
