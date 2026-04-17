@@ -231,29 +231,30 @@ const HousieTicketScreen = () => {
         const isBoggy = (deniedClaims[ticket.id]?.length || 0) > 0 || dbDeniedList.length > 0;
 
         return (
-            <View className={`mb-6 w-full ${isBoggy ? 'opacity-90' : ''}`}>
-                <View className="flex-row items-center justify-between mb-3 px-2">
-                    <Text className="text-stone-400 font-body-bold text-[9px] uppercase tracking-widest">TICKET #{ticket.id.slice(-4).toUpperCase()}</Text>
+            <View className={`mb-12 w-full ${isBoggy ? 'opacity-90' : ''} ${isTablet ? 'px-12' : ''}`}>
+                <View className="flex-row items-center justify-between mb-4 px-2">
+                    <Text className={`text-stone-400 font-body-bold uppercase tracking-[3px] ${isTablet ? 'text-xl' : 'text-[10px]'}`}>TICKET #{ticket.id.slice(-4).toUpperCase()}</Text>
                     <TouchableOpacity
                         onPress={() => {
                             setClaimingTicketId(ticket.id);
                             setPrizesModalVisible(true);
                         }}
                         disabled={isBoggy}
-                        className={`flex-row items-center px-3 py-1.5 rounded-full ${isBoggy ? 'bg-stone-200' : 'bg-primary/10'}`}
+                        style={{ height: isTablet ? 60 : 36 }}
+                        className={`flex-row items-center ${isTablet ? 'px-8' : 'px-4'} rounded-full ${isBoggy ? 'bg-stone-200' : 'bg-primary/10'}`}
                     >
-                        <FontAwesome5 name="trophy" size={10} color={isBoggy ? '#a8a29e' : '#b30069'} />
-                        <Text className={`font-headline-bold text-[10px] ml-2 uppercase tracking-tight ${isBoggy ? 'text-stone-400' : 'text-primary'}`}>
+                        <FontAwesome5 name="trophy" size={isTablet ? 18 : 12} color={isBoggy ? '#a8a29e' : '#b30069'} />
+                        <Text className={`font-headline-bold ml-3 uppercase tracking-tight ${isBoggy ? 'text-stone-400' : 'text-primary'} ${isTablet ? 'text-xl' : 'text-[11px]'}`}>
                             {isBoggy ? 'Disqualified' : 'Claim Prize'}
                         </Text>
                     </TouchableOpacity>
                 </View>
-                <View className="relative bg-white rounded-[24px] p-2.5 shadow-lg shadow-black/5 border border-black/5 overflow-hidden">
+                <View className={`relative bg-white rounded-[32px] shadow-lg shadow-black/5 border border-black/5 overflow-hidden ${isTablet ? 'p-6' : 'p-3'}`}>
                     {/* The Boggy Overlay */}
                     {isBoggy && (
-                        <View className="absolute z-10 bottom-0 top-0 left-0 right-0 bg-[#594048]/60 items-center justify-center rounded-[24px]" style={{ elevation: 5 }}>
-                            <View className="bg-primary px-6 py-2 rounded-2xl border-[3px] border-white shadow-2xl opacity-95" style={{ transform: [{ rotate: '-12deg' }] }}>
-                                <Text className="text-white font-headline-bold text-3xl tracking-widest">OOPS BOGGY</Text>
+                        <View className="absolute z-10 bottom-0 top-0 left-0 right-0 bg-[#594048]/60 items-center justify-center rounded-[32px]" style={{ elevation: 5 }}>
+                            <View className="bg-primary px-10 py-4 rounded-[32px] border-[4px] border-white shadow-2xl opacity-95" style={{ transform: [{ rotate: '-8deg' }] }}>
+                                <Text className={`text-white font-headline-bold tracking-widest ${isTablet ? 'text-6xl' : 'text-3xl'}`}>OOPS BOGGY</Text>
                             </View>
                         </View>
                     )}
@@ -262,19 +263,19 @@ const HousieTicketScreen = () => {
                         {ticket.ticket_data.map((row: any[], rIdx: number) => (
                             <View key={rIdx} className="flex-row">
                                 {row.map((num: number | null, cIdx: number) => (
-                                    <View key={cIdx} className="flex-1 aspect-square p-0.5">
+                                    <View key={cIdx} className="flex-1 aspect-square p-1">
                                         {num ? (
                                             <TouchableOpacity
                                                 onPress={() => toggleMark(ticket.id, num)}
                                                 disabled={isBoggy}
-                                                className={`w-full h-full rounded-md items-center justify-center border ${(markedTickets[ticket.id] || []).includes(num) ? 'bg-primary border-primary' : 'bg-stone-50 border-stone-100'}`}
+                                                className={`w-full h-full rounded-xl items-center justify-center border ${(markedTickets[ticket.id] || []).includes(num) ? 'bg-primary border-primary' : 'bg-stone-50 border-stone-100'}`}
                                             >
-                                                <Text className={`font-headline-bold ${(markedTickets[ticket.id] || []).includes(num) ? 'text-white' : 'text-on-surface'} ${isTablet ? 'text-2xl' : 'text-xs'}`}>
+                                                <Text className={`font-headline-bold ${(markedTickets[ticket.id] || []).includes(num) ? 'text-white' : 'text-[#1c1c18]'} ${isTablet ? 'text-3xl' : 'text-sm'}`}>
                                                     {num}
                                                 </Text>
                                             </TouchableOpacity>
                                         ) : (
-                                            <View className="w-full h-full rounded-md bg-stone-50/10" />
+                                            <View className="w-full h-full rounded-xl bg-stone-50/10" />
                                         )}
                                     </View>
                                 ))}
@@ -287,41 +288,49 @@ const HousieTicketScreen = () => {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+        <SafeAreaView className="flex-1 bg-[#FDF9F3]" edges={['top']}>
             {/* Header */}
-            <View className="px-6 py-4 flex-row items-center justify-between">
-                <TouchableOpacity onPress={() => navigation.goBack()} className="w-10 h-10 items-center justify-center rounded-full bg-white/50">
-                    <MaterialIcons name="arrow-back-ios" size={20} color="#594048" style={{ marginLeft: 5 }} />
+            <View className={`px-6 items-center flex-row justify-between ${isTablet ? 'py-8' : 'py-4'}`}>
+                <TouchableOpacity 
+                    onPress={() => navigation.goBack()} 
+                    className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                >
+                    <MaterialIcons name="arrow-back-ios" size={isTablet ? 24 : 18} color="#594048" style={{ marginLeft: isTablet ? 10 : 5 }} />
                 </TouchableOpacity>
-                <View className="bg-green-100 px-3 py-1 rounded-full flex-row items-center border border-green-200">
-                    <View className="w-2 h-2 rounded-full bg-green-500 mr-2" />
-                    <Text className="text-green-800 font-body-bold text-[10px] uppercase tracking-widest">Live</Text>
+                <View className={`bg-green-100 rounded-full flex-row items-center border border-green-200 ${isTablet ? 'px-6 py-2' : 'px-3 py-1'}`}>
+                    <View className={`rounded-full bg-green-500 ${isTablet ? 'w-3 h-3 mr-3' : 'w-2 h-2 mr-2'}`} />
+                    <Text className={`text-green-800 font-body-bold uppercase tracking-widest ${isTablet ? 'text-lg' : 'text-[10px]'}`}>Live Game</Text>
                 </View>
-                <View className="w-10" />
+                <View style={{ width: isTablet ? 64 : 40 }} />
             </View>
 
             <FlatList
                 data={tickets}
                 renderItem={renderTicket}
                 keyExtractor={(item) => item.id}
-                contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+                contentContainerStyle={{ paddingHorizontal: isTablet ? 40 : 20, paddingBottom: 60 }}
                 ListHeaderComponent={() => (
-                    <View className={`mb-10 mt-4 items-center ${isTablet ? 'py-10' : ''}`}>
-                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[3px] mb-6 ${isTablet ? 'text-lg' : 'text-[11px]'}`}>NOW CALLING</Text>
+                    <View className={`mb-12 mt-6 items-center ${isTablet ? 'py-12' : ''}`}>
+                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[4px] mb-8 ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>NOW CALLING</Text>
                         <View
-                            style={{ width: isTablet ? 220 : 144, height: isTablet ? 220 : 144, borderRadius: 110, elevation: 12 }}
+                            style={{ 
+                                width: isTablet ? 280 : 160, 
+                                height: isTablet ? 280 : 160, 
+                                borderRadius: isTablet ? 140 : 80, 
+                                elevation: 20 
+                            }}
                             className="bg-primary items-center justify-center shadow-2xl shadow-primary/40 border-[10px] border-white"
                         >
-                            <Text className={`text-white font-headline-bold ${isTablet ? 'text-8xl' : 'text-[56px]'}`}>
+                            <Text className={`text-white font-headline-bold ${isTablet ? 'text-[120px]' : 'text-[64px]'}`}>
                                 {latestNumber || "--"}
                             </Text>
                         </View>
                     </View>
                 )}
                 ListFooterComponent={() => (
-                    <View className="mt-4 pt-10 border-t border-stone-100">
-                        <Text className="text-stone-400 font-body-bold text-[9px] uppercase tracking-[2px] mb-6 text-center">Prize Reference Live Status</Text>
-                        <View className="gap-2">
+                    <View className={`mt-8 pt-12 border-t border-stone-100 ${isTablet ? 'px-12' : ''}`}>
+                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[4px] mb-8 text-center ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Prize Pool Tracker</Text>
+                        <View className="gap-3">
                             {(game?.prizes || []).map((prize: any) => {
                                 const winnerList = game?.winners?.[prize.id];
                                 const winners = Array.isArray(winnerList) ? winnerList : (winnerList ? [winnerList] : [])
@@ -332,23 +341,23 @@ const HousieTicketScreen = () => {
                                 const individualAmount = winners.length > 0 ? (prize.amount / winners.length).toFixed(0) : prize.amount;
 
                                 return (
-                                    <View key={prize.id} className={`flex-row items-center py-3 px-4 rounded-[20px] ${isGlobalClosed ? 'bg-stone-100' : 'bg-white shadow-sm border border-stone-100'} mb-1`}>
-                                        <View className={`w-8 h-8 rounded-full ${isGlobalClosed ? 'bg-stone-200' : isPendingShare ? 'bg-orange-50' : 'bg-stone-50'} items-center justify-center mr-3`}>
-                                            <MaterialIcons name={prize.icon || 'stars'} size={14} color={isGlobalClosed ? '#a8a29e' : isPendingShare ? '#f97316' : '#b30069'} />
+                                    <View key={prize.id} className={`flex-row items-center rounded-[24px] ${isGlobalClosed ? 'bg-stone-100' : 'bg-white shadow-sm border border-stone-100'} mb-2 ${isTablet ? 'p-8' : 'p-4'}`}>
+                                        <View className={`${isTablet ? 'w-20 h-20' : 'w-10 h-10'} rounded-full ${isGlobalClosed ? 'bg-stone-200' : isPendingShare ? 'bg-orange-50' : 'bg-primary/5'} items-center justify-center mr-4`}>
+                                            <MaterialIcons name={prize.icon || 'stars'} size={isTablet ? 36 : 20} color={isGlobalClosed ? '#a8a29e' : isPendingShare ? '#f97316' : '#b30069'} />
                                         </View>
                                         <View className="flex-1">
-                                            <Text className={`font-headline-bold text-sm ${isGlobalClosed ? 'text-stone-400 line-through' : 'text-[#594048]'}`}>{prize.name}</Text>
+                                            <Text className={`font-headline-bold ${isGlobalClosed ? 'text-stone-400 line-through' : 'text-[#31302d]'} ${isTablet ? 'text-3xl' : 'text-base'}`}>{prize.name}</Text>
                                             {winners.length > 0 && (
-                                                <Text className={`text-[9px] uppercase font-body-bold ${isGlobalClosed ? 'text-stone-400' : 'text-orange-500'}`}>
+                                                <Text className={`uppercase font-body-bold mt-1 ${isGlobalClosed ? 'text-stone-400' : 'text-orange-500'} ${isTablet ? 'text-lg' : 'text-[9px]'}`}>
                                                     {isGlobalClosed
                                                         ? winners.length > 1 
-                                                            ? `${winners.length} WINNERS ✓`
-                                                            : `Winner: ${getParticipantName(winners[0].userId)} ✓`
-                                                        : 'Pending verification...'}
+                                                            ? `${winners.length} WINNERS CHECKED`
+                                                            : `Winner: ${getParticipantName(winners[0].userId)}`
+                                                        : 'Verification in progress...'}
                                                 </Text>
                                             )}
                                         </View>
-                                        <Text className={`font-headline-bold text-sm ${isGlobalClosed ? 'text-stone-400' : 'text-primary'}`}>₹{individualAmount}</Text>
+                                        <Text className={`font-headline-bold ${isGlobalClosed ? 'text-stone-400' : 'text-[#b30069]'} ${isTablet ? 'text-4xl' : 'text-lg'}`}>₹{individualAmount}</Text>
                                     </View>
                                 );
                             })}
@@ -358,121 +367,110 @@ const HousieTicketScreen = () => {
                 showsVerticalScrollIndicator={false}
             />
 
-            <Modal animationType="slide" transparent={true} visible={prizesModalVisible} onRequestClose={() => setPrizesModalVisible(false)}>
-                <View className="flex-1 justify-end bg-black/50">
-                    <View className="bg-[#FDF9F3] rounded-t-[40px] p-8 pb-12">
-                        <View className="flex-row items-center justify-between mb-8">
-                            <Text className="text-2xl font-headline-bold text-[#594048]">Claim Prizes</Text>
-                            <TouchableOpacity onPress={() => setPrizesModalVisible(false)}>
-                                <MaterialIcons name="close" size={24} color="#594048" />
-                            </TouchableOpacity>
-                        </View>
-                        <View className="gap-4">
-                            {([...(game?.prizes || [])].sort((a: any, b: any) => {
-                                const currentCalledCount = game?.called_numbers?.length || 0;
+            <Modal animationType="fade" transparent={true} visible={prizesModalVisible} onRequestClose={() => setPrizesModalVisible(false)}>
+                <View className={`flex-1 justify-center bg-[#594048]/90 ${isTablet ? 'px-24 py-24' : 'px-4 py-8'}`}>
+                    <View className={`bg-[#FDF9F3] rounded-[40px] shadow-2xl border border-white/20 max-h-[100%] ${isTablet ? 'p-12' : 'p-6'}`}>
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            <View className="flex-row items-center justify-between mb-8">
+                                <Text className={`font-headline-bold text-[#594048] ${isTablet ? 'text-5xl' : 'text-2xl'}`}>Claim Prize</Text>
+                                <TouchableOpacity 
+                                    onPress={() => setPrizesModalVisible(false)}
+                                    className={`items-center justify-center rounded-full bg-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                                >
+                                    <MaterialIcons name="close" size={isTablet ? 32 : 24} color="#594048" />
+                                </TouchableOpacity>
+                            </View>
 
-                                // Extract winners accurately
-                                const aWinList = game?.winners?.[a.id];
-                                const aWinners = Array.isArray(aWinList) ? aWinList : (aWinList ? [aWinList] : []);
-                                const aClosed = aWinners.length > 0 && aWinners[0].claimedOnIndex < currentCalledCount;
+                            <View className="gap-4">
+                                {([...(game?.prizes || [])].sort((a: any, b: any) => {
+                                    const currentCalledCount = game?.called_numbers?.length || 0;
+                                    const aWinList = game?.winners?.[a.id];
+                                    const aWinners = Array.isArray(aWinList) ? aWinList : (aWinList ? [aWinList] : []);
+                                    const aClosed = aWinners.length > 0 && aWinners[0].claimedOnIndex < currentCalledCount;
+                                    const bWinList = game?.winners?.[b.id];
+                                    const bWinners = Array.isArray(bWinList) ? bWinList : (bWinList ? [bWinList] : []);
+                                    const bClosed = bWinners.length > 0 && bWinners[0].claimedOnIndex < currentCalledCount;
+                                    if (aClosed !== bClosed) return aClosed ? 1 : -1;
+                                    return parseInt(b.amount || '0') - parseInt(a.amount || '0');
+                                })).map((prize: any) => {
+                                    const winnerList = game?.winners?.[prize.id];
+                                    const winners = Array.isArray(winnerList) ? winnerList : (winnerList ? [winnerList] : []);
+                                    const currentCalledCount = game?.called_numbers?.length || 0;
+                                    const isGlobalClosed = winners.length > 0 && winners[0].claimedOnIndex < currentCalledCount;
 
-                                const bWinList = game?.winners?.[b.id];
-                                const bWinners = Array.isArray(bWinList) ? bWinList : (bWinList ? [bWinList] : []);
-                                const bClosed = bWinners.length > 0 && bWinners[0].claimedOnIndex < currentCalledCount;
+                                    let standardWinsOnTicket = 0;
+                                    let fullHouseWinsOnTicket = 0;
+                                    (game?.prizes || []).forEach((p: any) => {
+                                        const ticketWinList = game?.winners?.[p.id] || [];
+                                        const tWinners = Array.isArray(ticketWinList) ? ticketWinList : [ticketWinList];
+                                        if (tWinners.some((w: any) => w.ticketId === claimingTicketId)) {
+                                            if (p.name.toLowerCase().includes('full house')) fullHouseWinsOnTicket++;
+                                            else standardWinsOnTicket++;
+                                        }
+                                    });
 
-                                // Prioritize Open Window (false) over Closed Window (true)
-                                if (aClosed !== bClosed) {
-                                    return aClosed ? 1 : -1;
-                                }
+                                    const myWin = winners.find((w: any) => w.ticketId === claimingTicketId);
+                                    const isMyWin = !!myWin;
+                                    const dbDeniedPrizeIds = game?.winners?.['__denied']?.[claimingTicketId as string] || [];
+                                    const isLocalDenied = claimingTicketId ? (deniedClaims[claimingTicketId]?.includes(prize.id) || dbDeniedPrizeIds.includes(prize.id)) : false;
+                                    const isFullHousePrize = prize.name.toLowerCase().includes('full house');
+                                    const isLimitReached = !isMyWin && (
+                                        (isFullHousePrize && fullHouseWinsOnTicket >= 1) ||
+                                        (!isFullHousePrize && standardWinsOnTicket >= 1)
+                                    );
 
-                                // If they have the same claim status, sort sequentially by highest prize amount
-                                return parseInt(b.amount || '0') - parseInt(a.amount || '0');
-                            })).map((prize: any) => {
-                                const winnerList = game?.winners?.[prize.id];
-                                const winners = Array.isArray(winnerList) ? winnerList : (winnerList ? [winnerList] : []);
-                                const currentCalledCount = game?.called_numbers?.length || 0;
+                                    let status = 'Claim';
+                                    let statusColor = 'text-white';
+                                    let bgColor = 'bg-[#b30069]';
 
-                                // A prize is ONLY permanently closed to the public if the NEXT number has been drawn.
-                                const isGlobalClosed = winners.length > 0 && winners[0].claimedOnIndex < currentCalledCount;
-
-                                // Pre-calculate what this active ticket has already successfully won
-                                let standardWinsOnTicket = 0;
-                                let fullHouseWinsOnTicket = 0;
-                                (game?.prizes || []).forEach((p: any) => {
-                                    const ticketWinList = game?.winners?.[p.id] || [];
-                                    const tWinners = Array.isArray(ticketWinList) ? ticketWinList : [ticketWinList];
-                                    if (tWinners.some((w: any) => w.ticketId === claimingTicketId)) {
-                                        if (p.name.toLowerCase().includes('full house')) fullHouseWinsOnTicket++;
-                                        else standardWinsOnTicket++;
+                                    if (isMyWin) {
+                                        status = 'Success';
+                                        bgColor = 'bg-stone-100';
+                                        statusColor = 'text-green-600';
+                                    } else if (isGlobalClosed) {
+                                        status = winners.length > 1 ? `${winners.length} Wins` : 'Closed';
+                                        bgColor = 'bg-stone-50';
+                                        statusColor = 'text-stone-300';
+                                    } else if (isLocalDenied) {
+                                        status = 'Denied';
+                                        bgColor = 'bg-red-50';
+                                        statusColor = 'text-red-400';
+                                    } else if (isLimitReached) {
+                                        status = 'Limited';
+                                        bgColor = 'bg-stone-100';
+                                        statusColor = 'text-stone-400';
+                                    } else if (winners.length > 0) {
+                                        status = 'Join Share';
+                                        bgColor = 'bg-orange-500';
+                                        statusColor = 'text-white';
                                     }
-                                });
 
-                                // Check if active ticket is one of the winners
-                                const myWin = winners.find((w: any) => w.ticketId === claimingTicketId);
-                                const isMyWin = !!myWin;
+                                    const disableButton = isGlobalClosed || isMyWin || isLocalDenied || isLimitReached;
 
-                                // Persist Boggy from DB
-                                const dbDeniedPrizeIds = game?.winners?.['__denied']?.[claimingTicketId as string] || [];
-                                const isLocalDenied = claimingTicketId ? (deniedClaims[claimingTicketId]?.includes(prize.id) || dbDeniedPrizeIds.includes(prize.id)) : false;
-
-                                // Enforce Strict Housie Limits for this Ticket
-                                const isFullHousePrize = prize.name.toLowerCase().includes('full house');
-                                const isLimitReached = !isMyWin && (
-                                    (isFullHousePrize && fullHouseWinsOnTicket >= 1) ||
-                                    (!isFullHousePrize && standardWinsOnTicket >= 1)
-                                );
-
-                                let status = 'Claim';
-                                let statusColor = 'text-white';
-                                let bgColor = 'bg-[#b30069]';
-
-                                if (isMyWin) {
-                                    status = 'You Won';
-                                    bgColor = 'bg-green-100';
-                                    statusColor = 'text-green-700';
-                                } else if (isGlobalClosed) {
-                                    status = winners.length > 1 ? `${winners.length} Winners` : `Won: ${getParticipantName(winners[0].userId)}`;
-                                    bgColor = 'bg-stone-50';
-                                    statusColor = 'text-stone-400';
-                                } else if (isLocalDenied) {
-                                    status = 'Rejected';
-                                    bgColor = 'bg-red-50';
-                                    statusColor = 'text-red-400';
-                                } else if (isLimitReached) {
-                                    status = 'Ticket Limit';
-                                    bgColor = 'bg-stone-200';
-                                    statusColor = 'text-stone-500';
-                                } else if (winners.length > 0) {
-                                    status = 'Claim Share';
-                                    bgColor = 'bg-orange-500';
-                                    statusColor = 'text-white';
-                                }
-
-                                const disableButton = isGlobalClosed || isMyWin || isLocalDenied || isLimitReached;
-
-                                return (
-                                    <TouchableOpacity
-                                        key={prize.id}
-                                        onPress={() => !disableButton && handleClaimPrize(prize.id)}
-                                        disabled={disableButton}
-                                        className={`bg-white p-4 rounded-[24px] flex-row items-center shadow-sm border border-stone-100 ${disableButton && !isMyWin ? 'opacity-50' : ''}`}
-                                    >
-                                        <View className={`w-12 h-12 rounded-full ${(winners.length > 0 && !isGlobalClosed && !isLimitReached) ? 'bg-orange-50' : 'bg-stone-50'} items-center justify-center mr-4`}>
-                                            <MaterialIcons name={prize.icon || 'stars'} size={24} color={(winners.length > 0 && !isGlobalClosed && !isLimitReached) ? '#f97316' : '#b30069'} />
-                                        </View>
-                                        <View className="flex-1">
-                                            <Text className="text-[#594048] font-headline-bold text-base">{prize.name}</Text>
-                                            <Text className="text-stone-400 font-body-medium text-xs">
-                                                {winners.length > 1 && !isLimitReached ? `Split: ₹${(prize.amount / winners.length).toFixed(0)}` : `Prize: ₹${prize.amount}`}
-                                            </Text>
-                                        </View>
-                                        <View className={`px-4 py-2 rounded-full ${bgColor}`}>
-                                            <Text className={`font-headline-bold text-[11px] uppercase ${statusColor}`}>{status}</Text>
-                                        </View>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
+                                    return (
+                                        <TouchableOpacity
+                                            key={prize.id}
+                                            onPress={() => !disableButton && handleClaimPrize(prize.id)}
+                                            disabled={disableButton}
+                                            className={`bg-white rounded-[28px] flex-row items-center border border-stone-100 mb-2 ${isTablet ? 'p-8' : 'p-4'} ${disableButton && !isMyWin ? 'opacity-50' : ''}`}
+                                        >
+                                            <View className={`${isTablet ? 'w-20 h-20' : 'w-12 h-12'} rounded-full ${(winners.length > 0 && !isGlobalClosed && !isLimitReached) ? 'bg-orange-50' : 'bg-stone-50'} items-center justify-center mr-4`}>
+                                                <MaterialIcons name={prize.icon || 'stars'} size={isTablet ? 36 : 24} color={(winners.length > 0 && !isGlobalClosed && !isLimitReached) ? '#f97316' : '#b30069'} />
+                                            </View>
+                                            <View className="flex-1">
+                                                <Text className={`text-[#31302d] font-headline-bold ${isTablet ? 'text-3xl' : 'text-base'}`}>{prize.name}</Text>
+                                                <Text className={`text-stone-400 font-body-medium mt-1 ${isTablet ? 'text-lg' : 'text-xs'}`}>
+                                                    {winners.length > 1 && !isLimitReached ? `Split: ₹${(prize.amount / winners.length).toFixed(0)}` : `Value: ₹${prize.amount}`}
+                                                </Text>
+                                            </View>
+                                            <View style={{ height: isTablet ? 60 : 40, minWidth: isTablet ? 140 : 80 }} className={`px-6 items-center justify-center rounded-full ${bgColor}`}>
+                                                <Text className={`font-headline-bold uppercase tracking-tight ${statusColor} ${isTablet ? 'text-xl' : 'text-[11px]'}`}>{status}</Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        </ScrollView>
                     </View>
                 </View>
             </Modal>

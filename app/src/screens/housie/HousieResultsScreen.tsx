@@ -34,8 +34,8 @@ const HousieResultsScreen = () => {
     };
 
     const handleClose = () => {
-        // Just go back to the lobby where you came from
-        navigation.goBack();
+        // Navigate back to the main lobby for this group
+        navigation.navigate('HousieLobby', { groupId });
     };
 
     if (isLoading) {

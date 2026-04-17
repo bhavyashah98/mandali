@@ -20,26 +20,32 @@ export const RootNavigator = () => {
     const navigationRef = useRef<NavigationContainerRef<any>>(null);
     const isProfileIncomplete = isAuthenticated && (!user?.name || user?.name.trim() === '');
 
-    const navigateToFeature = (feature: string, data: string) => {
+    const navigateToFeature = (feature: string, params: any) => {
         if (!navigationRef.current) return;
 
         switch (feature) {
             case 'join':
                 navigationRef.current.navigate('Main', {
                     screen: 'Groups',
-                    params: { screen: 'JoinGroup', params: { inviteCode: data } }
+                    params: { screen: 'JoinGroup', params: { inviteCode: params.id } }
                 });
                 break;
             case 'housie':
                 navigationRef.current.navigate('Main', {
                     screen: 'Housie',
-                    params: { screen: 'HousieJoinGame', params: { gameCode: data } }
+                    params: { 
+                        screen: 'HousieJoinGame', 
+                        params: { 
+                            gameCode: params.gameCode,
+                            groupId: params.groupId
+                        } 
+                    }
                 });
                 break;
             case 'memories':
                 navigationRef.current.navigate('Main', {
                     screen: 'Memories',
-                    params: { screen: 'MemoriesHome', params: { groupId: data } }
+                    params: { screen: 'MemoriesHome', params: { groupId: params.id } }
                 });
                 break;
         }
@@ -51,17 +57,24 @@ export const RootNavigator = () => {
         const parsed = Linking.parse(url);
 
         const feature = parsed.hostname;
-        const data = parsed.path?.includes('/') ? parsed.path.split('/')[1] : parsed.path;
+        const segments = parsed.path ? parsed.path.split('/').filter(s => s !== '') : [];
 
-        if (feature && data) {
-            console.log(`[DeepLink] Processing: ${feature} -> ${data}`);
-
-            // Check current readiness state
-            if (isAppReady && isAuthenticated && !isProfileIncomplete) {
-                navigateToFeature(feature, data);
+        if (feature && segments.length > 0) {
+            let params: any = {};
+            
+            if (feature === 'housie') {
+                params.gameCode = segments[0];
+                if (segments.length > 1) params.groupId = segments[1];
             } else {
-                // Not ready yet (e.g. cold boot) -> Store for later
-                await AsyncStorage.setItem('pending_deeplink', JSON.stringify({ feature, data }));
+                params.id = segments[0];
+            }
+
+            console.log(`[DeepLink] Processing: ${feature}`, params);
+
+            if (isAppReady && isAuthenticated && !isProfileIncomplete) {
+                navigateToFeature(feature, params);
+            } else {
+                await AsyncStorage.setItem('pending_deeplink', JSON.stringify({ feature, params }));
             }
         }
     };
@@ -131,9 +144,9 @@ export const RootNavigator = () => {
                 const pending = await AsyncStorage.getItem('pending_deeplink');
                 if (pending) {
                     await AsyncStorage.removeItem('pending_deeplink');
-                    const { feature, data } = JSON.parse(pending);
+                    const { feature, params } = JSON.parse(pending);
                     // Slight delay to ensure stack is definitely rendered
-                    setTimeout(() => navigateToFeature(feature, data), 500);
+                    setTimeout(() => navigateToFeature(feature, params), 500);
                 }
             }
         };

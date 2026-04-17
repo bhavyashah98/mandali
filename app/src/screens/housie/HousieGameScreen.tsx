@@ -6,7 +6,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../stores/authStore';
-import { fetchHousieGame, updateHousieStatus, fetchTicketById, API_URL } from '../../lib/api';
+import { fetchHousieGame, updateHousieStatus, fetchTicketById, fetchGroupDetail, API_URL } from '../../lib/api';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import io from 'socket.io-client';
@@ -197,6 +197,12 @@ const HousieGameScreen = () => {
     const calledNumbers = game?.called_numbers || [];
     const currentNumber = calledNumbers[calledNumbers.length - 1] || '--';
     const recentNumbers = [...calledNumbers].reverse().slice(1, 4);
+    const { data: groupData } = useQuery({
+        queryKey: ['groupDetail', groupId],
+        queryFn: () => fetchGroupDetail(groupId!),
+        enabled: !!groupId,
+    });
+
     const isHost = game?.host_id === user?.id;
 
     const prizesArr = (game?.prizes || []).map((p: any) => {
@@ -260,27 +266,32 @@ const HousieGameScreen = () => {
     return (
         <SafeAreaView className="flex-1 bg-[#FDF9F3]" edges={['top']}>
             {/* Header */}
-            <View className="px-6 py-2 flex-row items-center justify-between">
-                <TouchableOpacity onPress={() => navigation.goBack()} className="w-10 h-10 items-center justify-center rounded-full bg-white shadow-sm border border-stone-100">
-                    <MaterialIcons name="arrow-back-ios" size={18} color="#594048" style={{ marginLeft: 5 }} />
-                </TouchableOpacity>
-                <View className="items-center">
-                    <Text className="text-[#a09d96] font-body-bold text-[9px] uppercase tracking-widest">HOUSIE SESSION</Text>
-                    <Text className="text-[#594048] font-headline-bold text-base">{gameCode}</Text>
+            <View className={`px-6 flex-row items-center justify-between ${isTablet ? 'py-6 px-12' : 'py-2 px-6'}`}>
+                <View style={{ width: isTablet ? 64 : 44 }}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}>
+                        <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 18} color="#594048" style={{ marginLeft: isTablet ? 8 : 5 }} />
+                    </TouchableOpacity>
                 </View>
+                <View className="flex-1 items-center">
+                    <Text className={`text-[#a09d96] font-body-bold uppercase tracking-widest text-center ${isTablet ? 'text-lg' : 'text-[9px]'}`} numberOfLines={1}>
+                        MANDALI • {groupData?.group?.name || '...'}
+                    </Text>
+                    <Text className={`text-[#594048] font-headline-bold ${isTablet ? 'text-4xl mt-1' : 'text-base'}`}>{gameCode}</Text>
+                </View>
+                <View style={{ width: isTablet ? 64 : 44 }} />
             </View>
 
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, paddingTop: 5 }}>
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: isTablet ? 60 : 20, paddingBottom: 60, paddingTop: 5 }}>
                 {/* 1. NOW CALLING CARD */}
-                <View className={`bg-white rounded-[40px] items-center shadow-2xl shadow-black/5 border border-black/5 mb-4 ${isTablet ? 'p-12' : 'p-6'}`} style={{ elevation: 8 }}>
-                    <Text className={`text-stone-400 font-body-bold uppercase tracking-[3px] mb-4 ${isTablet ? 'text-lg' : 'text-[11px]'}`}>NOW CALLING</Text>
+                <View className={`bg-white rounded-[40px] items-center shadow-2xl shadow-black/5 border border-black/5 mb-6 ${isTablet ? 'p-16' : 'p-6'}`} style={{ elevation: 8 }}>
+                    <Text className={`text-stone-400 font-body-bold uppercase tracking-[3px] mb-6 ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>NOW CALLING</Text>
 
                     <View
-                        style={{ width: isTablet ? 240 : 160, height: isTablet ? 240 : 160, borderRadius: 120, elevation: 12 }}
-                        className="bg-[#b30069] items-center justify-center shadow-2xl shadow-[#b30069]/40 border-[10px] border-[#FAF7F2] mb-6"
+                        style={{ width: isTablet ? 300 : 160, height: isTablet ? 300 : 160, borderRadius: isTablet ? 150 : 120, elevation: 12 }}
+                        className="bg-[#b30069] items-center justify-center shadow-2xl shadow-[#b30069]/40 border-[10px] border-[#FAF7F2] mb-8"
                     >
                         <Text
-                            style={{ fontSize: isTablet ? 110 : 64, lineHeight: isTablet ? 120 : 72 }}
+                            style={{ fontSize: isTablet ? 140 : 64, lineHeight: isTablet ? 150 : 72 }}
                             className="text-white font-headline-bold"
                             adjustsFontSizeToFit
                             numberOfLines={1}
@@ -289,15 +300,15 @@ const HousieGameScreen = () => {
                         </Text>
                     </View>
 
-                    <View className="w-full mb-6">
-                        <View className="flex-row items-center justify-center gap-3">
+                    <View className="w-full mb-8">
+                        <View className="flex-row items-center justify-center gap-4">
                             {recentNumbers.map((num, i) => (
                                 <View key={i} className="items-center">
                                     <View
-                                        className="w-11 h-11 rounded-full bg-[#FAF7F2] border-[3px] border-white items-center justify-center shadow-md shadow-black/10"
-                                        style={{ elevation: 4 }}
+                                        className="rounded-full bg-[#FAF7F2] border-[3px] border-white items-center justify-center shadow-md shadow-black/10"
+                                        style={{ elevation: 4, width: isTablet ? 64 : 44, height: isTablet ? 64 : 44 }}
                                     >
-                                        <Text className="text-[#594048] font-headline-bold text-lg">{num}</Text>
+                                        <Text className={`text-[#594048] font-headline-bold ${isTablet ? 'text-3xl' : 'text-lg'}`}>{num}</Text>
                                     </View>
                                     <View className="w-2 h-1" />
                                 </View>
@@ -306,18 +317,18 @@ const HousieGameScreen = () => {
                     </View>
 
                     {isHost && (
-                        <View className="w-full gap-3 px-6">
+                        <View className="w-full gap-5 px-6">
                             <TouchableOpacity
                                 onPress={() => callNumberMutation.mutate()}
                                 disabled={callNumberMutation.isPending || (game?.called_numbers?.length || 0) >= 90 || endGameMutation.isPending}
-                                className={`bg-[#b30069] h-14 rounded-full flex-row items-center justify-center shadow-lg shadow-[#b30069]/20 ${endGameMutation.isPending ? 'opacity-50' : ''}`}
+                                className={`bg-[#b30069] rounded-full flex-row items-center justify-center shadow-lg shadow-[#b30069]/20 ${isTablet ? 'h-28' : 'h-14'} ${endGameMutation.isPending ? 'opacity-50' : ''}`}
                             >
                                 {callNumberMutation.isPending ? (
-                                    <ActivityIndicator color="white" />
+                                    <ActivityIndicator color="white" size={isTablet ? 'large' : 'small'} />
                                 ) : (
                                     <>
-                                        <Ionicons name="megaphone-sharp" size={20} color="white" />
-                                        <Text className="text-white font-headline-bold text-lg ml-3">Next Number</Text>
+                                        <Ionicons name="megaphone-sharp" size={isTablet ? 36 : 20} color="white" />
+                                        <Text className={`text-white font-headline-bold ml-4 ${isTablet ? 'text-4xl' : 'text-lg'}`}>Next Number</Text>
                                     </>
                                 )}
                             </TouchableOpacity>
@@ -325,14 +336,14 @@ const HousieGameScreen = () => {
                             <TouchableOpacity
                                 onPress={handleEndGamePress}
                                 disabled={endGameMutation.isPending}
-                                className="bg-red-50 h-14 rounded-full flex-row items-center justify-center border border-red-100"
+                                className={`bg-red-50 rounded-full flex-row items-center justify-center border border-red-100 ${isTablet ? 'h-28' : 'h-14'}`}
                             >
                                 {endGameMutation.isPending ? (
-                                    <ActivityIndicator color="#dc2626" />
+                                    <ActivityIndicator color="#dc2626" size={isTablet ? 'large' : 'small'} />
                                 ) : (
                                     <>
-                                        <MaterialIcons name="power-settings-new" size={20} color="#dc2626" />
-                                        <Text className="text-[#dc2626] font-headline-bold text-lg ml-2">Game Over</Text>
+                                        <MaterialIcons name="power-settings-new" size={isTablet ? 36 : 20} color="#dc2626" />
+                                        <Text className={`text-[#dc2626] font-headline-bold ml-3 ${isTablet ? 'text-4xl' : 'text-lg'}`}>Game Over</Text>
                                     </>
                                 )}
                             </TouchableOpacity>
@@ -341,36 +352,36 @@ const HousieGameScreen = () => {
                 </View>
 
                 {/* 2. MAIN BOARD CARD */}
-                <View className="bg-white rounded-[40px] p-6 shadow-sm border border-stone-100">
-                    <Text className="text-[#594048] font-headline-bold text-xl mb-6">Main Board</Text>
+                <View className={`bg-white rounded-[40px] shadow-sm border border-stone-100 ${isTablet ? 'p-10' : 'p-6'}`}>
+                    <Text className={`text-[#594048] font-headline-bold mb-6 ${isTablet ? 'text-4xl' : 'text-xl'}`}>Main Board</Text>
                     <View className="items-center w-full">
                         {renderBoard()}
                     </View>
                 </View>
 
                 {/* 3. BOUNTIES - Updated for Prize Splitting */}
-                <View className="mt-8 px-2">
-                    <Text className="text-[#594048] font-headline-bold text-xl mb-4">Bounties</Text>
-                    <View className="gap-3 pb-10">
+                <View className="mt-12 px-2">
+                    <Text className={`text-[#594048] font-headline-bold mb-6 ${isTablet ? 'text-4xl' : 'text-xl'}`}>Bounties</Text>
+                    <View className="gap-4 pb-10">
                         {prizesArr.map((prize: any, idx: number) => (
-                            <View key={idx} className="bg-white rounded-[20px] p-4 border border-stone-100 shadow-sm mb-1">
-                                <View className="flex-row items-center justify-between mb-1">
+                            <View key={idx} className={`bg-white rounded-[24px] border border-stone-100 shadow-sm mb-1 ${isTablet ? 'p-8' : 'p-4'}`}>
+                                <View className="flex-row items-center justify-between">
                                     <View className="flex-row items-center">
-                                        <View className="w-10 h-10 rounded-xl bg-stone-50 items-center justify-center mr-3">
-                                            <MaterialIcons name={prize.icon as any || 'stars'} size={20} color="#b30069" />
+                                        <View className={`rounded-2xl bg-stone-50 items-center justify-center mr-4 ${isTablet ? 'w-20 h-20' : 'w-10 h-10'}`}>
+                                            <MaterialIcons name={prize.icon as any || 'stars'} size={isTablet ? 40 : 20} color="#b30069" />
                                         </View>
                                         <View>
-                                            <Text className="text-[#594048] font-headline-bold text-base">{prize.name}</Text>
-                                            <Text className="text-[#b30069] font-body-bold text-[12px]">
+                                            <Text className={`text-[#594048] font-headline-bold ${isTablet ? 'text-3xl' : 'text-base'}`}>{prize.name}</Text>
+                                            <Text className={`text-[#b30069] font-body-bold ${isTablet ? 'text-xl mt-1' : 'text-[12px]'}`}>
                                                 {prize.winners?.length > 1 ? `Split: ₹${prize.individualAmount} each` : `₹${prize.amount}`}
                                             </Text>
                                         </View>
                                     </View>
-                                    <View className={`px-3 py-1.5 rounded-full ${prize.status === 'CLAIMED' ? 'bg-green-100' : 'bg-stone-50'}`}>
+                                    <View className={`rounded-full ${prize.status === 'CLAIMED' ? 'bg-green-100' : 'bg-stone-50'} ${isTablet ? 'px-8 py-4' : 'px-3 py-1.5'}`}>
                                         <Text
-                                            style={{ maxWidth: 120 }}
+                                            style={{ maxWidth: isTablet ? 300 : 120 }}
                                             numberOfLines={1}
-                                            className={`text-[9px] font-body-bold tracking-widest uppercase ${prize.status === 'CLAIMED' ? 'text-green-700' : 'text-stone-400'}`}
+                                            className={`font-body-bold tracking-widest uppercase ${isTablet ? 'text-lg' : 'text-[9px]'} ${prize.status === 'CLAIMED' ? 'text-green-700' : 'text-stone-400'}`}
                                         >
                                             {prize.winners?.length > 1
                                                 ? `${prize.winners.length} WINNERS`
@@ -381,28 +392,27 @@ const HousieGameScreen = () => {
                                         </Text>
                                     </View>
                                 </View>
-
                              </View>
                         ))}
                     </View>
                 </View>
 
                 {/* Detailed Winners Breakdown */}
-                <View className="mt-4 px-2">
-                    <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-[2px] mb-4">Winners List</Text>
-                    <View className="gap-2 pb-10">
+                <View className="mt-8 px-2">
+                    <Text className={`text-stone-400 font-body-bold uppercase tracking-[2px] mb-6 ${isTablet ? 'text-2xl' : 'text-[10px]'}`}>Winners List</Text>
+                    <View className="gap-3 pb-10">
                         {prizesArr.filter((p: any) => p.winners?.length > 0).map((prize: any, idx: number) => (
-                            <View key={idx} className="bg-white rounded-2xl p-4 border border-stone-100 shadow-sm">
+                            <View key={idx} className={`bg-white rounded-[24px] border border-stone-100 shadow-sm ${isTablet ? 'p-10' : 'p-4'}`}>
                                 <View className="flex-row items-center justify-between">
                                     <View className="flex-row items-center">
-                                       <MaterialIcons name={prize.icon || 'stars'} size={16} color="#b30069" />
-                                       <Text className="text-[#594048] font-headline-bold text-sm ml-2">{prize.name}</Text>
+                                       <MaterialIcons name={prize.icon || 'stars'} size={isTablet ? 36 : 16} color="#b30069" />
+                                       <Text className={`text-[#594048] font-headline-bold ml-4 ${isTablet ? 'text-2xl' : 'text-sm'}`}>{prize.name}</Text>
                                     </View>
-                                    <View className="bg-green-100 px-2 py-0.5 rounded-md">
-                                        <Text className="text-green-700 text-[10px] font-body-bold">{prize.winners.length} won</Text>
+                                    <View className={`bg-green-100 rounded-md ${isTablet ? 'px-4 py-2' : 'px-2 py-0.5'}`}>
+                                        <Text className={`text-green-700 font-body-bold ${isTablet ? 'text-xl' : 'text-[10px]'}`}>{prize.winners.length} won</Text>
                                     </View>
                                 </View>
-                                <Text className="text-stone-400 text-[11px] font-body-medium mt-2">
+                                <Text className={`text-stone-400 font-body-medium mt-4 ${isTablet ? 'text-xl' : 'text-[11px]'}`}>
                                     {prize.winners.map((w: any) => getParticipantName(w.userId)).join(', ')}
                                 </Text>
                             </View>
@@ -413,26 +423,29 @@ const HousieGameScreen = () => {
 
             {/* Verification Modal */}
             <Modal visible={!!activeClaim} transparent animationType="fade">
-                <View className="flex-1 justify-center py-16 bg-[#594048]/90 px-4">
-                    <View className="bg-[#FDF9F3] rounded-[40px] p-6 shadow-2xl border border-white/20 max-h-[100%]">
+                <View className={`flex-1 justify-center bg-[#594048]/90 ${isTablet ? 'px-20 py-20' : 'px-4 py-16'}`}>
+                    <View className={`bg-[#FDF9F3] rounded-[40px] shadow-2xl border border-white/20 max-h-[100%] ${isTablet ? 'p-12' : 'p-6'}`}>
                         <ScrollView showsVerticalScrollIndicator={false}>
-                            <View className="items-center mb-6">
-                                <View className="w-16 h-16 rounded-full bg-white items-center justify-center mb-4 shadow-sm">
-                                    <FontAwesome5 name="trophy" size={24} color="#b30069" />
+                            <View className="items-center mb-10">
+                                <View className={`${isTablet ? 'w-24 h-24 mb-6' : 'w-16 h-16 mb-4'} rounded-full bg-white items-center justify-center shadow-sm`}>
+                                    <FontAwesome5 name="trophy" size={isTablet ? 40 : 24} color="#b30069" />
                                 </View>
-                                <Text className="text-stone-400 font-body-bold text-[10px] uppercase tracking-widest mb-1">Claim Verification</Text>
+                                <Text className={`text-stone-400 font-body-bold uppercase tracking-widest mb-2 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Claim Verification</Text>
                                 {pendingCount > 1 && (
-                                    <View className="bg-orange-100 px-3 py-1 rounded-full mb-2">
-                                        <Text className="text-orange-700 font-body-bold text-xs">{pendingCount - 1} more claim{pendingCount - 1 > 1 ? 's' : ''} waiting</Text>
+                                    <View className={`bg-orange-100 rounded-full mb-4 ${isTablet ? 'px-6 py-2' : 'px-3 py-1'}`}>
+                                        <Text className={`text-orange-700 font-body-bold ${isTablet ? 'text-lg' : 'text-xs'}`}>{pendingCount - 1} more claim{pendingCount - 1 > 1 ? 's' : ''} waiting</Text>
                                     </View>
                                 )}
-                                <Text className="text-2xl font-headline-bold text-[#594048] text-center">{verifyingTicket?.user?.name}</Text>
-                                <Text className="text-[#b30069] font-body-bold text-center mt-1 text-sm">
+                                <Text className={`font-headline-bold text-[#594048] text-center ${isTablet ? 'text-5xl' : 'text-2xl'}`}>{verifyingTicket?.user?.name}</Text>
+                                <Text className={`text-[#b30069] font-body-bold text-center mt-2 ${isTablet ? 'text-2xl' : 'text-sm'}`}>
                                     {prizesArr.find((p: any) => p.id === activeClaim?.prizeId)?.name} • Ticket #{activeClaim?.ticketId?.slice(-4).toUpperCase()}
                                 </Text>
                             </View>
 
-                            <View className="bg-white rounded-[24px] p-2.5 shadow-lg shadow-black/5 border border-black/5 mb-6">
+                            <View 
+                                style={{ width: isTablet ? '80%' : '100%', alignSelf: 'center' }}
+                                className="bg-white rounded-[32px] p-4 shadow-lg shadow-black/5 border border-black/5 mb-10"
+                            >
                                 {verifyingTicket?.ticket_data?.map((row: any[], ridx: number) => (
                                     <View key={ridx} className="flex-row">
                                         {row.map((num, cidx) => {
@@ -455,15 +468,15 @@ const HousieGameScreen = () => {
                                             }
 
                                             return (
-                                                <View key={cidx} className="flex-1 aspect-square p-0.5">
+                                                <View key={cidx} className="flex-1 aspect-square p-1">
                                                     {num ? (
-                                                        <View className={`w-full h-full rounded-md items-center justify-center border ${cellBg} ${borderColor}`}>
-                                                            <Text className={`font-headline-bold text-[10px] ${textColor}`}>
+                                                        <View className={`w-full h-full rounded-xl items-center justify-center border ${cellBg} ${borderColor}`}>
+                                                            <Text className={`font-headline-bold ${isTablet ? 'text-2xl' : 'text-[10px]'} ${textColor}`}>
                                                                 {num}
                                                             </Text>
                                                         </View>
                                                     ) : (
-                                                        <View className="w-full h-full rounded-md bg-stone-50/10" />
+                                                        <View className="w-full h-full rounded-xl bg-stone-50/10" />
                                                     )}
                                                 </View>
                                             );
@@ -472,19 +485,28 @@ const HousieGameScreen = () => {
                                 ))}
                             </View>
 
-                            <View className="mb-6">
-                                <Text className="text-center text-stone-400 font-body-bold text-[10px] uppercase tracking-[3px] mb-3">Master Board Reference</Text>
-                                <View className="items-center bg-white p-4 rounded-[24px] shadow-sm border border-stone-100 w-full">
+                            <View className="mb-10">
+                                <Text className={`text-center text-stone-400 font-body-bold uppercase tracking-[3px] mb-6 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Master Board Reference</Text>
+                                <View 
+                                    style={{ width: isTablet ? '90%' : '100%', alignSelf: 'center' }}
+                                    className="items-center bg-white p-6 rounded-[32px] shadow-sm border border-stone-100"
+                                >
                                     {renderBoard()}
                                 </View>
                             </View>
 
-                            <View className="flex-row gap-4 mb-2">
-                                <TouchableOpacity onPress={() => handleVerifyClaim('denied')} className="flex-1 h-14 rounded-[24px] bg-white border border-stone-200 items-center justify-center">
-                                    <Text className="text-stone-400 font-headline-bold text-lg">Deny</Text>
+                            <View className={`flex-row gap-6 mb-4 ${isTablet ? 'px-12' : ''}`}>
+                                <TouchableOpacity 
+                                    onPress={() => handleVerifyClaim('denied')} 
+                                    className={`flex-1 rounded-[32px] bg-white border border-stone-200 items-center justify-center ${isTablet ? 'h-28' : 'h-14'}`}
+                                >
+                                    <Text className={`text-stone-400 font-headline-bold ${isTablet ? 'text-4xl' : 'text-lg'}`}>Deny</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity onPress={() => handleVerifyClaim('accepted')} className="flex-[1.5] h-14 rounded-[24px] bg-[#b30069] items-center justify-center shadow-lg shadow-[#b30069]/30">
-                                    <Text className="text-white font-headline-bold text-lg">Approve Win</Text>
+                                <TouchableOpacity 
+                                    onPress={() => handleVerifyClaim('accepted')} 
+                                    className={`flex-[1.5] rounded-[32px] bg-[#b30069] items-center justify-center shadow-lg shadow-[#b30069]/30 ${isTablet ? 'h-28' : 'h-14'}`}
+                                >
+                                    <Text className={`text-white font-headline-bold ${isTablet ? 'text-4xl' : 'text-lg'}`}>Approve Win</Text>
                                 </TouchableOpacity>
                             </View>
                         </ScrollView>

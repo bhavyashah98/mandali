@@ -41,10 +41,22 @@ const HousieLobbyScreen = () => {
             queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
         };
 
+        const onGameStatusChanged = () => {
+            queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
+        };
+
+        const onGameEnded = () => {
+            queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
+        };
+
         socket.on('game_created', onGameCreated);
+        socket.on('game_status_changed', onGameStatusChanged);
+        socket.on('game_ended', onGameEnded);
 
         return () => {
             socket.off('game_created', onGameCreated);
+            socket.off('game_status_changed', onGameStatusChanged);
+            socket.off('game_ended', onGameEnded);
         };
     }, [groupId]);
 
@@ -149,9 +161,9 @@ const HousieLobbyScreen = () => {
             switch (activeGame.status) {
                 case 'not_started': return { label: 'Setting prices...', action: () => { }, icon: 'hourglass', disabled: true };
                 case 'waiting': return { label: 'Go to Waiting Room', action: () => navigation.navigate('HousieWaitingRoom', { gameCode: activeGame.game_code, groupId }), icon: 'arrow-redo', disabled: false };
-                case 'bounty': return { label: 'Waiting for host to start...', action: () => { }, icon: 'hourglass', disabled: true };
+                case 'bounty': return { label: 'Resume Game', action: () => navigation.navigate('HousieTicket', { gameCode: activeGame.game_code, groupId }), icon: 'play', disabled: false };
                 case 'active': return { label: 'Resume Game', action: () => navigation.navigate('HousieTicket', { gameCode: activeGame.game_code, groupId }), icon: 'play', disabled: false };
-                default: return { label: 'Resume', action: () => { }, icon: 'arrow-redo', disabled: false };
+                default: return { label: 'Resume', action: () => navigation.navigate('HousieTicket', { gameCode: activeGame.game_code, groupId }), icon: 'play', disabled: false };
             }
         } else {
             switch (activeGame.status) {
@@ -159,7 +171,7 @@ const HousieLobbyScreen = () => {
                 case 'waiting': return { label: 'Join Game', action: () => navigation.navigate('HousieJoinGame', { gameCode: activeGame.game_code, groupId }), icon: 'ticket', disabled: false };
                 case 'bounty': return { label: 'Watch Live', action: () => navigation.navigate('HousieSpectator', { gameCode: activeGame.game_code, groupId }), icon: 'eye', disabled: false };
                 case 'active': return { label: 'Watch Live', action: () => navigation.navigate('HousieSpectator', { gameCode: activeGame.game_code, groupId }), icon: 'eye', disabled: false };
-                default: return { label: 'Join Game', action: () => { }, icon: 'ticket', disabled: false };
+                default: return { label: 'Join Game', action: () => navigation.navigate('HousieJoinGame', { groupId }), icon: 'ticket', disabled: false };
             }
         }
     };
@@ -184,7 +196,7 @@ const HousieLobbyScreen = () => {
                         {groupName}
                     </Text>
 
-                    <Text 
+                    <Text
                         className={`text-[#31302d] font-headline-bold text-center mb-6 ${isTablet ? 'text-[64px] leading-[72px]' : 'text-[42px] leading-[48px]'}`}
                     >
                         {"Housie\nGathering"}

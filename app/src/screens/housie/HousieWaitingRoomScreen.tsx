@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchHousieGame, joinHousieGame, API_URL, getAuthHeaders, updateHousieStatus } from '../../lib/api';
+import { fetchHousieGame, joinHousieGame, API_URL, getAuthHeaders, updateHousieStatus, fetchGroupDetail } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { getSocket } from '../../lib/socketService';
 import axios from 'axios';
@@ -27,6 +27,13 @@ const HousieWaitingRoomScreen = () => {
         queryFn: () => fetchHousieGame(gameCode!),
         staleTime: Infinity,        // Never silently refetch — socket is the source of truth
         refetchOnWindowFocus: false // Don't refetch when user switches apps/tabs
+    });
+
+    // Fetch Group Detail for Header Branding
+    const { data: groupData } = useQuery({
+        queryKey: ['groupDetail', groupId],
+        queryFn: () => fetchGroupDetail(groupId!),
+        enabled: !!groupId,
     });
 
     const fetchParticipants = async () => {
@@ -106,17 +113,17 @@ const HousieWaitingRoomScreen = () => {
     }
 
     const renderParticipant = ({ item }: { item: any }) => (
-        <View className={`flex-row items-center bg-white border border-stone-100 shadow-sm mb-4 ${isTablet ? 'rounded-[32px] p-6' : 'rounded-[24px] p-4'}`}>
-            <View className={`rounded-full bg-stone-50 items-center justify-center overflow-hidden ${isTablet ? 'w-20 h-20' : 'w-12 h-12'}`}>
+        <View className={`flex-row items-center bg-white border border-stone-100 shadow-sm mb-4 ${isTablet ? 'rounded-[32px] p-8' : 'rounded-[24px] p-4'}`}>
+            <View className={`rounded-full bg-stone-50 items-center justify-center overflow-hidden ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}>
                 {item.avatar ? (
                     <Image source={{ uri: item.avatar }} className="w-full h-full" />
                 ) : (
-                    <Text className={`text-primary font-headline-bold ${isTablet ? 'text-4xl' : 'text-lg'}`}>{item.name[0]}</Text>
+                    <Text className={`text-primary font-headline-bold ${isTablet ? 'text-5xl' : 'text-lg'}`}>{item.name[0]}</Text>
                 )}
             </View>
-            <View className="ml-5 flex-1">
-                <Text className={`font-headline-bold text-[#594048] ${isTablet ? 'text-2xl' : 'text-base'}`}>{item.name}</Text>
-                <Text className={`text-stone-400 font-body-medium ${isTablet ? 'text-lg mt-1' : 'text-xs'}`}>{item.ticketCount} Tickets Bought</Text>
+            <View className="ml-6 flex-1">
+                <Text className={`font-headline-bold text-[#594048] ${isTablet ? 'text-3xl' : 'text-base'}`}>{item.name}</Text>
+                <Text className={`text-stone-400 font-body-medium ${isTablet ? 'text-xl mt-1' : 'text-xs'}`}>{item.ticketCount} Tickets Bought</Text>
             </View>
             <View className={`bg-primary/5 rounded-full ${isTablet ? 'px-6 py-3' : 'px-3 py-1.5'}`}>
                 <Text className={`text-primary font-headline-bold ${isTablet ? 'text-2xl' : 'text-sm'}`}>₹{item.ticketCount * (stats?.ticketPrice || 0)}</Text>
@@ -128,12 +135,16 @@ const HousieWaitingRoomScreen = () => {
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
             {/* Header */}
             <View className={`px-6 flex-row items-center justify-between ${isTablet ? 'py-8 px-12' : 'py-4 px-6'}`}>
-                <TouchableOpacity onPress={() => navigation.goBack()} className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}>
-                    <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 18} color="#594048" style={{ marginLeft: isTablet ? 8 : 5 }} />
-                </TouchableOpacity>
-                <View className="items-center">
-                    <Text className={`text-stone-400 font-body-bold uppercase tracking-widest ${isTablet ? 'text-lg' : 'text-[9px]'}`}>LIVE SESSION</Text>
-                    <Text className={`text-[#594048] font-headline-bold ${isTablet ? 'text-3xl mt-1' : 'text-lg'}`}>Waiting Room</Text>
+                <View style={{ width: isTablet ? 64 : 44 }}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}>
+                        <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 18} color="#594048" style={{ marginLeft: isTablet ? 8 : 5 }} />
+                    </TouchableOpacity>
+                </View>
+                <View className="flex-1 items-center">
+                    <Text className={`text-stone-400 font-body-bold uppercase tracking-[3px] text-center ${isTablet ? 'text-lg' : 'text-[9px]'}`} numberOfLines={1}>
+                        MANDALI • {groupData?.group?.name || '...'}
+                    </Text>
+                    <Text className={`text-[#1c1c18] font-headline-bold ${isTablet ? 'text-4xl mt-1' : 'text-lg'}`}>Waiting Room</Text>
                 </View>
                 {isHost ? (
                     <TouchableOpacity
@@ -160,7 +171,7 @@ const HousieWaitingRoomScreen = () => {
                         <MaterialIcons name="delete-outline" size={isTablet ? 36 : 24} color="#ef4444" />
                     </TouchableOpacity>
                 ) : (
-                    <View style={{ width: isTablet ? 64 : 40 }} />
+                    <View style={{ width: isTablet ? 64 : 44 }} />
                 )}
             </View>
 
@@ -168,21 +179,21 @@ const HousieWaitingRoomScreen = () => {
                 data={stats?.participants || []}
                 renderItem={renderParticipant}
                 keyExtractor={(item) => item.id}
-                contentContainerStyle={{ padding: isTablet ? 64 : 24, paddingBottom: isTablet ? 250 : 150 }}
+                contentContainerStyle={{ paddingHorizontal: isTablet ? 64 : 24, paddingTop: isTablet ? 32 : 12, paddingBottom: isTablet ? 250 : 180 }}
                 ListHeaderComponent={
-                    <View className="mb-10">
-                        {/* Game Code Card */}
-                        <View className={`bg-[#b30069] rounded-[48px] items-center shadow-2xl shadow-[#b30069]/20 mb-8 ${isTablet ? 'p-16' : 'p-8'}`} style={{ elevation: 12 }}>
-                            <Text className={`text-white/70 font-body-bold uppercase tracking-[4px] mb-6 ${isTablet ? 'text-2xl' : 'text-[10px]'}`}>JOINING CODE</Text>
+                    <View>
+                        {/* Game Code Card - Optimized size for tablet */}
+                        <View className={`bg-[#b30069] rounded-[48px] items-center shadow-2xl shadow-[#b30069]/20 mb-10 ${isTablet ? 'p-12' : 'p-8'}`} style={{ elevation: 12 }}>
+                            <Text className={`text-white/70 font-body-bold uppercase tracking-[4px] mb-4 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>JOINING CODE</Text>
                             <Text
                                 className="text-white font-headline-bold tracking-[8px]"
-                                style={{ fontSize: isTablet ? 120 : 52 }}
+                                style={{ fontSize: isTablet ? 90 : 52 }}
                                 adjustsFontSizeToFit
                                 numberOfLines={1}
                             >{gameCode}</Text>
-                            <View className={`flex-row items-center bg-white/20 rounded-full ${isTablet ? 'mt-10 px-10 py-5' : 'mt-6 px-6 py-3'}`}>
-                                <FontAwesome5 name="ticket-alt" size={isTablet ? 28 : 16} color="white" />
-                                <Text className={`text-white font-headline-bold ml-4 ${isTablet ? 'text-3xl' : 'text-lg'}`}>₹{stats?.ticketPrice} / Ticket</Text>
+                            <View className={`flex-row items-center bg-white/20 rounded-full ${isTablet ? 'mt-8 px-8 py-4' : 'mt-6 px-6 py-3'}`}>
+                                <FontAwesome5 name="ticket-alt" size={isTablet ? 24 : 16} color="white" />
+                                <Text className={`text-white font-headline-bold ml-4 ${isTablet ? 'text-2xl' : 'text-lg'}`}>₹{stats?.ticketPrice} / Ticket</Text>
                             </View>
                         </View>
 
@@ -203,13 +214,13 @@ const HousieWaitingRoomScreen = () => {
                             </View>
                         </View>
 
-                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[2px] mt-16 mb-8 px-4 ${isTablet ? 'text-2xl' : 'text-xs'}`}>Participants</Text>
+                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[2px] mt-16 mb-8 px-4 ${isTablet ? 'text-3xl' : 'text-xs'}`}>Participants List</Text>
                     </View>
                 }
                 ListEmptyComponent={() => (
                     <View className="items-center justify-center py-20">
-                        <ActivityIndicator color="#b30069" />
-                        <Text className="text-stone-400 font-body-medium mt-4">Waiting for players to join...</Text>
+                        <ActivityIndicator color="#b30069" size={isTablet ? 'large' : 'small'} />
+                        <Text className={`text-stone-400 font-body-medium mt-6 ${isTablet ? 'text-3xl' : 'text-base'}`}>Waiting for players to join...</Text>
                     </View>
                 )}
                 showsVerticalScrollIndicator={false}
@@ -221,7 +232,8 @@ const HousieWaitingRoomScreen = () => {
                     <TouchableOpacity
                         onPress={handleStartGame}
                         disabled={(stats?.totalTickets || 0) === 0}
-                        className={`rounded-[40px] flex-row items-center justify-center shadow-2xl shadow-primary/30 ${isTablet ? 'h-28' : 'h-20'} ${(stats?.totalTickets || 0) === 0 ? 'bg-[#b30069]/50' : 'bg-[#b30069]'}`}
+                        activeOpacity={0.9}
+                        className={`rounded-[40px] flex-row items-center justify-center shadow-2xl shadow-primary/30 ${isTablet ? 'h-28' : 'h-20'} ${(stats?.totalTickets || 0) === 0 ? 'bg-primary/50' : 'bg-primary'}`}
                     >
                         <Ionicons name="trophy" size={isTablet ? 36 : 26} color="white" />
                         <Text className={`text-white font-headline-bold ml-4 ${isTablet ? 'text-4xl' : 'text-2xl'}`}>Set the Stage →</Text>
@@ -232,7 +244,7 @@ const HousieWaitingRoomScreen = () => {
                             <TouchableOpacity onPress={() => setBuyCount(Math.max(1, buyCount - 1))}>
                                 <MaterialIcons name="remove" size={isTablet ? 36 : 24} color="#b30069" />
                             </TouchableOpacity>
-                            <Text className={`font-headline-bold text-[#594048] text-center ${isTablet ? 'mx-8 text-4xl w-10' : 'mx-4 text-2xl w-6'}`}>{buyCount}</Text>
+                            <Text className={`font-headline-bold text-[#594048] text-center ${isTablet ? 'mx-8 text-4xl w-14' : 'mx-4 text-2xl w-6'}`}>{buyCount}</Text>
                             <TouchableOpacity
                                 onPress={() => {
                                     const myTickets = stats?.participants?.find((p: any) => p.id === user?.id)?.ticketCount || 0;
@@ -249,6 +261,7 @@ const HousieWaitingRoomScreen = () => {
                         <TouchableOpacity
                             onPress={handleBuyTickets}
                             disabled={isBuying}
+                            activeOpacity={0.9}
                             className={`flex-1 rounded-[40px] flex-row items-center justify-center shadow-2xl shadow-primary/30 ${isTablet ? 'h-28' : 'h-20'} ${isBuying ? 'bg-primary/50' : 'bg-primary'}`}
                         >
                             {isBuying ? <ActivityIndicator color="white" size={isTablet ? 'large' : 'small'} /> : <Text className={`text-white font-headline-bold ${isTablet ? 'text-4xl' : 'text-2xl'}`}>Buy Tickets</Text>}

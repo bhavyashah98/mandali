@@ -181,7 +181,7 @@ router.patch('/:gameCode/setup', authMiddleware, async (req: AuthRequest, res) =
             userId,
             '🎟️ Housie Room Open!',
             'A group member is hosting a new game! Jump into the waiting room to grab your tickets before it starts.',
-            { type: 'housie', gameCode: gameCode, url: `mandali://housie/${gameCode}` }
+            { type: 'housie', gameCode: gameCode, groupId: game.group_id, url: `mandali://housie/${gameCode}/${game.group_id}` }
         ).catch((err: any) => console.error('[Push Failed]:', err));
 
         res.json({ success: true, game: updatedGame });
