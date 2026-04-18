@@ -23,7 +23,6 @@
         "appleTeamId": "62BDV525KZ"
       },
       "android": {
-        "serviceAccountKeyPath": "./google-service-account.json",
         "track": "production"
       }
     }
