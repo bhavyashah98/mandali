@@ -199,17 +199,22 @@ const HousieWaitingRoomScreen = () => {
                         </View>
 
                         {/* Prize Pool Display */}
-                        <View className={`bg-white rounded-[40px] border border-stone-100 items-center shadow-sm ${isTablet ? 'p-16' : 'p-8'}`}>
+                        <View className={`bg-white rounded-[40px] border border-stone-100 items-center shadow-sm ${isTablet ? 'p-16' : 'p-6'}`}>
                             <Text className={`text-stone-400 font-body-bold uppercase tracking-[2px] mb-2 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Total Prize Pool</Text>
-                            <Text className={`font-headline-bold text-[#594048] ${isTablet ? 'text-8xl' : 'text-5xl'}`}>₹{stats?.totalPrizePool || 0}</Text>
-                            <View className={`w-full bg-stone-100 my-10 ${isTablet ? 'h-[2px]' : 'h-[1px]'}`} />
+                            <Text
+                                className={`font-headline-bold text-[#594048] ${isTablet ? 'text-8xl' : 'text-5xl'}`}
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                                minimumFontScale={0.6}
+                            >₹{stats?.totalPrizePool || 0}</Text>
+                            <View className={`w-full bg-stone-100 ${isTablet ? 'my-10 h-[2px]' : 'my-6 h-[1px]'}`} />
                             <View className={`flex-row justify-between w-full ${isTablet ? 'px-16' : 'px-4'}`}>
                                 <View className="items-center">
-                                    <Text className={`text-stone-400 uppercase font-body-bold mb-2 ${isTablet ? 'text-lg' : 'text-[9px]'}`}>Players</Text>
+                                    <Text className={`text-stone-400 uppercase font-body-bold mb-1 ${isTablet ? 'text-lg' : 'text-[9px]'}`}>Players</Text>
                                     <Text className={`font-headline-bold text-primary ${isTablet ? 'text-5xl' : 'text-xl'}`}>{stats?.participants?.length || 0}</Text>
                                 </View>
                                 <View className="items-center">
-                                    <Text className={`text-stone-400 uppercase font-body-bold mb-2 ${isTablet ? 'text-lg' : 'text-[9px]'}`}>Tickets</Text>
+                                    <Text className={`text-stone-400 uppercase font-body-bold mb-1 ${isTablet ? 'text-lg' : 'text-[9px]'}`}>Tickets</Text>
                                     <Text className={`font-headline-bold text-primary ${isTablet ? 'text-5xl' : 'text-xl'}`}>{stats?.totalTickets || 0}</Text>
                                 </View>
                             </View>

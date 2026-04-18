@@ -153,28 +153,44 @@ const HousieDefineBountyScreen = () => {
 
                     {/* Sticky Pool Dashboard Widget */}
                     <View className={`px-${isTablet ? '16' : '6'} mb-6`}>
-                        <View className={`bg-white rounded-[40px] shadow-sm border border-stone-100 ${isTablet ? 'p-12' : 'p-8'}`}>
+                        <View className={`bg-white rounded-[40px] shadow-sm border border-stone-100 ${isTablet ? 'p-12' : 'p-5'}`}>
                             <View className="flex-row items-center justify-between">
-                                <View>
-                                    <Text className={`text-stone-400 font-body-bold uppercase tracking-[2px] ${isTablet ? 'text-2xl mb-4' : 'text-[10px] mb-2'}`}>Available Prize Pool</Text>
-                                    <View className="flex-row items-baseline">
-                                        <Text className={`font-headline-bold ${isTablet ? 'text-7xl' : 'text-4xl'} ${totalAllocated > totalPrizePool ? 'text-orange-600' : 'text-[#b30069]'}`}>
-                                            ₹{totalPrizePool.toLocaleString()}
-                                        </Text>
-                                    </View>
+                                {/* Left: label + amount — flex-1 so it shrinks before the right side */}
+                                <View className="flex-1 min-w-0 mr-3">
+                                    <Text
+                                        className={`text-stone-400 font-body-bold uppercase ${isTablet ? 'text-2xl mb-4' : 'text-[9px] mb-1'}`}
+                                        style={{ letterSpacing: isTablet ? 2 : 0.5 }}
+                                        numberOfLines={1}
+                                    >Available Prize Pool</Text>
+                                    <Text
+                                        className={`font-headline-bold ${isTablet ? 'text-7xl' : 'text-3xl'} ${totalAllocated > totalPrizePool ? 'text-orange-600' : 'text-[#b30069]'}`}
+                                        numberOfLines={1}
+                                        adjustsFontSizeToFit
+                                        minimumFontScale={0.6}
+                                    >
+                                        ₹{totalPrizePool.toLocaleString()}
+                                    </Text>
                                 </View>
-                                <View className="items-end">
-                                    <View className={`flex-row items-center mb-2`}>
-                                        <View className={`rounded-full bg-green-500 mr-2 ${isTablet ? 'w-4 h-4' : 'w-2 h-2'}`} />
-                                        <Text className={`text-stone-400 font-body-bold uppercase ${isTablet ? 'text-xl' : 'text-[10px]'}`}>{stats?.participants?.length || 0} Players</Text>
+                                {/* Right: players + allocated — fixed width, shrink-proof */}
+                                <View className="items-end flex-shrink-0">
+                                    <View className="flex-row items-center mb-1.5">
+                                        <View className={`rounded-full bg-green-500 mr-1.5 ${isTablet ? 'w-4 h-4' : 'w-2 h-2'}`} />
+                                        <Text
+                                            className={`text-stone-400 font-body-bold uppercase ${isTablet ? 'text-xl' : 'text-[10px]'}`}
+                                            numberOfLines={1}
+                                        >{stats?.participants?.length || 0} Players</Text>
                                     </View>
-                                    <Text className={`font-body-bold uppercase tracking-[2px] ${isTablet ? 'text-lg' : 'text-[9px]'} ${isPoolBalanced ? 'text-green-500' : 'text-stone-300'}`}>
-                                        Allocated: ₹{totalAllocated}
+                                    <Text
+                                        numberOfLines={1}
+                                        className={`font-body-bold uppercase ${isTablet ? 'text-lg' : 'text-[9px]'} ${isPoolBalanced ? 'text-green-500' : 'text-stone-300'}`}
+                                        style={{ letterSpacing: isTablet ? 2 : 0.5 }}
+                                    >
+                                        ₹{totalAllocated} alloc.
                                     </Text>
                                 </View>
                             </View>
 
-                            <View className={`w-full bg-stone-50 rounded-full overflow-hidden border border-stone-100 mt-8 ${isTablet ? 'h-4' : 'h-2'}`}>
+                            <View className={`w-full bg-stone-50 rounded-full overflow-hidden border border-stone-100 ${isTablet ? 'mt-8 h-4' : 'mt-4 h-2'}`}>
                                 <View
                                     className={`h-full ${isPoolBalanced ? 'bg-green-500' : 'bg-[#b30069]'}`}
                                     style={{ width: `${Math.min((totalAllocated / totalPrizePool) * 100, 100)}%` }}
@@ -182,10 +198,10 @@ const HousieDefineBountyScreen = () => {
                             </View>
 
                             {totalAllocated > totalPrizePool && (
-                                <View className="mt-6 bg-orange-50 p-4 rounded-3xl flex-row items-center">
-                                    <MaterialIcons name="warning" size={isTablet ? 32 : 16} color="#c2410c" />
-                                    <Text className={`text-orange-800 font-body-medium ml-4 flex-1 ${isTablet ? 'text-2xl' : 'text-xs'}`}>
-                                        Warning: Allocated prizes exceed the total collection.
+                                <View className={`bg-orange-50 rounded-3xl flex-row items-center ${isTablet ? 'mt-6 p-4' : 'mt-3 p-3'}`}>
+                                    <MaterialIcons name="warning" size={isTablet ? 32 : 14} color="#c2410c" />
+                                    <Text className={`text-orange-800 font-body-medium ml-3 flex-1 ${isTablet ? 'text-2xl' : 'text-[10px]'}`}>
+                                        Allocated prizes exceed total collection.
                                     </Text>
                                 </View>
                             )}
