@@ -1,4 +1,5 @@
 import React from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, RefreshControl, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
@@ -9,7 +10,7 @@ import { fetchGroups } from '../../lib/api';
 const HousieSelectGroupScreen = () => {
     const navigation = useNavigation<any>();
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
     const { data: groups, isLoading, isRefetching, refetch } = useQuery({
         queryKey: ['groups'],
         queryFn: fetchGroups
@@ -145,36 +146,27 @@ const HousieSelectGroupScreen = () => {
                 <View
                     className="items-center w-full"
                     style={{
-                        marginTop: isTablet ? 60 : 20,
-                        marginBottom: isTablet ? 40 : 20
+                        marginTop: isTablet ? 30 : 12,
+                        marginBottom: isTablet ? 20 : 12
                     }}
                 >
                     <Text
-                        className="font-headline-bold text-on-surface text-center tracking-tight text-[#1c1c18]"
-                        style={{ fontSize: isTablet ? 72 : 38 }}
+                        className="font-headline-bold text-[#1c1c18] text-center tracking-tight"
+                        style={{ fontSize: isTablet ? 72 : 42 }}
                         adjustsFontSizeToFit
                         numberOfLines={1}
                     >
-                        Pick a Mandali
+                        Housie
                     </Text>
                     <Text
-                        className="font-body-medium text-on-surface-variant text-center leading-relaxed opacity-60"
+                        className="font-body-bold text-[#b30069] text-center tracking-[4px] uppercase"
                         style={{
-                            fontSize: isTablet ? 22 : 15,
-                            marginTop: isTablet ? 20 : 12,
-                            paddingHorizontal: isTablet ? 80 : 32
+                            fontSize: isTablet ? 20 : 12,
+                            marginTop: isTablet ? 8 : 4
                         }}
                     >
-                        Choose the circle you want to gather with for a game of Housie
+                        Pick a Mandali
                     </Text>
-                    <View
-                        className="bg-primary/20 rounded-full"
-                        style={{
-                            height: 4,
-                            width: isTablet ? 120 : 40,
-                            marginTop: isTablet ? 36 : 20
-                        }}
-                    />
                 </View>
             </View>
 

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, TouchableOpacity, Dimensions, ActivityIndicator, Alert, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
 import { fetchGroupDetail, fetchActiveHousieGame, fetchHousieTickets, createHousieGame, cancelHousieGame, API_URL } from '../../lib/api';
@@ -15,7 +16,7 @@ const HousieLobbyScreen = () => {
     const [isLoading, setIsLoading] = useState(false);
     const { user } = useAuthStore();
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
 
     const { data: groupData, isLoading: isGroupLoading } = useQuery({
         queryKey: ['group', groupId],
@@ -59,6 +60,17 @@ const HousieLobbyScreen = () => {
             socket.off('game_ended', onGameEnded);
         };
     }, [groupId]);
+
+    // Refetch game status every time the screen comes into focus
+    // This fixes stale button state (e.g. "Go to Waiting Room" vs "Resume Game")
+    // when navigating back from HousieGame/WaitingRoom screens
+    useFocusEffect(
+        useCallback(() => {
+            if (groupId) {
+                queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
+            }
+        }, [groupId, queryClient])
+    );
 
     const activeGame = activeGameData?.activeGame;
     const lastGame = activeGameData?.lastGame;
@@ -219,9 +231,13 @@ const HousieLobbyScreen = () => {
                                 {isLoading
                                     ? <ActivityIndicator color="white" />
                                     : <>
-                                        <Ionicons name="play" size={isTablet ? 40 : 28} color="white" />
-                                        <Text className={`text-white font-headline-bold ml-3 ${isTablet ? 'text-3xl' : 'text-2xl'}`}>Host a Game</Text>
-                                    </>
+                                <Ionicons name="play" size={isTablet ? 40 : 28} color="white" />
+                                <Text 
+                                    numberOfLines={1} 
+                                    adjustsFontSizeToFit 
+                                    className={`text-white font-headline-bold ml-3 ${isTablet ? 'text-3xl' : 'text-2xl'}`}
+                                >Host a Game</Text>
+                            </>
                                 }
                             </TouchableOpacity>
                         )}
@@ -236,7 +252,11 @@ const HousieLobbyScreen = () => {
                                         className={`bg-[#b30069] rounded-[32px] flex-row items-center justify-center shadow-lg shadow-[#b30069]/30 ${isTablet ? 'h-28' : 'h-20'}`}
                                     >
                                         <Ionicons name="play-forward" size={isTablet ? 40 : 28} color="white" />
-                                        <Text className={`text-white font-headline-bold ml-3 ${isTablet ? 'text-3xl' : 'text-2xl'}`}>Resume Hosting</Text>
+                                        <Text 
+                                            numberOfLines={1} 
+                                            adjustsFontSizeToFit 
+                                            className={`text-white font-headline-bold ml-3 ${isTablet ? 'text-3xl' : 'text-2xl'}`}
+                                        >Resume Hosting</Text>
                                     </TouchableOpacity>
                                 )}
 

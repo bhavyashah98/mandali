@@ -1,4 +1,5 @@
 import React from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
@@ -14,7 +15,7 @@ import { getSocket } from '../../lib/socketService';
 
 const HousieGameScreen = () => {
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
     const route = useRoute();
     const navigation = useNavigation<any>();
     const queryClient = useQueryClient();
@@ -220,8 +221,6 @@ const HousieGameScreen = () => {
     });
 
     const renderBoard = () => {
-        const itemSize = isTablet ? 54 : 26;
-        const itemMargin = isTablet ? 6 : 3;
         const itemRadius = isTablet ? 12 : 6;
         const fontSize = isTablet ? 20 : 10;
 
@@ -235,7 +234,7 @@ const HousieGameScreen = () => {
                 row.push(
                     <View
                         key={num}
-                        style={{ width: itemSize, height: itemSize, borderRadius: itemRadius, margin: itemMargin }}
+                        style={{ flex: 1, aspectRatio: 1, borderRadius: itemRadius, margin: isTablet ? 3 : 1.5 }}
                         className={`items-center justify-center ${isCurrent
                             ? 'bg-[#b30069]'
                             : isCalled
@@ -244,8 +243,11 @@ const HousieGameScreen = () => {
                             }`}
                     >
                         <Text 
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.3}
                             style={{ fontSize }}
-                            className={`font-headline-bold ${isCurrent
+                            className={`font-headline-bold text-center ${isCurrent
                             ? 'text-white'
                             : isCalled
                                 ? 'text-white'
@@ -366,27 +368,41 @@ const HousieGameScreen = () => {
                         {prizesArr.map((prize: any, idx: number) => (
                             <View key={idx} className={`bg-white rounded-[24px] border border-stone-100 shadow-sm mb-1 ${isTablet ? 'p-8' : 'p-4'}`}>
                                 <View className="flex-row items-center justify-between">
-                                    <View className="flex-row items-center">
-                                        <View className={`rounded-2xl bg-stone-50 items-center justify-center mr-4 ${isTablet ? 'w-20 h-20' : 'w-10 h-10'}`}>
-                                            <MaterialIcons name={prize.icon as any || 'stars'} size={isTablet ? 40 : 20} color="#b30069" />
+                                    {/* Left: icon + name/amount — flex-1 so it never pushes right badge off */}
+                                    <View className="flex-row items-center flex-1 min-w-0 mr-3">
+                                        <View className={`rounded-2xl bg-stone-50 items-center justify-center mr-3 flex-shrink-0 ${isTablet ? 'w-20 h-20' : 'w-9 h-9'}`}>
+                                            <MaterialIcons name={prize.icon as any || 'stars'} size={isTablet ? 40 : 18} color="#b30069" />
                                         </View>
-                                        <View>
-                                            <Text className={`text-[#594048] font-headline-bold ${isTablet ? 'text-3xl' : 'text-base'}`}>{prize.name}</Text>
-                                            <Text className={`text-[#b30069] font-body-bold ${isTablet ? 'text-xl mt-1' : 'text-[12px]'}`}>
+                                        <View className="flex-1 min-w-0">
+                                            <Text
+                                                numberOfLines={1}
+                                                adjustsFontSizeToFit
+                                                minimumFontScale={0.75}
+                                                className={`text-[#594048] font-headline-bold ${isTablet ? 'text-3xl' : 'text-[15px]'}`}
+                                            >{prize.name}</Text>
+                                            <Text
+                                                numberOfLines={1}
+                                                className={`text-[#b30069] font-body-bold ${isTablet ? 'text-xl mt-1' : 'text-[11px]'}`}
+                                            >
                                                 {prize.winners?.length > 1 ? `Split: ₹${prize.individualAmount} each` : `₹${prize.amount}`}
                                             </Text>
                                         </View>
                                     </View>
-                                    <View className={`rounded-full ${prize.status === 'CLAIMED' ? 'bg-green-100' : 'bg-stone-50'} ${isTablet ? 'px-8 py-4' : 'px-3 py-1.5'}`}>
+                                    {/* Right: status badge — fixed max width so it never expands */}
+                                    <View
+                                        className={`rounded-full flex-shrink-0 ${prize.status === 'CLAIMED' ? 'bg-green-100' : 'bg-stone-50'} ${isTablet ? 'px-8 py-4' : 'px-2.5 py-1'}`}
+                                        style={{ maxWidth: isTablet ? 300 : 130 }}
+                                    >
                                         <Text
-                                            style={{ maxWidth: isTablet ? 300 : 120 }}
                                             numberOfLines={1}
-                                            className={`font-body-bold tracking-widest uppercase ${isTablet ? 'text-lg' : 'text-[9px]'} ${prize.status === 'CLAIMED' ? 'text-green-700' : 'text-stone-400'}`}
+                                            adjustsFontSizeToFit
+                                            minimumFontScale={0.6}
+                                            className={`font-body-bold tracking-widest uppercase text-center ${isTablet ? 'text-lg' : 'text-[8px]'} ${prize.status === 'CLAIMED' ? 'text-green-700' : 'text-stone-400'}`}
                                         >
                                             {prize.winners?.length > 1
                                                 ? `${prize.winners.length} WINNERS`
                                                 : prize.winners?.length === 1
-                                                    ? `WINNER: ${getParticipantName(prize.winners[0].userId)}`
+                                                    ? `✓ ${getParticipantName(prize.winners[0].userId)}`
                                                     : prize.status
                                             }
                                         </Text>
@@ -404,15 +420,23 @@ const HousieGameScreen = () => {
                         {prizesArr.filter((p: any) => p.winners?.length > 0).map((prize: any, idx: number) => (
                             <View key={idx} className={`bg-white rounded-[24px] border border-stone-100 shadow-sm ${isTablet ? 'p-10' : 'p-4'}`}>
                                 <View className="flex-row items-center justify-between">
-                                    <View className="flex-row items-center">
+                                    <View className="flex-row items-center flex-1 min-w-0 mr-2">
                                        <MaterialIcons name={prize.icon || 'stars'} size={isTablet ? 36 : 16} color="#b30069" />
-                                       <Text className={`text-[#594048] font-headline-bold ml-4 ${isTablet ? 'text-2xl' : 'text-sm'}`}>{prize.name}</Text>
+                                       <Text
+                                           numberOfLines={1}
+                                           adjustsFontSizeToFit
+                                           minimumFontScale={0.75}
+                                           className={`text-[#594048] font-headline-bold ml-3 flex-1 ${isTablet ? 'text-2xl' : 'text-[13px]'}`}
+                                       >{prize.name}</Text>
                                     </View>
-                                    <View className={`bg-green-100 rounded-md ${isTablet ? 'px-4 py-2' : 'px-2 py-0.5'}`}>
+                                    <View className={`bg-green-100 rounded-md flex-shrink-0 ${isTablet ? 'px-4 py-2' : 'px-2 py-0.5'}`}>
                                         <Text className={`text-green-700 font-body-bold ${isTablet ? 'text-xl' : 'text-[10px]'}`}>{prize.winners.length} won</Text>
                                     </View>
                                 </View>
-                                <Text className={`text-stone-400 font-body-medium mt-4 ${isTablet ? 'text-xl' : 'text-[11px]'}`}>
+                                <Text
+                                    numberOfLines={2}
+                                    className={`text-stone-400 font-body-medium mt-3 ${isTablet ? 'text-xl' : 'text-[11px]'}`}
+                                >
                                     {prize.winners.map((w: any) => getParticipantName(w.userId)).join(', ')}
                                 </Text>
                             </View>
@@ -471,7 +495,12 @@ const HousieGameScreen = () => {
                                                 <View key={cidx} className="flex-1 aspect-square p-1">
                                                     {num ? (
                                                         <View className={`w-full h-full rounded-xl items-center justify-center border ${cellBg} ${borderColor}`}>
-                                                            <Text className={`font-headline-bold ${isTablet ? 'text-2xl' : 'text-[10px]'} ${textColor}`}>
+                                                            <Text 
+                                                                numberOfLines={1}
+                                                                adjustsFontSizeToFit
+                                                                minimumFontScale={0.3}
+                                                                className={`font-headline-bold text-center ${isTablet ? 'text-2xl' : 'text-[10px]'} ${textColor}`}
+                                                            >
                                                                 {num}
                                                             </Text>
                                                         </View>
@@ -485,11 +514,11 @@ const HousieGameScreen = () => {
                                 ))}
                             </View>
 
-                            <View className="mb-10">
-                                <Text className={`text-center text-stone-400 font-body-bold uppercase tracking-[3px] mb-6 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Master Board Reference</Text>
+                            <View className="mb-4">
+                                <Text className={`text-center text-stone-400 font-body-bold uppercase tracking-[3px] mb-4 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Master Board Reference</Text>
                                 <View 
                                     style={{ width: isTablet ? '90%' : '100%', alignSelf: 'center' }}
-                                    className="items-center bg-white p-6 rounded-[32px] shadow-sm border border-stone-100"
+                                    className="items-center bg-white p-2 rounded-[24px] shadow-sm border border-stone-100"
                                 >
                                     {renderBoard()}
                                 </View>

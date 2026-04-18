@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, useWindowDimensions, FlatList, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
@@ -12,7 +13,7 @@ import { getSocket } from '../../lib/socketService';
 
 const HousieTicketScreen = () => {
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
     const route = useRoute();
     const navigation = useNavigation<any>();
     const queryClient = useQueryClient();

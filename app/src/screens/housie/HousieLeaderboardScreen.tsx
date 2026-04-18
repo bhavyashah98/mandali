@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import {
     View, Text, TouchableOpacity, Image,
     ScrollView, ActivityIndicator, useWindowDimensions
@@ -29,7 +30,7 @@ const HousieLeaderboardScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute();
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
     const { groupId, groupName } = (route.params as any) || {};
     const [activePeriod, setActivePeriod] = useState<Period>('all_time');
 
@@ -65,12 +66,12 @@ const HousieLeaderboardScreen = () => {
             <View 
                 className="items-center w-full"
                 style={{ 
-                    marginTop: isTablet ? 20 : 0,
-                    marginBottom: isTablet ? 80 : 32 
+                    marginTop: isTablet ? 10 : 0,
+                    marginBottom: isTablet ? 24 : 12 
                 }}
             >
                 <Text
-                    className="font-headline-bold text-on-surface text-center tracking-tight text-[#1c1c18]"
+                    className="font-headline-bold text-[#1c1c18] text-center tracking-tight"
                     style={{ fontSize: isTablet ? 72 : 38 }}
                     adjustsFontSizeToFit
                     numberOfLines={1}
@@ -78,23 +79,14 @@ const HousieLeaderboardScreen = () => {
                     Leaderboard
                 </Text>
                 <Text 
-                    className="font-body-medium text-on-surface-variant text-center leading-relaxed opacity-60"
+                    className="font-body-bold text-[#b30069] text-center tracking-[4px] uppercase"
                     style={{ 
-                        fontSize: isTablet ? 22 : 15,
-                        marginTop: isTablet ? 20 : 12,
-                        paddingHorizontal: isTablet ? 80 : 32
+                        fontSize: isTablet ? 20 : 12,
+                        marginTop: isTablet ? 8 : 4
                     }}
                 >
-                    Hall of Fame for {groupName || 'this Mandali'}
+                    {groupName || 'This Mandali'}
                 </Text>
-                <View 
-                    className="bg-primary/20 rounded-full"
-                    style={{ 
-                        height: 4, 
-                        width: isTablet ? 120 : 40,
-                        marginTop: isTablet ? 36 : 20 
-                    }} 
-                />
             </View>
 
             {/* Period Tabs */}
@@ -185,7 +177,7 @@ const HousieLeaderboardScreen = () => {
                                     </View>
 
                                     {/* Avatar */}
-                                    <View className={`rounded-full bg-stone-100 mr-6 overflow-hidden border-2 border-white ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}
+                                    <View className={`rounded-full bg-stone-100 overflow-hidden border-2 border-white ${isTablet ? 'w-24 h-24 mr-6' : 'w-10 h-10 mr-3'}`}
                                         style={{ shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 }}>
                                         {player.avatarUrl ? (
                                             <Image
@@ -197,7 +189,7 @@ const HousieLeaderboardScreen = () => {
                                             <View className="w-full h-full items-center justify-center bg-primary/10">
                                                 <Text 
                                                     className="text-primary font-headline-bold"
-                                                    style={{ fontSize: isTablet ? 36 : 18 }}
+                                                    style={{ fontSize: isTablet ? 36 : 16 }}
                                                 >
                                                     {player.name?.[0]?.toUpperCase() || '?'}
                                                 </Text>
@@ -206,36 +198,40 @@ const HousieLeaderboardScreen = () => {
                                     </View>
 
                                     {/* Info */}
-                                    <View className="flex-1">
+                                    <View className="flex-1 min-w-0">
                                         <Text 
                                             className="text-[#594048] font-headline-bold" 
-                                            style={{ fontSize: isTablet ? 32 : 16 }}
+                                            style={{ fontSize: isTablet ? 32 : 15 }}
                                             numberOfLines={1}
+                                            adjustsFontSizeToFit
+                                            minimumFontScale={0.7}
                                         >
                                             {player.name}
                                         </Text>
                                         <Text 
-                                            className="text-stone-400 font-body-medium mt-1.5"
-                                            style={{ fontSize: isTablet ? 20 : 12 }}
+                                            className="text-stone-400 font-body-medium mt-1"
+                                            style={{ fontSize: isTablet ? 20 : 11 }}
+                                            numberOfLines={1}
                                         >
                                             {player.winCount} prize{player.winCount !== 1 ? 's' : ''} · {player.gamesPlayed} game{player.gamesPlayed !== 1 ? 's' : ''}
                                         </Text>
                                     </View>
 
                                     {/* Prize */}
-                                    <View className="items-end">
+                                    <View className="items-end ml-2">
                                         <Text
                                             className="font-headline-bold"
                                             style={{ 
-                                                fontSize: isTablet ? 42 : 20,
+                                                fontSize: isTablet ? 42 : 16,
                                                 color: isTop3 ? '#b30069' : '#594048' 
                                             }}
+                                            numberOfLines={1}
                                         >
                                             ₹{player.totalWon.toLocaleString()}
                                         </Text>
                                         <Text 
                                             className="text-stone-300 font-body-medium"
-                                            style={{ fontSize: isTablet ? 18 : 10 }}
+                                            style={{ fontSize: isTablet ? 18 : 9 }}
                                         >total won</Text>
                                     </View>
                                 </View>

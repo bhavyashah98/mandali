@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -9,7 +10,7 @@ import { useWindowDimensions } from 'react-native';
 
 const HousieResultsScreen = () => {
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
     const { gameCode, groupId } = route.params;
@@ -53,15 +54,15 @@ const HousieResultsScreen = () => {
             <View 
                 className="items-center w-full"
                 style={{ 
-                    marginTop: isTablet ? 60 : 40,
-                    marginBottom: isTablet ? 80 : 32 
+                    marginTop: isTablet ? 40 : 24,
+                    marginBottom: isTablet ? 40 : 16 
                 }}
             >
-                <View className={`bg-primary/10 rounded-full mb-8 items-center justify-center shadow-sm ${isTablet ? 'w-40 h-40' : 'w-24 h-24'}`}>
+                <View className={`bg-primary/10 rounded-full mb-4 items-center justify-center shadow-sm ${isTablet ? 'w-40 h-40' : 'w-24 h-24'}`}>
                     <MaterialIcons name="emoji-events" size={isTablet ? 90 : 54} color="#b30069" />
                 </View>
                 <Text
-                    className="font-headline-bold text-on-surface text-center tracking-tight text-[#1c1c18]"
+                    className="font-headline-bold text-[#1c1c18] text-center tracking-tight"
                     style={{ fontSize: isTablet ? 72 : 38 }}
                     adjustsFontSizeToFit
                     numberOfLines={1}
@@ -69,23 +70,14 @@ const HousieResultsScreen = () => {
                     Game Over!
                 </Text>
                 <Text 
-                    className="font-body-medium text-on-surface-variant text-center leading-relaxed opacity-60"
+                    className="font-body-bold text-[#b30069] text-center tracking-[4px] uppercase"
                     style={{ 
-                        fontSize: isTablet ? 22 : 15,
-                        marginTop: isTablet ? 20 : 12,
-                        paddingHorizontal: isTablet ? 80 : 32
+                        fontSize: isTablet ? 20 : 12,
+                        marginTop: isTablet ? 8 : 4
                     }}
                 >
-                    Here are the champions of the session
+                    Session Champions
                 </Text>
-                <View 
-                    className="bg-primary/20 rounded-full"
-                    style={{ 
-                        height: 4, 
-                        width: isTablet ? 120 : 40,
-                        marginTop: isTablet ? 36 : 20 
-                    }} 
-                />
             </View>
 
             <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
@@ -113,13 +105,13 @@ const HousieResultsScreen = () => {
 
                             {/* Avatar */}
                             <View
-                                className={`rounded-full bg-stone-100 overflow-hidden border-4 border-white shadow-md ${isTablet ? 'w-24 h-24 mr-8' : 'w-14 h-14 mr-4'}`}
+                                className={`rounded-full bg-stone-100 overflow-hidden border-4 border-white shadow-md ${isTablet ? 'w-24 h-24 mr-8' : 'w-11 h-11 mr-3'}`}
                             >
                                 {player.avatarUrl ? (
                                     <Image source={{ uri: player.avatarUrl }} className="w-full h-full" />
                                 ) : (
                                     <View className="flex-1 items-center justify-center">
-                                        <Text className={`text-stone-400 font-headline-bold ${isTablet ? 'text-3xl' : 'text-lg'}`}>
+                                        <Text className={`text-stone-400 font-headline-bold ${isTablet ? 'text-3xl' : 'text-base'}`}>
                                             {player.name.charAt(0).toUpperCase()}
                                         </Text>
                                     </View>
@@ -127,25 +119,36 @@ const HousieResultsScreen = () => {
                             </View>
 
                             {/* Info */}
-                            <View className="flex-1">
-                                <Text className={`text-[#31302d] font-headline-bold mb-1 ${isTablet ? 'text-4xl' : 'text-lg'}`} numberOfLines={1}>
+                            <View className="flex-1 min-w-0">
+                                <Text 
+                                    className={`text-[#31302d] font-headline-bold mb-1 ${isTablet ? 'text-4xl' : 'text-[15px]'}`} 
+                                    numberOfLines={1}
+                                    adjustsFontSizeToFit
+                                    minimumFontScale={0.7}
+                                >
                                     {player.name}
                                 </Text>
                                 <View className="flex-row items-center">
-                                    <View className="bg-primary/10 px-3 py-1 rounded-full mr-3">
-                                        <Text className={`text-primary font-body-bold ${isTablet ? 'text-xl' : 'text-[11px]'}`}>
+                                    <View className="bg-primary/10 px-2 py-0.5 rounded-full mr-2">
+                                        <Text className={`text-primary font-body-bold ${isTablet ? 'text-xl' : 'text-[10px]'}`}>
                                             {player.winCount} {player.winCount === 1 ? 'WIN' : 'WINS'}
                                         </Text>
                                     </View>
-                                    <Text className={`text-stone-400 font-body-regular flex-1 ${isTablet ? 'text-xl' : 'text-xs'}`} numberOfLines={1}>
+                                    <Text className={`text-stone-400 font-body-regular flex-1 ${isTablet ? 'text-xl' : 'text-[10px]'}`} numberOfLines={1}>
                                         {player.prizes.map((p: any) => p.name).join(', ')}
                                     </Text>
                                 </View>
                             </View>
 
                             {/* Amount */}
-                            <View className="items-end ml-4">
-                                <Text className={`text-[#b30069] font-headline-bold ${isTablet ? 'text-5xl' : 'text-xl'}`}>₹{player.totalWon}</Text>
+                            <View className="items-end ml-2">
+                                <Text 
+                                    className={`text-[#b30069] font-headline-bold ${isTablet ? 'text-5xl' : 'text-base'}`}
+                                    numberOfLines={1}
+                                >
+                                    ₹{player.totalWon}
+                                </Text>
+                                <Text className="text-stone-300 font-body-medium" style={{ fontSize: isTablet ? 18 : 9 }}>won</Text>
                             </View>
                         </View>
                     ))

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import {
     View,
     Text,
@@ -31,7 +32,7 @@ const HousieCreateGameScreen = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     const { height, width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
 
     const { data: groupData } = useQuery({
         queryKey: ['groupDetail', groupId],

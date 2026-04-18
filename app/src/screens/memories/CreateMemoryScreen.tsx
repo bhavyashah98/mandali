@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Dimensions, ActivityIndicator, Alert, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -15,7 +16,7 @@ const CreateMemoryScreen = () => {
     const route = useRoute();
     const queryClient = useQueryClient();
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
     const GRID_SIZE = isTablet ? (width - 120 - 48) / 3 : (width - 48 - 24) / 3;
     const { groupId } = (route.params as { groupId: string }) || {};
 

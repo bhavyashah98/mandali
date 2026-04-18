@@ -33,12 +33,12 @@ export const RootNavigator = () => {
             case 'housie':
                 navigationRef.current.navigate('Main', {
                     screen: 'Housie',
-                    params: { 
-                        screen: 'HousieJoinGame', 
-                        params: { 
+                    params: {
+                        screen: 'HousieJoinGame',
+                        params: {
                             gameCode: params.gameCode,
                             groupId: params.groupId
-                        } 
+                        }
                     }
                 });
                 break;
@@ -54,14 +54,16 @@ export const RootNavigator = () => {
     // Global Deep Link Handler
     const handleDeepLink = async (url: string | null) => {
         if (!url) return;
-        const parsed = Linking.parse(url);
 
-        const feature = parsed.hostname;
-        const segments = parsed.path ? parsed.path.split('/').filter(s => s !== '') : [];
+        const cleanUrl = url.replace('mandali://', '').replace('https://api.mandaliapp.com/', '').split('?')[0];
+        const parts = cleanUrl.split('/').filter(Boolean);
+
+        const feature = parts[0];
+        const segments = parts.slice(1);
 
         if (feature && segments.length > 0) {
             let params: any = {};
-            
+
             if (feature === 'housie') {
                 params.gameCode = segments[0];
                 if (segments.length > 1) params.groupId = segments[1];

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import {
     View,
     Text,
@@ -25,7 +26,7 @@ const HousieDefineBountyScreen = () => {
 
     const [isStarting, setIsStarting] = useState(false);
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
 
     // Fetch Group Detail for Header
     const { data: groupData } = useQuery({
@@ -138,8 +139,11 @@ const HousieDefineBountyScreen = () => {
                         </View>
                         <View className="flex-1 items-center">
                             <Text
-                                className="font-headline-bold text-[#1c1c18] uppercase tracking-[4px]"
-                                style={{ fontSize: isTablet ? 36 : 20 }}
+                                className="font-headline-bold text-[#1c1c18] uppercase"
+                                style={{ fontSize: isTablet ? 36 : 17, letterSpacing: isTablet ? 4 : 1.5 }}
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                                minimumFontScale={0.7}
                             >
                                 Define Bounties
                             </Text>
@@ -261,11 +265,14 @@ const HousieDefineBountyScreen = () => {
                             <ActivityIndicator color="white" size={isTablet ? 'large' : 'small'} />
                         ) : (
                             <>
-                                <Ionicons name="lock-closed" size={isTablet ? 36 : 24} color="white" />
+                                <Ionicons name="lock-closed" size={isTablet ? 36 : 22} color="white" />
                                 <Text
-                                    className="text-white font-headline-bold ml-4"
-                                    style={{ fontSize: isTablet ? 32 : 24 }}
-                                >Lock & Start Game</Text>
+                                    numberOfLines={1}
+                                    adjustsFontSizeToFit
+                                    minimumFontScale={0.7}
+                                    className="text-white font-headline-bold ml-3"
+                                    style={{ fontSize: isTablet ? 32 : 18, flexShrink: 1 }}
+                                >Lock &amp; Start Game</Text>
                             </>
                         )}
                     </TouchableOpacity>

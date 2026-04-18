@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, TouchableOpacity, TextInput, Alert, ActivityIndicator, useWindowDimensions, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -11,7 +12,7 @@ const JoinGroupScreen = () => {
     const route = useRoute<any>();
     const queryClient = useQueryClient();
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
 
     const [inviteCode, setInviteCode] = useState(route.params?.inviteCode || '');
 

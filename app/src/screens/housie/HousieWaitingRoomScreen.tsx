@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Alert, Image, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
@@ -11,7 +12,7 @@ import axios from 'axios';
 
 const HousieWaitingRoomScreen = () => {
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
     const navigation = useNavigation<any>();
     const route = useRoute();
     const queryClient = useQueryClient();
@@ -264,7 +265,15 @@ const HousieWaitingRoomScreen = () => {
                             activeOpacity={0.9}
                             className={`flex-1 rounded-[40px] flex-row items-center justify-center shadow-2xl shadow-primary/30 ${isTablet ? 'h-28' : 'h-20'} ${isBuying ? 'bg-primary/50' : 'bg-primary'}`}
                         >
-                            {isBuying ? <ActivityIndicator color="white" size={isTablet ? 'large' : 'small'} /> : <Text className={`text-white font-headline-bold ${isTablet ? 'text-4xl' : 'text-2xl'}`}>Buy Tickets</Text>}
+                            {isBuying ? <ActivityIndicator color="white" size={isTablet ? 'large' : 'small'} /> : (
+                                <Text 
+                                    numberOfLines={1} 
+                                    adjustsFontSizeToFit 
+                                    className={`text-white font-headline-bold ${isTablet ? 'text-4xl' : 'text-2xl'}`}
+                                >
+                                    Buy Tickets
+                                </Text>
+                            )}
                         </TouchableOpacity>
                     </View>
                 )}

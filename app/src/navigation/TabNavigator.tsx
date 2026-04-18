@@ -1,4 +1,5 @@
 import React from 'react';
+import { useIsTablet } from '../hooks/useIsTablet';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,7 +15,7 @@ const Tab = createBottomTabNavigator();
 export const TabNavigator = () => {
     const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
     
     return (
         <Tab.Navigator

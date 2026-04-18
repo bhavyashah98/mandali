@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, ScrollView, TouchableOpacity, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -10,7 +11,7 @@ import { Image } from 'expo-image';
 
 const MemoriesScreen = () => {
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
     const COLUMN_COUNT = isTablet ? 5 : 3;
     const navigation = useNavigation<any>();
     const route = useRoute();

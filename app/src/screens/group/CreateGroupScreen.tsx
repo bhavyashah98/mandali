@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import {
     View,
     Text,
@@ -24,7 +25,7 @@ const CreateGroupScreen = () => {
     const route = useRoute();
     const queryClient = useQueryClient();
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
 
     // Check if we are in Edit Mode
     const editGroup = (route.params as any)?.group;

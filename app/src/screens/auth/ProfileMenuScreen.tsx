@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -14,7 +15,7 @@ const ProfileMenuScreen = () => {
     const { user, logout } = useAuthStore();
     const navigation = useNavigation<any>();
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
     const [isDeleting, setIsDeleting] = useState(false);
 
     // Settings Store

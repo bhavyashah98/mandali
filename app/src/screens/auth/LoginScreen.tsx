@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import {
     View,
     Text,
@@ -26,7 +27,7 @@ import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 const LoginScreen = () => {
     const login = useAuthStore((state) => state.login);
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
     const [step, setStep] = useState<'phone' | 'otp'>('phone');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [otp, setOtp] = useState('');

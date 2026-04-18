@@ -1,18 +1,22 @@
 import React from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, ScrollView, TouchableOpacity, Alert, Share, FlatList, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Image } from 'expo-image';
+import ImageViewing from "react-native-image-viewing";
 import { useAuthStore } from '../../stores/authStore';
 import { deleteMemory } from '../../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
+
+import { ImageZoom } from '@likashefqet/react-native-image-zoom';
 
 const MemoryDetailScreen = () => {
     const { width, height } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
     const navigation = useNavigation<any>();
     const route = useRoute();
     const queryClient = useQueryClient();
@@ -24,7 +28,7 @@ const MemoryDetailScreen = () => {
     const handleDelete = (memoryId: string) => {
         Alert.alert(
             'Delete Memory',
-            'Are you sure you want to permanently remove this moment from the Mandali Gallery?',
+            'Are you sure you want to permanently remove this moment?',
             [
                 { text: 'Cancel', style: 'cancel' },
                 { 
@@ -47,7 +51,7 @@ const MemoryDetailScreen = () => {
     const handleShare = async (url: string) => {
         try {
             await Share.share({
-                message: `Check out this memory from ${groupName} Mandali: ${url}`,
+                message: `Check out this memory from Mandali: ${url}`,
                 url: url
             });
         } catch (error) {
@@ -59,24 +63,20 @@ const MemoryDetailScreen = () => {
         try {
             Alert.alert('Downloading...', 'Saving this memory to your device...', [], { cancelable: true });
             
-            // Validate user allowed library access
             const { status } = await MediaLibrary.requestPermissionsAsync(true);
             if (status !== 'granted') {
                 Alert.alert('Permission needed', 'Please allow Mandali to save photos to your gallery to enable downloads.');
                 return;
             }
 
-            // Clean the URL parameters to derive the pure file path
             const filename = url.split('/').pop()?.split('?')[0] || `mandali_memory_${Date.now()}.jpg`;
             // @ts-ignore
             const fileUri = `${FileSystem.cacheDirectory}${filename}`;
 
-            // Pull the binary to the phone memory temporarily
             // @ts-ignore
             const downloadedFile = await FileSystem.downloadAsync(url, fileUri);
             
             if (downloadedFile.status === 200) {
-                // Deposit visually into the gallery
                 await MediaLibrary.saveToLibraryAsync(downloadedFile.uri);
                 Alert.alert('Success', 'Photo seamlessly saved to your gallery!');
             } else {
@@ -105,24 +105,25 @@ const MemoryDetailScreen = () => {
 
         return (
             <View style={{ width, height: '100%' }}>
-                <SafeAreaView className="flex-1" edges={['top', 'bottom']}>
+                <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
+                    
                     {/* 1. Modal Header */}
-                    <View className={`flex-row items-center justify-between bg-black/50 z-30 ${isTablet ? 'px-12 py-10' : 'px-6 py-4'}`}>
+                    <View className={`flex-row items-center justify-between z-30 ${isTablet ? 'px-12 py-6' : 'px-6 py-4'}`}>
                         <TouchableOpacity 
                             onPress={() => navigation.goBack()}
-                            className={`rounded-full bg-white/10 items-center justify-center border border-white/20 ${isTablet ? 'w-20 h-20' : 'w-12 h-12'}`}
+                            className={`rounded-full bg-white/10 items-center justify-center border border-white/20 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                         >
-                            <Ionicons name="close" size={isTablet ? 48 : 32} color="white" />
+                            <Ionicons name="close" size={isTablet ? 36 : 24} color="white" />
                         </TouchableOpacity>
                         
-                        <View className={`flex-row items-center bg-white/10 rounded-full border border-white/10 ${isTablet ? 'px-8 py-4' : 'px-4 py-2'}`}>
-                            <View className="items-end mr-4">
-                                <Text className={`text-white font-headline-bold ${isTablet ? 'text-2xl' : 'text-sm'}`}>{item.memory.user?.name}</Text>
+                        <View className={`flex-row items-center bg-white/10 rounded-full border border-white/10 ${isTablet ? 'px-6 py-3' : 'px-4 py-2'}`}>
+                            <View className="items-end mr-3">
+                                <Text className={`text-white font-headline-bold ${isTablet ? 'text-xl' : 'text-sm'}`}>{item.memory.user?.name}</Text>
                                 <Text className={`text-white/60 font-body-bold uppercase tracking-widest ${isTablet ? 'text-xs mt-1' : 'text-[9px]'}`}>
                                     {new Date(memoryDate).toLocaleDateString()}
                                 </Text>
                             </View>
-                            <View className={`rounded-full border border-white/30 overflow-hidden ${isTablet ? 'w-16 h-16' : 'w-8 h-8'}`}>
+                            <View className={`rounded-full border border-white/30 overflow-hidden ${isTablet ? 'w-14 h-14' : 'w-8 h-8'}`}>
                                 {item.memory.user?.avatar_url ? (
                                     <Image 
                                         source={{ uri: item.memory.user.avatar_url }} 
@@ -131,71 +132,60 @@ const MemoryDetailScreen = () => {
                                     />
                                 ) : (
                                     <View className="w-full h-full bg-stone-500 items-center justify-center">
-                                        <Ionicons name="person" size={isTablet ? 24 : 14} color="white" />
+                                        <Ionicons name="person" size={isTablet ? 20 : 14} color="white" />
                                     </View>
                                 )}
                             </View>
                         </View>
                     </View>
 
-                    {/* 2. Full Image View */}
-                    <View className="flex-1 justify-center z-10">
-                        <ScrollView
-                            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
-                            maximumZoomScale={5}
-                            minimumZoomScale={1}
-                            showsHorizontalScrollIndicator={false}
-                            showsVerticalScrollIndicator={false}
-                            bouncesZoom={true}
-                            centerContent={true}
-                            pinchGestureEnabled={true}
-                        >
-                            <Image 
-                                source={{ uri: item.url }} 
-                                style={{ width: width, height: height * 0.65 }}
-                                contentFit="contain"
-                                transition={400}
-                            />
-                        </ScrollView>
-
-                        {/* Floating Side Actions */}
-                        <View className={`absolute right-6 top-1/2 -mt-32 gap-6 z-40 ${isTablet ? 'right-12' : 'right-6'}`}>
-                            {isOwner && (
-                                <TouchableOpacity 
-                                    onPress={() => handleDelete(item.memory.id)} 
-                                    className={`rounded-full bg-red-500/80 items-center justify-center shadow-lg ${isTablet ? 'w-24 h-24' : 'w-14 h-14'}`}
-                                >
-                                    <MaterialCommunityIcons name="delete-outline" size={isTablet ? 42 : 26} color="white" />
-                                </TouchableOpacity>
-                            )}
-                            <TouchableOpacity 
-                                onPress={() => handleDownload(item.url)} 
-                                className={`rounded-full bg-black/50 border border-white/20 items-center justify-center shadow-lg ${isTablet ? 'w-24 h-24' : 'w-14 h-14'}`}
-                            >
-                                <Ionicons name="download-outline" size={isTablet ? 42 : 26} color="white" />
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                onPress={() => handleShare(item.url)} 
-                                className={`rounded-full bg-[#25D366]/90 items-center justify-center shadow-lg ${isTablet ? 'w-24 h-24' : 'w-14 h-14'}`}
-                            >
-                                <Ionicons name="logo-whatsapp" size={isTablet ? 48 : 28} color="white" />
-                            </TouchableOpacity>
-                        </View>
+                    {/* 2. Full Image View Container - Enforced Uniform Dimensions */}
+                    <View className="flex-1 justify-center z-10 w-full mt-2">
+                        <ImageZoom 
+                            uri={item.url} 
+                            style={{ width: width, height: height * 0.65 }}
+                            resizeMode="contain"
+                            minScale={1}
+                            maxScale={5}
+                            doubleTapScale={3}
+                            isSingleTouchPanEnabled={false}
+                        />
                     </View>
 
-                    {/* 3. Story / Description (Bottom) */}
-                    <View className={`bg-black/80 border-t border-white/10 pb-16 pt-10 justify-center z-30 ${isTablet ? 'px-40 min-h-[220px]' : 'px-8 min-h-[120px]'}`}>
-                        <View className={`bg-white/20 rounded-full self-center mb-8 ${isTablet ? 'w-16 h-1.5' : 'w-8 h-1'}`} />
+                    {/* 3. Action Bar (Horizontal) & Description Stack */}
+                    <View className={`bg-stone-900/40 border-t border-white/10 pt-4 pb-6 z-30 ${isTablet ? 'px-20' : 'px-8'}`}>
+                        
+                        {/* Horizontal Actions Strip */}
+                        <View className="flex-row items-center justify-between mb-4 pb-4 border-b border-white/10">
+                            <View className="flex-row gap-8">
+                                <TouchableOpacity onPress={() => handleDownload(item.url)} className={`items-center justify-center bg-white/5 rounded-full ${isTablet ? 'w-16 h-16' : 'w-12 h-12'}`}>
+                                    <Ionicons name="download-outline" size={isTablet ? 28 : 22} color="white" />
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => handleShare(item.url)} className={`items-center justify-center bg-white/5 rounded-full ${isTablet ? 'w-16 h-16' : 'w-12 h-12'}`}>
+                                    <Ionicons name="share-outline" size={isTablet ? 28 : 22} color="white" />
+                                </TouchableOpacity>
+                            </View>
+
+                            {isOwner && (
+                                <TouchableOpacity onPress={() => handleDelete(item.memory.id)} className={`items-center justify-center bg-red-500/10 border border-red-500/20 rounded-full ${isTablet ? 'w-16 h-16' : 'w-12 h-12'}`}>
+                                    <MaterialCommunityIcons name="delete-outline" size={isTablet ? 28 : 22} color="#ef4444" />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        {/* Description Section */}
                         {item.memory.story ? (
-                            <Text className={`text-white/90 font-body-medium text-center leading-relaxed ${isTablet ? 'text-3xl' : 'text-lg'}`}>
+                            <Text 
+                                className={`text-white/95 font-body-medium leading-relaxed ${isTablet ? 'text-2xl' : 'text-base'}`}
+                                numberOfLines={3}
+                                ellipsizeMode="tail"
+                            >
                                 {item.memory.story}
                             </Text>
                         ) : (
-                            <Text className={`text-white/30 font-body-bold italic text-center ${isTablet ? 'text-2xl' : ''}`}>No story attached</Text>
+                            <Text className={`text-white/30 font-body-bold italic ${isTablet ? 'text-xl' : 'text-sm'}`}>No story attached</Text>
                         )}
-                        <TouchableOpacity onPress={handleReport} className="mt-12 self-center">
-                            <Text className={`text-white/20 font-body-bold uppercase tracking-widest ${isTablet ? 'text-sm' : 'text-[10px]'}`}>Report Content</Text>
-                        </TouchableOpacity>
+                        
                     </View>
                 </SafeAreaView>
             </View>

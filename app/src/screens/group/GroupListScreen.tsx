@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
@@ -14,7 +15,7 @@ const GroupListScreen = () => {
     const navigation = useNavigation<any>();
     const { user } = useAuthStore();
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
 
     const { data: groups = [], isLoading, isRefetching, refetch } = useQuery({
         queryKey: ['groups'],

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import {
     View,
     Text,
@@ -26,7 +27,7 @@ const SetupProfileScreen = () => {
     const { user, setUser, logout } = useAuthStore();
     const navigation = useNavigation<any>();
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
 
     // Initialize states with user data if available (Edit Mode)
     const [name, setName] = useState(user?.name || '');

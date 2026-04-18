@@ -1,12 +1,14 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { RootNavigator } from '@/src/navigation/RootNavigator';
 import { useFonts } from 'expo-font';
 import { NotoSerif_400Regular, NotoSerif_700Bold, NotoSerif_400Regular_Italic, NotoSerif_700Bold_Italic } from '@expo-google-fonts/noto-serif';
 import { BeVietnamPro_300Light, BeVietnamPro_400Regular, BeVietnamPro_500Medium, BeVietnamPro_600SemiBold, BeVietnamPro_700Bold } from '@expo-google-fonts/be-vietnam-pro';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import '@/global.css';
 
 const queryClient = new QueryClient({
@@ -19,6 +21,10 @@ const queryClient = new QueryClient({
 });
 
 export default function App() {
+  React.useEffect(() => {
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(console.warn);
+  }, []);
+
   const [fontsLoaded] = useFonts({
     NotoSerif_400Regular,
     NotoSerif_700Bold,
@@ -36,13 +42,15 @@ export default function App() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider>
-        <GluestackUIProvider mode="light">
-          <RootNavigator />
-          <StatusBar style="auto" />
-        </GluestackUIProvider>
-      </SafeAreaProvider>
-    </QueryClientProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <SafeAreaProvider>
+          <GluestackUIProvider mode="light">
+            <RootNavigator />
+            <StatusBar style="auto" />
+          </GluestackUIProvider>
+        </SafeAreaProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import {
     View, Text, ScrollView, ActivityIndicator, FlatList, useWindowDimensions
 } from 'react-native';
@@ -12,7 +13,7 @@ import { getSocket } from '../../lib/socketService';
 
 const HousieSpectatorScreen = () => {
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
     const navigation = useNavigation<any>();
     const route = useRoute();
     const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};

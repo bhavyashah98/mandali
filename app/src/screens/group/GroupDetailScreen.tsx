@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Share, Alert, Modal, Pressable, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
@@ -18,7 +19,7 @@ const GroupDetailScreen = () => {
     const { groupId } = route.params as { groupId: string };
     const { user: currentUser } = useAuthStore();
     const { width } = useWindowDimensions();
-    const isTablet = width > 500;
+    const isTablet = useIsTablet();
     const [showTransferModal, setShowTransferModal] = useState(false);
 
     const { data, isLoading, isRefetching, error, refetch } = useQuery({
