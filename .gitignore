@@ -24,6 +24,9 @@ Thumbs.db
 *.log
 npm-debug.log*
 
+#idea
+app/.idea
+
 # Firebase — never commit these
 api/firebase-service-account.json
 app/GoogleService-Info.plist

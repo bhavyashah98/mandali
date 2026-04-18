@@ -50,6 +50,16 @@
               "scheme": "https",
               "host": "api.mandaliapp.com",
               "pathPrefix": "/join"
+            },
+            {
+              "scheme": "https",
+              "host": "api.mandaliapp.com",
+              "pathPrefix": "/housie"
+            },
+            {
+              "scheme": "https",
+              "host": "api.mandaliapp.com",
+              "pathPrefix": "/memories"
             }
           ],
           "category": [
@@ -66,7 +76,6 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
-        "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ]
     },

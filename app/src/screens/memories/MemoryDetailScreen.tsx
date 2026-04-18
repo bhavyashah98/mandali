@@ -7,6 +7,8 @@ import { Image } from 'expo-image';
 import { useAuthStore } from '../../stores/authStore';
 import { deleteMemory } from '../../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 
 const MemoryDetailScreen = () => {
     const { width, height } = useWindowDimensions();
@@ -53,9 +55,37 @@ const MemoryDetailScreen = () => {
         }
     };
 
-    const handleDownload = async () => {
-        Alert.alert('Download Started', 'Saving this memory to your device...');
-        setTimeout(() => Alert.alert('Success', 'Photo saved to your gallery!'), 1500);
+    const handleDownload = async (url: string) => {
+        try {
+            Alert.alert('Downloading...', 'Saving this memory to your device...', [], { cancelable: true });
+            
+            // Validate user allowed library access
+            const { status } = await MediaLibrary.requestPermissionsAsync(true);
+            if (status !== 'granted') {
+                Alert.alert('Permission needed', 'Please allow Mandali to save photos to your gallery to enable downloads.');
+                return;
+            }
+
+            // Clean the URL parameters to derive the pure file path
+            const filename = url.split('/').pop()?.split('?')[0] || `mandali_memory_${Date.now()}.jpg`;
+            // @ts-ignore
+            const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+
+            // Pull the binary to the phone memory temporarily
+            // @ts-ignore
+            const downloadedFile = await FileSystem.downloadAsync(url, fileUri);
+            
+            if (downloadedFile.status === 200) {
+                // Deposit visually into the gallery
+                await MediaLibrary.saveToLibraryAsync(downloadedFile.uri);
+                Alert.alert('Success', 'Photo seamlessly saved to your gallery!');
+            } else {
+                throw new Error('Network returned abnormal status');
+            }
+        } catch (error) {
+            console.error('[Download Error]', error);
+            Alert.alert('Error', 'We encountered an issue saving this photo.');
+        }
     };
 
     const handleReport = () => {
@@ -139,7 +169,7 @@ const MemoryDetailScreen = () => {
                                 </TouchableOpacity>
                             )}
                             <TouchableOpacity 
-                                onPress={handleDownload} 
+                                onPress={() => handleDownload(item.url)} 
                                 className={`rounded-full bg-black/50 border border-white/20 items-center justify-center shadow-lg ${isTablet ? 'w-24 h-24' : 'w-14 h-14'}`}
                             >
                                 <Ionicons name="download-outline" size={isTablet ? 42 : 26} color="white" />
