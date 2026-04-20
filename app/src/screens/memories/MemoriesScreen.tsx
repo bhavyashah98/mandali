@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
-import { View, Text, ScrollView, TouchableOpacity, useWindowDimensions, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, useWindowDimensions, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -25,7 +25,7 @@ const MemoriesScreen = () => {
         enabled: !!groupId,
     });
 
-    const { data: memories, isLoading } = useQuery({
+    const { data: memories, isLoading, refetch } = useQuery({
         queryKey: ['memories', groupId],
         queryFn: async () => {
             const data = await fetchMemories(groupId!);
@@ -33,6 +33,14 @@ const MemoriesScreen = () => {
         },
         enabled: !!groupId,
     });
+
+    const [refreshing, setRefreshing] = React.useState(false);
+
+    const onRefresh = React.useCallback(async () => {
+        setRefreshing(true);
+        await refetch();
+        setRefreshing(false);
+    }, [refetch]);
 
     // 'On This Day' Filter
     const onThisDayMemories = useMemo(() => {
@@ -176,7 +184,13 @@ const MemoriesScreen = () => {
                 </View>
             </View>
 
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+            <ScrollView 
+                className="flex-1" 
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#b30069" />
+                }
+            >
 
                 {/* ── ON THIS DAY SECTION ── */}
                 {onThisDayMemories.length > 0 && (

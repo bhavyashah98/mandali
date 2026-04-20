@@ -68,17 +68,20 @@ const CreateMemoryScreen = () => {
                 return result.uri;
             }));
 
-            // 1. Upload all images in parallel
+            // 1. Upload all images to storage
             const uploadPromises = compressedImages.map(uri => uploadImage(uri, groupId!));
             const imageUrls = await Promise.all(uploadPromises);
 
-            // 2. Create memory record
-            await createMemory({
+            // 2. Create a SEPARATE memory record for each image
+            // This ensures each photo can be deleted individually without affecting others
+            const createPromises = imageUrls.map(url => createMemory({
                 groupId: groupId!,
-                imageUrls,
+                imageUrls: [url], // Each record gets its own array with 1 image
                 story,
-                memoryDate // New field
-            });
+                memoryDate
+            }));
+            
+            await Promise.all(createPromises);
 
             queryClient.invalidateQueries({ queryKey: ['memories', groupId] });
 

@@ -6,7 +6,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { useAuthStore } from '../../stores/authStore';
-import { deleteMemory, reportContent, blockUser } from '../../lib/api';
+import { deleteMemory, reportContent } from '../../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
@@ -126,30 +126,6 @@ const MemoryDetailScreen = () => {
         }
     };
 
-    const handleBlockUser = (userId: string, userName: string) => {
-        Alert.alert(
-            'Block User',
-            `Are you sure you want to block ${userName}? You will no longer see any content or games from this user in your groups.`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Block User',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await blockUser(userId);
-                            Alert.alert('User Blocked', `${userName} has been successfully blocked.`);
-                            queryClient.invalidateQueries({ queryKey: ['memories'] });
-                            navigation.goBack();
-                        } catch (error) {
-                            Alert.alert('Error', 'Failed to block user. Please try again.');
-                        }
-                    }
-                }
-            ]
-        );
-    };
-
     const renderItem = ({ item, index }: { item: any, index: number }) => {
         const isOwner = user?.id === item.memory.user_id;
         const memoryDate = item.memory.memory_date || item.memory.created_at;
@@ -222,20 +198,13 @@ const MemoryDetailScreen = () => {
                                     <MaterialCommunityIcons name="delete-outline" size={isTablet ? 28 : 22} color="#ef4444" />
                                 </TouchableOpacity>
                             ) : (
-                                <View className="flex-row gap-4">
-                                    <TouchableOpacity
-                                        onPress={() => handleBlockUser(item.memory.user_id, item.memory.user?.name || 'User')}
-                                        className={`flex-row items-center bg-stone-500/10 border border-white/20 rounded-2xl px-4 ${isTablet ? 'h-16' : 'h-12'}`}
-                                    >
-                                        <Ionicons name="person-remove-outline" size={isTablet ? 22 : 18} color="white" />
-                                        <Text className="text-white ml-2 font-body-bold text-xs">Block User</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        onPress={() => handleReport(item.memory.id, item.memory.group_id)}
-                                        className={`flex-row items-center bg-red-500/10 border border-red-500/20 rounded-2xl px-4 ${isTablet ? 'h-16' : 'h-12'}`}
+                                <View className="flex-row items-center justify-end flex-1">
+                                    <TouchableOpacity 
+                                        onPress={() => handleReport(item.memory.id, item.memory.group_id)} 
+                                        className={`flex-row items-center bg-red-500/10 border border-red-500/20 rounded-2xl px-6 ${isTablet ? 'h-16' : 'h-12'}`}
                                     >
                                         <Ionicons name="shield-outline" size={isTablet ? 22 : 18} color="#ef4444" />
-                                        <Text className="text-red-400 ml-2 font-body-bold text-xs">Report Inappropriate</Text>
+                                        <Text className="text-red-400 ml-3 font-body-bold text-sm">Report Inappropriate</Text>
                                     </TouchableOpacity>
                                 </View>
                             )}

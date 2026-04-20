@@ -6,7 +6,7 @@ import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Dimensions, useWindowDimensions } from 'react-native';
-import { fetchGroupDetail, leaveGroup, deleteGroup, transferOwnership } from '../../lib/api';
+import { fetchGroupDetail, leaveGroup, deleteGroup, transferOwnership, fetchBlockedUsers, blockUser, unblockUser } from '../../lib/api';
 import * as Linking from 'expo-linking';
 import { Image } from 'expo-image';
 import { useAuthStore } from '../../stores/authStore';
@@ -21,10 +21,17 @@ const GroupDetailScreen = () => {
     const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
     const [showTransferModal, setShowTransferModal] = useState(false);
+    const [showModMenu, setShowModMenu] = useState(false);
+    const [modTargetUser, setModTargetUser] = useState<{ id: string, name: string, isBlocked: boolean } | null>(null);
 
     const { data, isLoading, isRefetching, error, refetch } = useQuery({
         queryKey: ['group', groupId],
         queryFn: () => fetchGroupDetail(groupId),
+    });
+
+    const { data: blockedUsers, refetch: refetchBlocked } = useQuery({
+        queryKey: ['blockedUsers'],
+        queryFn: fetchBlockedUsers
     });
 
     const leaveMutation = useMutation({
@@ -63,6 +70,36 @@ const GroupDetailScreen = () => {
             Alert.alert('Error', err?.response?.data?.error || 'Failed to transfer ownership');
         }
     });
+
+    const toggleBlock = async (memberId: string, name: string, currentlyBlocked: boolean) => {
+        Alert.alert(
+            currentlyBlocked ? 'Unblock User' : 'Block User',
+            currentlyBlocked 
+                ? `Do you want to see photos from ${name} again?`
+                : `Are you sure you want to block ${name}? You will no longer see their photos in any shared group gallery.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                    text: currentlyBlocked ? 'Unblock' : 'Block User',
+                    style: currentlyBlocked ? 'default' : 'destructive',
+                    onPress: async () => {
+                        try {
+                            if (currentlyBlocked) {
+                                await unblockUser(memberId);
+                            } else {
+                                await blockUser(memberId);
+                            }
+                            queryClient.invalidateQueries({ queryKey: ['blockedUsers'] });
+                            queryClient.invalidateQueries({ queryKey: ['memories'] });
+                            Alert.alert('Success', `User ${currentlyBlocked ? 'unblocked' : 'blocked'} successfully.`);
+                        } catch (err: any) {
+                            Alert.alert('Error', 'Failed to update block status.');
+                        }
+                    }
+                }
+            ]
+        );
+    };
 
     const handleShareLink = async () => {
         if (!data?.group.invite_code) return;
@@ -318,14 +355,80 @@ const GroupDetailScreen = () => {
                                     {member.role === 'admin' ? 'Founder' : 'Member'}
                                 </Text>
                             </View>
+                            
                             {member.role === 'admin' && (
                                 <View className={`bg-primary/5 rounded-2xl ${isTablet ? 'p-5' : 'p-2'}`}>
                                     <Feather name="shield" size={isTablet ? 32 : 12} color="#b30069" />
                                 </View>
                             )}
+                            
+                            {/* THREE DOTS MODERATION MENU */}
+                            {member.user_id !== currentUser?.id && (
+                                <TouchableOpacity 
+                                    onPress={() => {
+                                        const isBlocked = blockedUsers?.some((bu: any) => bu.id === member.user_id);
+                                        setModTargetUser({ id: member.user_id, name: member.users.name, isBlocked: !!isBlocked });
+                                        setShowModMenu(true);
+                                    }}
+                                    className={`rounded-full items-center justify-center ${isTablet ? 'w-16 h-16 ml-4' : 'w-10 h-10 ml-2'}`}
+                                >
+                                    <View className="bg-stone-50 rounded-full w-full h-full items-center justify-center border border-stone-100">
+                                        <Ionicons name="ellipsis-vertical" size={isTablet ? 32 : 18} color="#594048" />
+                                    </View>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     ))}
                 </View>
+
+                {/* MODERATION MENU MODAL */}
+                <Modal
+                    visible={showModMenu}
+                    transparent
+                    animationType="slide"
+                    onRequestClose={() => setShowModMenu(false)}
+                >
+                    <Pressable className="flex-1 bg-black/40 justify-end" onPress={() => setShowModMenu(false)}>
+                        <Pressable className="bg-white rounded-t-[40px] p-8 pb-12" onPress={e => e.stopPropagation()}>
+                            <View className="w-12 h-1.5 bg-stone-100 rounded-full self-center mb-8" />
+                            
+                            <View className="mb-8">
+                                <Text className="text-2xl font-headline-bold text-[#1c1c18]">{modTargetUser?.name}</Text>
+                                <Text className="text-stone-400 font-body-medium">Mandali Member Safety Options</Text>
+                            </View>
+
+                            <TouchableOpacity
+                                onPress={() => {
+                                    setShowModMenu(false);
+                                    if (modTargetUser) {
+                                        toggleBlock(modTargetUser.id, modTargetUser.name, modTargetUser.isBlocked);
+                                    }
+                                }}
+                                className={`flex-row items-center p-5 rounded-3xl border border-stone-100 mb-4 ${modTargetUser?.isBlocked ? 'bg-primary/5' : 'bg-red-50'}`}
+                            >
+                                <View className={`w-12 h-12 rounded-full items-center justify-center mr-4 ${modTargetUser?.isBlocked ? 'bg-primary/10' : 'bg-red-100'}`}>
+                                    <Ionicons 
+                                        name={modTargetUser?.isBlocked ? "person-add-outline" : "person-remove-outline"} 
+                                        size={24} 
+                                        color={modTargetUser?.isBlocked ? "#b30069" : "#dc2626"} 
+                                    />
+                                </View>
+                                <View className="flex-1">
+                                    <Text className={`font-headline-bold text-lg ${modTargetUser?.isBlocked ? 'text-primary' : 'text-red-600'}`}>
+                                        {modTargetUser?.isBlocked ? 'Unblock User' : 'Block User'}
+                                    </Text>
+                                    <Text className="text-stone-400 text-xs font-body-medium">
+                                        {modTargetUser?.isBlocked ? "Allow their photos back into your gallery" : "Hide their photos from your group gallery"}
+                                    </Text>
+                                </View>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity onPress={() => setShowModMenu(false)} className="mt-4 p-4 items-center">
+                                <Text className="text-stone-300 font-headline-bold uppercase tracking-widest text-xs">Cancel</Text>
+                            </TouchableOpacity>
+                        </Pressable>
+                    </Pressable>
+                </Modal>
 
                 <View className="mt-12 pt-8 border-t border-stone-100">
                     <TouchableOpacity

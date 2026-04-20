@@ -210,6 +210,12 @@ export const blockUser = async (blockedId: string) => {
     return response.data;
 };
 
+export const unblockUser = async (blockedId: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.delete(`${API_URL}/moderation/block/${blockedId}`, { headers });
+    return response.data;
+};
+
 export const fetchBlockedUsers = async () => {
     const headers = await getAuthHeaders();
     const response = await axios.get(`${API_URL}/moderation/blocked`, { headers });

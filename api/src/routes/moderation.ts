@@ -121,4 +121,26 @@ router.get('/blocked', async (req: AuthRequest, res) => {
     }
 });
 
+/**
+ * UNBLOCK A USER
+ */
+router.delete('/block/:blockedId', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const { blockedId } = req.params;
+        const blockerId = req.userId!;
+
+        const { error } = await supabase
+            .from('blocked_users')
+            .delete()
+            .eq('blocker_id', blockerId)
+            .eq('blocked_id', blockedId);
+
+        if (error) throw error;
+
+        res.json({ success: true, message: 'User unblocked' });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 export default router;
