@@ -366,7 +366,7 @@ const GroupDetailScreen = () => {
                             {member.user_id !== currentUser?.id && (
                                 <TouchableOpacity 
                                     onPress={() => {
-                                        const isBlocked = blockedUsers?.some((bu: any) => bu.id === member.user_id);
+                                        const isBlocked = blockedUsers?.includes(member.user_id);
                                         setModTargetUser({ id: member.user_id, name: member.users.name, isBlocked: !!isBlocked });
                                         setShowModMenu(true);
                                     }}
