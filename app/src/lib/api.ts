@@ -196,3 +196,22 @@ export const deleteMemory = async (memoryId: string) => {
     const response = await axios.delete(`${API_URL}/memories/${memoryId}`, { headers });
     return response.data;
 };
+
+// --- MODERATION API ---
+export const reportContent = async (reportData: { contentId: string, groupId: string, reason?: string, contentType?: string }) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/moderation/report`, reportData, { headers });
+    return response.data;
+};
+
+export const blockUser = async (blockedId: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/moderation/block`, { blockedId }, { headers });
+    return response.data;
+};
+
+export const fetchBlockedUsers = async () => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/moderation/blocked`, { headers });
+    return response.data;
+};

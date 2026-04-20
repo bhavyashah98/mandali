@@ -12,15 +12,42 @@ const router = Router();
 router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const { groupId } = req.params;
+        const userId = req.userId;
 
-        const { data, error } = await supabase
+        // 1. Get blocked users
+        const { data: blockedData } = await supabase
+            .from('blocked_users')
+            .select('blocked_id')
+            .eq('blocker_id', userId);
+        const blockedUserIds = blockedData?.map(b => b.blocked_id) || [];
+
+        // 2. Get content reported by this user
+        const { data: reportedData } = await supabase
+            .from('reports')
+            .select('content_id')
+            .eq('reporter_id', userId);
+        const reportedContentIds = reportedData?.map(r => r.content_id) || [];
+
+        // 3. Fetch memories with filters
+        let query = supabase
             .from('memories')
             .select(`
                 *,
                 user:user_id(name, avatar_url)
             `)
             .eq('group_id', groupId)
+            .eq('is_hidden', false) // Community-hidden content
             .order('memory_date', { ascending: false });
+
+        if (blockedUserIds.length > 0) {
+            query = query.not('user_id', 'in', `(${blockedUserIds.join(',')})`);
+        }
+        
+        if (reportedContentIds.length > 0) {
+            query = query.not('id', 'in', `(${reportedContentIds.join(',')})`);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
 

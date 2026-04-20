@@ -13,6 +13,7 @@ import memoriesRoutes from './routes/memories';
 import legalRoutes from './routes/legal';
 import wellKnownRoutes from './routes/well-known';
 import deepLinksRoutes from './routes/deepLinks';
+import moderationRoutes from './routes/moderation';
 import { supabase } from './lib/supabase';
 
 const app = express();
@@ -49,6 +50,7 @@ app.use('/memories', memoriesRoutes);
 app.use('/.well-known', wellKnownRoutes);
 app.use('/', deepLinksRoutes);
 app.use('/', legalRoutes);
+app.use('/moderation', moderationRoutes);
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', message: 'Mandali API is running' });
