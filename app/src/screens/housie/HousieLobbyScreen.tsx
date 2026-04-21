@@ -345,7 +345,7 @@ const HousieLobbyScreen = () => {
 
             {/* Back Button */}
             <TouchableOpacity
-                onPress={() => navigation.goBack()}
+                onPress={() => navigation.navigate('HousieSelectGroup')}
                 className={`absolute left-8 items-center justify-center bg-white rounded-full shadow-md z-10 border border-stone-50 ${isTablet ? 'top-20 w-16 h-16' : 'top-16 w-12 h-12'}`}
             >
                 <MaterialIcons name="arrow-back" size={isTablet ? 36 : 28} color="#31302d" />

@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -10,6 +10,7 @@ import { fetchGroups } from '../../lib/api';
 import { Image } from 'expo-image';
 import { useAuthStore } from '../../stores/authStore';
 import { LinearGradient } from 'expo-linear-gradient';
+import MandaliCoin from '../../components/MandaliCoin';
 
 const GroupListScreen = () => {
     const navigation = useNavigation<any>();
@@ -36,6 +37,22 @@ const GroupListScreen = () => {
                         Mandali
                     </Text>
                 </View>
+
+                {/* Small Header Indicator */}
+                {!isLoading && groups.length > 0 && (
+                    <TouchableOpacity
+                        onPress={() => Alert.alert(
+                            "Mandali Glory",
+                            "This represents your total social points won across all groups. These points are virtual and have no cash value."
+                        )}
+                        className="flex-row items-center bg-white/80 border border-stone-100 rounded-full px-3 py-1.5 shadow-sm"
+                    >
+                        <Text className="font-headline-bold text-[#f59e0b] mr-1.5 text-[14px]">
+                            {groups.reduce((acc: number, g: any) => acc + (g.totalWinnings || 0), 0).toLocaleString()}
+                        </Text>
+                        <MandaliCoin size={16} />
+                    </TouchableOpacity>
+                )}
             </View>
 
             <ScrollView
@@ -81,6 +98,35 @@ const GroupListScreen = () => {
                         }}
                     />
                 </View>
+
+                {/* Total Glory Summary Card */}
+                {!isLoading && groups.length > 0 && (
+                    <View 
+                        className={`bg-[#1c1c18] rounded-[40px] shadow-lg shadow-black/20 mb-10 overflow-hidden ${isTablet ? 'p-12 mx-10' : 'p-6 mx-2'}`}
+                        style={{ elevation: 10 }}
+                    >
+                        <LinearGradient
+                            colors={['rgba(255,255,255,0.05)', 'transparent']}
+                            className="absolute inset-0"
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                        />
+                        <View className="flex-row items-center justify-between">
+                            <View>
+                                <Text className={`text-stone-400 font-body-bold uppercase tracking-widest ${isTablet ? 'text-2xl mb-4' : 'text-[10px] mb-1'}`}>Total Mandali Glory</Text>
+                                <View className="flex-row items-center">
+                                    <Text className={`text-[#f59e0b] font-headline-bold ${isTablet ? 'text-7xl' : 'text-3xl'}`}>
+                                        {groups.reduce((acc: number, g: any) => acc + (g.totalWinnings || 0), 0).toLocaleString()}
+                                    </Text>
+                                    <MandaliCoin size={isTablet ? 48 : 24} style={{ marginLeft: 12 }} />
+                                </View>
+                            </View>
+                            <View className={`bg-white/10 rounded-[28px] items-center justify-center ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}>
+                                <MaterialIcons name="emoji-events" size={isTablet ? 48 : 24} color="#f59e0b" />
+                            </View>
+                        </View>
+                    </View>
+                )}
 
                 {/* Loading state */}
                 {isLoading && groups.length === 0 && (
@@ -138,6 +184,14 @@ const GroupListScreen = () => {
                                         {group.is_admin ? 'Admin • ' : ''}{group.memberCount || 0} Members
                                     </Text>
                                 </View>
+                                {group.totalWinnings > 0 && (
+                                    <View className="flex-row items-center mt-2 bg-stone-50 self-start px-3 py-1 rounded-full border border-stone-100">
+                                        <Text className={`font-headline-bold text-[#f59e0b] ${isTablet ? 'text-2xl' : 'text-[12px]'}`}>
+                                            {group.totalWinnings.toLocaleString()} Won
+                                        </Text>
+                                        <MandaliCoin size={isTablet ? 20 : 12} style={{ marginLeft: 6 }} />
+                                    </View>
+                                )}
                             </View>
 
                             {/* Navigation Icon */}

@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import MandaliCoin from '../../components/MandaliCoin';
 import { API_URL, getAuthHeaders } from '../../lib/api';
 import axios from 'axios';
+import { useAuthStore } from '../../stores/authStore';
 
 type Period = 'all_time' | 'this_month' | 'this_year';
 
@@ -33,6 +34,7 @@ const HousieLeaderboardScreen = () => {
     const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
     const { groupId, groupName } = (route.params as any) || {};
+    const { user } = useAuthStore();
     const [activePeriod, setActivePeriod] = useState<Period>('all_time');
 
     const { data, isLoading, isError } = useQuery({
@@ -153,10 +155,10 @@ const HousieLeaderboardScreen = () => {
                             return (
                                 <View
                                     key={player.userId}
-                                    className={`flex-row items-center rounded-[32px] border ${isTablet ? 'p-8' : 'p-4'}`}
+                                    className={`flex-row items-center rounded-[32px] border ${isTablet ? 'p-8' : 'p-4'} ${player.userId === user?.id ? 'border-[#b30069] bg-[#fdf0f7]' : ''}`}
                                     style={isTop3
-                                        ? { backgroundColor: topStyle!.bg, borderColor: topStyle!.border, elevation: 2 }
-                                        : { backgroundColor: '#ffffff', borderColor: '#f1ede8' }
+                                        ? { backgroundColor: player.userId === user?.id ? '#fdf0f7' : topStyle!.bg, borderColor: player.userId === user?.id ? '#b30069' : topStyle!.border, elevation: player.userId === user?.id ? 4 : 2 }
+                                        : { backgroundColor: player.userId === user?.id ? '#fdf0f7' : '#ffffff', borderColor: player.userId === user?.id ? '#b30069' : '#f1ede8', elevation: player.userId === user?.id ? 4 : 0 }
                                     }
                                 >
                                     {/* Rank */}

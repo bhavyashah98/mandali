@@ -135,9 +135,10 @@ const HousieSelectGroupScreen = () => {
                     {item.totalWinnings > 0 && (
                         <View className="flex-row items-center mt-1">
                             <Text className={`font-headline-bold text-[#d97706] ${isTablet ? 'text-2xl' : 'text-[14px]'}`}>
-                                {item.totalWinnings.toLocaleString()} Won
+                                {item.totalWinnings.toLocaleString()}
                             </Text>
-                            <MandaliCoin size={isTablet ? 24 : 14} style={{ marginLeft: 6 }} />
+                            <MandaliCoin size={isTablet ? 24 : 14} style={{ marginLeft: 4 }} />
+                            <Text className={`font-body-bold text-[#d97706] ${isTablet ? 'text-2xl' : 'text-[14px]'}`} style={{ marginLeft: 4 }}>Won</Text>
                         </View>
                     )}
                 </View>
@@ -153,7 +154,7 @@ const HousieSelectGroupScreen = () => {
             <View className="px-6 py-4 flex-row items-center">
                 {/* Back Button */}
                 <TouchableOpacity
-                    onPress={() => navigation.goBack()}
+                    onPress={() => navigation.navigate('Groups')}
                     className={`items-center justify-center bg-white rounded-full shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                 >
                     <MaterialIcons name="arrow-back" size={isTablet ? 32 : 24} color="#31302d" />
