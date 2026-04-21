@@ -8,6 +8,7 @@ import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import MandaliCoin from '../../components/MandaliCoin';
 import { fetchHousieGame, API_URL, fetchGroupDetail } from '../../lib/api';
 import { getSocket } from '../../lib/socketService';
 
@@ -182,14 +183,14 @@ const HousieSpectatorScreen = () => {
 
                 {/* Prize Status Dashboard */}
                 <Text className={`text-stone-400 font-body-bold text-center uppercase tracking-[4px] mb-8 ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>
-                    PRIZE LEADERBOARD
+                    REWARDS LEADERBOARD
                 </Text>
 
                 {prizes.length === 0 ? (
                     <View className="bg-white rounded-[40px] p-20 items-center justify-center border border-stone-100">
                         <Ionicons name="sparkles" size={isTablet ? 60 : 40} color="#e7d5cc" />
                         <Text className={`text-stone-300 font-body-bold text-center mt-6 ${isTablet ? 'text-2xl' : 'text-sm'}`}>
-                            Prizes will update here live as players win
+                            Rewards will update here live as players win
                         </Text>
                     </View>
                 ) : (
@@ -231,9 +232,12 @@ const HousieSpectatorScreen = () => {
                                         )}
                                     </View>
 
-                                    <Text className={`font-headline-bold ${isClaimed ? 'text-stone-400' : 'text-[#b30069]'} ${isTablet ? 'text-4xl' : 'text-lg'}`}>
-                                        ₹{winners.length > 1 ? (prize.amount / winners.length).toFixed(0) : prize.amount}
-                                    </Text>
+                                    <View className="flex-row items-center">
+                                        <Text className={`font-headline-bold ${isClaimed ? 'text-stone-400' : 'text-[#b30069]'} ${isTablet ? 'text-4xl' : 'text-lg'}`}>
+                                            {winners.length > 1 ? (prize.amount / winners.length).toFixed(0) : prize.amount}
+                                        </Text>
+                                        <MandaliCoin size={isTablet ? 32 : 14} style={{ marginLeft: 6 }} />
+                                    </View>
                                 </View>
                             );
                         })}

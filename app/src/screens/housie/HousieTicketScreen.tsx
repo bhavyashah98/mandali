@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '../../stores/authStore';
+import MandaliCoin from '../../components/MandaliCoin';
 import { fetchHousieGame, joinHousieGame, fetchHousieTickets, API_URL } from '../../lib/api';
 import { getSocket } from '../../lib/socketService';
 
@@ -246,7 +247,7 @@ const HousieTicketScreen = () => {
                     >
                         <FontAwesome5 name="trophy" size={isTablet ? 18 : 12} color={isBoggy ? '#a8a29e' : '#b30069'} />
                         <Text className={`font-headline-bold ml-3 uppercase tracking-tight ${isBoggy ? 'text-stone-400' : 'text-primary'} ${isTablet ? 'text-xl' : 'text-[11px]'}`}>
-                            {isBoggy ? 'Disqualified' : 'Claim Prize'}
+                            {isBoggy ? 'Disqualified' : 'Claim Reward'}
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -330,7 +331,7 @@ const HousieTicketScreen = () => {
                 )}
                 ListFooterComponent={() => (
                     <View className={`mt-8 pt-12 border-t border-stone-100 ${isTablet ? 'px-12' : ''}`}>
-                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[4px] mb-8 text-center ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Prize Pool Tracker</Text>
+                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[4px] mb-8 text-center ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Reward Pool Tracker</Text>
                         <View className="gap-3">
                             {(game?.prizes || []).map((prize: any) => {
                                 const winnerList = game?.winners?.[prize.id];
@@ -358,7 +359,10 @@ const HousieTicketScreen = () => {
                                                 </Text>
                                             )}
                                         </View>
-                                        <Text className={`font-headline-bold ${isGlobalClosed ? 'text-stone-400' : 'text-[#b30069]'} ${isTablet ? 'text-4xl' : 'text-lg'}`}>₹{individualAmount}</Text>
+                                        <View className="flex-row items-center">
+                                            <Text className={`font-headline-bold ${isGlobalClosed ? 'text-stone-400' : 'text-[#b30069]'} ${isTablet ? 'text-4xl' : 'text-lg'}`}>{individualAmount}</Text>
+                                            <MandaliCoin size={isTablet ? 32 : 14} style={{ marginLeft: 6 }} />
+                                        </View>
                                     </View>
                                 );
                             })}
@@ -373,7 +377,7 @@ const HousieTicketScreen = () => {
                     <View className={`bg-[#FDF9F3] rounded-[40px] shadow-2xl border border-white/20 max-h-[100%] ${isTablet ? 'p-12' : 'p-6'}`}>
                         <ScrollView showsVerticalScrollIndicator={false}>
                             <View className="flex-row items-center justify-between mb-8">
-                                <Text className={`font-headline-bold text-[#594048] ${isTablet ? 'text-5xl' : 'text-2xl'}`}>Claim Prize</Text>
+                                <Text className={`font-headline-bold text-[#594048] ${isTablet ? 'text-5xl' : 'text-2xl'}`}>Claim Reward</Text>
                                 <TouchableOpacity 
                                     onPress={() => setPrizesModalVisible(false)}
                                     className={`items-center justify-center rounded-full bg-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
@@ -460,9 +464,13 @@ const HousieTicketScreen = () => {
                                             </View>
                                             <View className="flex-1">
                                                 <Text className={`text-[#31302d] font-headline-bold ${isTablet ? 'text-3xl' : 'text-base'}`}>{prize.name}</Text>
-                                                <Text className={`text-stone-400 font-body-medium mt-1 ${isTablet ? 'text-lg' : 'text-xs'}`}>
-                                                    {winners.length > 1 && !isLimitReached ? `Split: ₹${(prize.amount / winners.length).toFixed(0)}` : `Value: ₹${prize.amount}`}
-                                                </Text>
+                                                <View className="flex-row items-center mt-1">
+                                                    <Text className={`text-stone-400 font-body-medium ${isTablet ? 'text-lg' : 'text-xs'}`}>
+                                                        {winners.length > 1 && !isLimitReached ? 'Split: ' : 'Value: '}
+                                                        {winners.length > 1 && !isLimitReached ? (prize.amount / winners.length).toFixed(0) : prize.amount}
+                                                    </Text>
+                                                    <MandaliCoin size={isTablet ? 18 : 12} style={{ marginLeft: 4 }} />
+                                                </View>
                                             </View>
                                             <View style={{ height: isTablet ? 60 : 40, minWidth: isTablet ? 140 : 80 }} className={`px-6 items-center justify-center rounded-full ${bgColor}`}>
                                                 <Text className={`font-headline-bold uppercase tracking-tight ${statusColor} ${isTablet ? 'text-xl' : 'text-[11px]'}`}>{status}</Text>

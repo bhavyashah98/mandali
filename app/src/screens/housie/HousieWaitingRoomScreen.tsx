@@ -9,6 +9,7 @@ import { fetchHousieGame, joinHousieGame, API_URL, getAuthHeaders, updateHousieS
 import { useAuthStore } from '../../stores/authStore';
 import { getSocket } from '../../lib/socketService';
 import axios from 'axios';
+import MandaliCoin from '../../components/MandaliCoin';
 
 const HousieWaitingRoomScreen = () => {
     const { width } = useWindowDimensions();
@@ -93,7 +94,7 @@ const HousieWaitingRoomScreen = () => {
             setIsBuying(true);
             const response = await joinHousieGame(gameCode!, buyCount);
             if (response.success) {
-                Alert.alert('🎟️ Tickets Bought!', `You now have ${buyCount} ticket${buyCount > 1 ? 's' : ''}!`);
+                Alert.alert('🎟️ Tickets Received!', `You now have ${buyCount} ticket${buyCount > 1 ? 's' : ''}!`);
                 queryClient.invalidateQueries({ queryKey: ['housieParticipants', gameCode] });
                 queryClient.invalidateQueries({ queryKey: ['housieTickets', gameCode] });
                 setBuyCount(1);
@@ -126,8 +127,9 @@ const HousieWaitingRoomScreen = () => {
                 <Text className={`font-headline-bold text-[#594048] ${isTablet ? 'text-3xl' : 'text-base'}`}>{item.name}</Text>
                 <Text className={`text-stone-400 font-body-medium ${isTablet ? 'text-xl mt-1' : 'text-xs'}`}>{item.ticketCount} Tickets Bought</Text>
             </View>
-            <View className={`bg-primary/5 rounded-full ${isTablet ? 'px-6 py-3' : 'px-3 py-1.5'}`}>
-                <Text className={`text-primary font-headline-bold ${isTablet ? 'text-2xl' : 'text-sm'}`}>₹{item.ticketCount * (stats?.ticketPrice || 0)}</Text>
+            <View className={`bg-[#f59e0b]/10 rounded-full flex-row items-center ${isTablet ? 'px-6 py-3' : 'px-3 py-1.5'}`}>
+                <Text className={`text-[#d97706] font-headline-bold ${isTablet ? 'text-2xl' : 'text-sm'}`}>{item.ticketCount * (stats?.ticketPrice || 0)} </Text>
+                <MandaliCoin size={isTablet ? 24 : 14} />
             </View>
         </View>
     );
@@ -177,10 +179,11 @@ const HousieWaitingRoomScreen = () => {
             </View>
 
             <FlatList
+                className="flex-1"
                 data={stats?.participants || []}
                 renderItem={renderParticipant}
                 keyExtractor={(item) => item.id}
-                contentContainerStyle={{ paddingHorizontal: isTablet ? 64 : 24, paddingTop: isTablet ? 32 : 12, paddingBottom: isTablet ? 250 : 180 }}
+                contentContainerStyle={{ paddingHorizontal: isTablet ? 64 : 24, paddingTop: isTablet ? 32 : 12, paddingBottom: 40 }}
                 ListHeaderComponent={
                     <View>
                         {/* Game Code Card - Optimized size for tablet */}
@@ -192,21 +195,25 @@ const HousieWaitingRoomScreen = () => {
                                 adjustsFontSizeToFit
                                 numberOfLines={1}
                             >{gameCode}</Text>
-                            <View className={`flex-row items-center bg-white/20 rounded-full ${isTablet ? 'mt-8 px-8 py-4' : 'mt-6 px-6 py-3'}`}>
-                                <FontAwesome5 name="ticket-alt" size={isTablet ? 24 : 16} color="white" />
-                                <Text className={`text-white font-headline-bold ml-4 ${isTablet ? 'text-2xl' : 'text-lg'}`}>₹{stats?.ticketPrice} / Ticket</Text>
+                            <View className={`flex-row items-center bg-white/20 rounded-full ${isTablet ? 'mt-8 px-6 py-3' : 'mt-5 px-4 py-2'}`}>
+                                <Text className={`text-white font-headline-bold mr-1 ${isTablet ? 'text-xl' : 'text-base'}`}>{stats?.ticketPrice}</Text>
+                                <MandaliCoin size={isTablet ? 22 : 16} />
+                                <Text className={`text-white font-headline-bold ml-2 ${isTablet ? 'text-xl' : 'text-base'}`}>/ Ticket</Text>
                             </View>
                         </View>
 
                         {/* Prize Pool Display */}
-                        <View className={`bg-white rounded-[40px] border border-stone-100 items-center shadow-sm ${isTablet ? 'p-16' : 'p-6'}`}>
-                            <Text className={`text-stone-400 font-body-bold uppercase tracking-[2px] mb-2 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Total Prize Pool</Text>
-                            <Text
-                                className={`font-headline-bold text-[#594048] ${isTablet ? 'text-8xl' : 'text-5xl'}`}
-                                numberOfLines={1}
-                                adjustsFontSizeToFit
-                                minimumFontScale={0.6}
-                            >₹{stats?.totalPrizePool || 0}</Text>
+                        <View className={`bg-white rounded-[40px] border border-stone-100 items-center shadow-sm ${isTablet ? 'p-12' : 'p-6'}`}>
+                            <Text className={`text-stone-400 font-body-bold uppercase tracking-[2px] mb-1 ${isTablet ? 'text-lg' : 'text-[9px]'}`}>Total Rewards Pool</Text>
+                            <View className="flex-row items-center text-center justify-center">
+                                <Text
+                                    className={`font-headline-bold text-[#594048] items-center text-center ${isTablet ? 'text-6xl' : 'text-4xl'}`}
+                                    numberOfLines={1}
+                                    adjustsFontSizeToFit
+                                    minimumFontScale={0.6}
+                                >{stats?.totalPrizePool || 0}</Text>
+                                <MandaliCoin size={isTablet ? 48 : 32} style={{ marginLeft: 8 }} />
+                            </View>
                             <View className={`w-full bg-stone-100 ${isTablet ? 'my-10 h-[2px]' : 'my-6 h-[1px]'}`} />
                             <View className={`flex-row justify-between w-full ${isTablet ? 'px-16' : 'px-4'}`}>
                                 <View className="items-center">
@@ -232,8 +239,8 @@ const HousieWaitingRoomScreen = () => {
                 showsVerticalScrollIndicator={false}
             />
 
-            {/* Action Footer */}
-            <View className={`absolute bottom-0 left-0 right-0 bg-[#fdf9f3]/95 border-t border-stone-100 ${isTablet ? 'p-16' : 'p-8'}`}>
+            {/* Action Footer - Fixed layout, no longer absolute to avoid cropping */}
+            <View className={`bg-[#fdf9f3] border-t border-stone-100 ${isTablet ? 'p-16' : 'p-8'}`}>
                 {isHost ? (
                     <TouchableOpacity
                         onPress={handleStartGame}
@@ -271,12 +278,12 @@ const HousieWaitingRoomScreen = () => {
                             className={`flex-1 rounded-[40px] flex-row items-center justify-center shadow-2xl shadow-primary/30 ${isTablet ? 'h-28' : 'h-20'} ${isBuying ? 'bg-primary/50' : 'bg-primary'}`}
                         >
                             {isBuying ? <ActivityIndicator color="white" size={isTablet ? 'large' : 'small'} /> : (
-                                <Text 
-                                    numberOfLines={1} 
-                                    adjustsFontSizeToFit 
+                                <Text
+                                    numberOfLines={1}
+                                    adjustsFontSizeToFit
                                     className={`text-white font-headline-bold ${isTablet ? 'text-4xl' : 'text-2xl'}`}
                                 >
-                                    Buy Tickets
+                                    Get Tickets
                                 </Text>
                             )}
                         </TouchableOpacity>

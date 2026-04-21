@@ -103,20 +103,29 @@ router.get('/', async (req: AuthRequest, res) => {
             return res.status(500).json({ error: 'Failed to fetch groups' });
         }
 
-        // For each group, get member count
+        // For each group, get member count and USER winnings
         const groupsWithMeta = await Promise.all(
             groups.map(async (group: any) => {
-                const { count } = await supabase
-                    .from('group_members')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('group_id', group.id);
+                const [memberCountRes, winningsRes] = await Promise.all([
+                    supabase
+                        .from('group_members')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('group_id', group.id),
+                    supabase
+                        .from('game_results')
+                        .select('prize_amount')
+                        .eq('group_id', group.id)
+                        .eq('user_id', userId)
+                ]);
 
+                const totalWinnings = (winningsRes.data || []).reduce((acc: number, curr: any) => acc + (curr.prize_amount || 0), 0);
                 const membership = memberships.find((m: any) => m.group_id === group.id);
 
                 return {
                     ...group,
-                    memberCount: count || 0,
+                    memberCount: memberCountRes.count || 0,
                     myRole: membership?.role || 'member',
+                    totalWinnings,
                 };
             })
         );

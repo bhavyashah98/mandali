@@ -8,6 +8,5 @@ import { useWindowDimensions } from 'react-native';
  */
 export const useIsTablet = (): boolean => {
     const { width } = useWindowDimensions();
-    console.log("width", width);
     return width >= 768;
 };

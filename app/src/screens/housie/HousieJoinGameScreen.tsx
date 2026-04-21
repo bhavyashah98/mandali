@@ -1,4 +1,5 @@
 import * as React from 'react';
+import MandaliCoin from '../../components/MandaliCoin';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { useState } from 'react';
 import { 
@@ -121,7 +122,7 @@ const HousieJoinGameScreen = () => {
                         <Text 
                             className="text-[#a09d96] font-body-medium"
                             style={{ fontSize: isTablet ? 26 : 18, marginBottom: isTablet ? 60 : 40 }}
-                        >Enter the code to grab your tickets and start playing.</Text>
+                        >Enter the code to grab your tickets. Points represent Mandali Glory and have no cash value.</Text>
 
                         <View className={isTablet ? 'gap-12' : 'gap-8'}>
                             <View>
@@ -164,10 +165,13 @@ const HousieJoinGameScreen = () => {
                                         <MaterialIcons name="add" size={isTablet ? 32 : 24} color="#b30069" />
                                     </TouchableOpacity>
                                 </View>
+                            <View className="flex-row items-center mt-4 ml-2">
                                 <Text 
-                                    className="text-stone-400 font-body-medium mt-4 ml-2"
+                                    className="text-stone-400 font-body-medium"
                                     style={{ fontSize: isTablet ? 20 : 13 }}
-                                >Each ticket costs ₹{ticketPrice}</Text>
+                                >Each ticket costs {ticketPrice} </Text>
+                                <MandaliCoin size={isTablet ? 20 : 13} />
+                            </View>
                             </View>
                         </View>
 
@@ -186,7 +190,7 @@ const HousieJoinGameScreen = () => {
                                         className="text-white font-headline-bold ml-4"
                                         style={{ fontSize: isTablet ? 32 : 22 }}
                                     >
-                                        Buy {ticketCount} Tickets • ₹{parseInt(ticketCount) * ticketPrice}
+                                        Get {ticketCount} Tickets • {parseInt(ticketCount) * ticketPrice} <MandaliCoin size={isTablet ? 32 : 22} />
                                     </Text>
                                 </>
                             )}

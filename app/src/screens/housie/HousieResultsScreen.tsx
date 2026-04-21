@@ -7,6 +7,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { API_URL, getAuthHeaders } from '../../lib/api';
 import axios from 'axios';
 import { useWindowDimensions } from 'react-native';
+import MandaliCoin from '../../components/MandaliCoin';
 
 const HousieResultsScreen = () => {
     const { width } = useWindowDimensions();
@@ -142,13 +143,16 @@ const HousieResultsScreen = () => {
 
                             {/* Amount */}
                             <View className="items-end ml-2">
-                                <Text 
-                                    className={`text-[#b30069] font-headline-bold ${isTablet ? 'text-5xl' : 'text-base'}`}
-                                    numberOfLines={1}
-                                >
-                                    ₹{player.totalWon}
-                                </Text>
-                                <Text className="text-stone-300 font-body-medium" style={{ fontSize: isTablet ? 18 : 9 }}>won</Text>
+                                <View className="flex-row items-center">
+                                    <Text 
+                                        className={`text-[#b30069] font-headline-bold ${isTablet ? 'text-5xl' : 'text-base'}`}
+                                        numberOfLines={1}
+                                    >
+                                        {player.totalWon}
+                                    </Text>
+                                    <MandaliCoin size={isTablet ? 32 : 14} style={{ marginLeft: 6 }} />
+                                </View>
+                                <Text className="text-stone-300 font-body-medium" style={{ fontSize: isTablet ? 18 : 9 }}>collected</Text>
                             </View>
                         </View>
                     ))

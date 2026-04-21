@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../stores/authStore';
 import { fetchHousieGame, updateHousieStatus, fetchTicketById, fetchGroupDetail, API_URL } from '../../lib/api';
+import MandaliCoin from '../../components/MandaliCoin';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import io from 'socket.io-client';
@@ -363,7 +364,7 @@ const HousieGameScreen = () => {
 
                 {/* 3. BOUNTIES - Updated for Prize Splitting */}
                 <View className="mt-12 px-2">
-                    <Text className={`text-[#594048] font-headline-bold mb-6 ${isTablet ? 'text-4xl' : 'text-xl'}`}>Bounties</Text>
+                    <Text className={`text-[#594048] font-headline-bold mb-6 ${isTablet ? 'text-4xl' : 'text-xl'}`}>Rewards</Text>
                     <View className="gap-4 pb-10">
                         {prizesArr.map((prize: any, idx: number) => (
                             <View key={idx} className={`bg-white rounded-[24px] border border-stone-100 shadow-sm mb-1 ${isTablet ? 'p-8' : 'p-4'}`}>
@@ -380,12 +381,12 @@ const HousieGameScreen = () => {
                                                 minimumFontScale={0.75}
                                                 className={`text-[#594048] font-headline-bold ${isTablet ? 'text-3xl' : 'text-[15px]'}`}
                                             >{prize.name}</Text>
-                                            <Text
-                                                numberOfLines={1}
-                                                className={`text-[#b30069] font-body-bold ${isTablet ? 'text-xl mt-1' : 'text-[11px]'}`}
-                                            >
-                                                {prize.winners?.length > 1 ? `Split: ₹${prize.individualAmount} each` : `₹${prize.amount}`}
-                                            </Text>
+                                            <View className={`flex-row items-center ${isTablet ? 'mt-1' : ''}`}>
+                                                <Text className={`text-[#b30069] font-body-bold ${isTablet ? 'text-xl' : 'text-[11px]'}`}>
+                                                    {prize.winners?.length > 1 ? `Split: ${prize.individualAmount} each ` : `${prize.amount} `}
+                                                </Text>
+                                                <MandaliCoin size={isTablet ? 20 : 12} />
+                                            </View>
                                         </View>
                                     </View>
                                     {/* Right: status badge — fixed max width so it never expands */}
@@ -430,7 +431,7 @@ const HousieGameScreen = () => {
                                        >{prize.name}</Text>
                                     </View>
                                     <View className={`bg-green-100 rounded-md flex-shrink-0 ${isTablet ? 'px-4 py-2' : 'px-2 py-0.5'}`}>
-                                        <Text className={`text-green-700 font-body-bold ${isTablet ? 'text-xl' : 'text-[10px]'}`}>{prize.winners.length} won</Text>
+                                        <Text className={`text-green-700 font-body-bold ${isTablet ? 'text-xl' : 'text-[10px]'}`}>{prize.winners.length} collected</Text>
                                     </View>
                                 </View>
                                 <Text
@@ -535,7 +536,7 @@ const HousieGameScreen = () => {
                                     onPress={() => handleVerifyClaim('accepted')} 
                                     className={`flex-[1.5] rounded-[32px] bg-[#b30069] items-center justify-center shadow-lg shadow-[#b30069]/30 ${isTablet ? 'h-28' : 'h-14'}`}
                                 >
-                                    <Text className={`text-white font-headline-bold ${isTablet ? 'text-4xl' : 'text-lg'}`}>Approve Win</Text>
+                                    <Text className={`text-white font-headline-bold ${isTablet ? 'text-4xl' : 'text-lg'}`}>Approve Reward</Text>
                                 </TouchableOpacity>
                             </View>
                         </ScrollView>

@@ -215,7 +215,7 @@ const HousieLobbyScreen = () => {
                     </Text>
 
                     <Text className={`text-stone-400 text-center font-body-medium leading-6 mb-12 ${isTablet ? 'text-2xl px-10' : 'text-lg'}`}>
-                        Grab your tickets and get ready for a night of numbers, laughter, and high-stakes excitement.
+                        Grab your tickets and get ready for a night of numbers, laughter, and high-reward excitement.
                     </Text>
 
                     {/* Action Buttons */}

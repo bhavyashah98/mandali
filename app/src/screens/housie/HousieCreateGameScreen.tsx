@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import MandaliCoin from '../../components/MandaliCoin';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import {
     View,
@@ -130,7 +131,7 @@ const HousieCreateGameScreen = () => {
                                         className="text-stone-500 font-body-medium leading-relaxed text-center"
                                         style={{ fontSize: isTablet ? 28 : 16, marginBottom: isTablet ? 60 : 32 }}
                                     >
-                                        Choose a ticket price to define the prize pool for your Mandali.
+                                        Choose a ticket value to define the reward pool for your Mandali.
                                     </Text>
                                 </View>
 
@@ -140,12 +141,11 @@ const HousieCreateGameScreen = () => {
                                     style={{ padding: cardPadding, marginBottom: isTablet ? 60 : (isSmall ? 12 : 20) }}
                                 >
                                     <Text className={`text-stone-300 font-body-bold uppercase tracking-[3px] mb-6 ${isTablet ? 'text-xl' : 'text-xs'}`}>
-                                        Ticket Value (₹)
+                                        Ticket Value (Coins)
                                     </Text>
 
                                     {/* Price input row */}
                                     <View className="flex-row items-center justify-center">
-                                        <Text style={{ fontSize: priceFontSize * 0.55, color: '#b30069' }} className="font-headline-bold mr-1">₹</Text>
                                         <TextInput
                                             value={ticketPrice}
                                             onChangeText={(val) => setTicketPrice(val.replace(/[^0-9]/g, ''))}
@@ -159,12 +159,12 @@ const HousieCreateGameScreen = () => {
                                                 textAlign: 'center',
                                                 padding: 0,
                                                 margin: 0,
-                                                minWidth: 100,
-                                                maxWidth: 220,
+                                                minWidth: 40,
                                                 includeFontPadding: false,
                                                 height: priceFontSize * 1.25,
                                             }}
                                         />
+                                        <MandaliCoin size={priceFontSize * 0.6} style={{ marginLeft: 8 }} />
                                     </View>
 
                                     {/* Preset pills */}
@@ -182,12 +182,15 @@ const HousieCreateGameScreen = () => {
                                                     : 'bg-transparent border-stone-200'
                                                     }`}
                                             >
-                                                <Text
-                                                    style={{ fontSize: isTablet ? 24 : (isSmall ? 11 : 13) }}
-                                                    className={`font-body-bold ${ticketPrice === p ? 'text-white' : 'text-stone-400'}`}
-                                                >
-                                                    ₹{p}
-                                                </Text>
+                                                <View className="flex-row items-center">
+                                                    <Text
+                                                        style={{ fontSize: isTablet ? 24 : (isSmall ? 11 : 13) }}
+                                                        className={`font-body-bold ${ticketPrice === p ? 'text-white' : 'text-stone-400'}`}
+                                                    >
+                                                        {p}
+                                                    </Text>
+                                                    <MandaliCoin size={isTablet ? 20 : 12} style={{ marginLeft: 4 }} />
+                                                </View>
                                             </TouchableOpacity>
                                         ))}
                                     </View>
@@ -202,7 +205,7 @@ const HousieCreateGameScreen = () => {
                                         className="text-primary/70 font-body-medium ml-4 flex-1"
                                         style={{ fontSize: isTablet ? 24 : 14, lineHeight: isTablet ? 36 : 20 }}
                                     >
-                                        All ticket sales go into the prize pool, split across bounties you define next.
+                                        Mandali Glory points have no cash value. All ticket collections go into the reward pool, split across milestones you define next.
                                     </Text>
                                 </View>
 

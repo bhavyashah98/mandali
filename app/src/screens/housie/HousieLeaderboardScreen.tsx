@@ -8,6 +8,7 @@ import { SafeAreaView as SafeAreaViewContext } from 'react-native-safe-area-cont
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
+import MandaliCoin from '../../components/MandaliCoin';
 import { API_URL, getAuthHeaders } from '../../lib/api';
 import axios from 'axios';
 
@@ -213,26 +214,29 @@ const HousieLeaderboardScreen = () => {
                                             style={{ fontSize: isTablet ? 20 : 11 }}
                                             numberOfLines={1}
                                         >
-                                            {player.winCount} prize{player.winCount !== 1 ? 's' : ''} · {player.gamesPlayed} game{player.gamesPlayed !== 1 ? 's' : ''}
+                                            {player.winCount} reward{player.winCount !== 1 ? 's' : ''} · {player.gamesPlayed} game{player.gamesPlayed !== 1 ? 's' : ''}
                                         </Text>
                                     </View>
 
                                     {/* Prize */}
                                     <View className="items-end ml-2">
-                                        <Text
-                                            className="font-headline-bold"
-                                            style={{ 
-                                                fontSize: isTablet ? 42 : 16,
-                                                color: isTop3 ? '#b30069' : '#594048' 
-                                            }}
-                                            numberOfLines={1}
-                                        >
-                                            ₹{player.totalWon.toLocaleString()}
-                                        </Text>
+                                        <View className="flex-row items-center">
+                                            <Text
+                                                className="font-headline-bold"
+                                                style={{ 
+                                                    fontSize: isTablet ? 42 : 16,
+                                                    color: isTop3 ? '#b30069' : '#594048' 
+                                                }}
+                                                numberOfLines={1}
+                                            >
+                                                {player.totalWon.toLocaleString()}
+                                            </Text>
+                                            <MandaliCoin size={isTablet ? 32 : 14} style={{ marginLeft: 6 }} />
+                                        </View>
                                         <Text 
                                             className="text-stone-300 font-body-medium"
                                             style={{ fontSize: isTablet ? 18 : 9 }}
-                                        >total won</Text>
+                                        >total collected</Text>
                                     </View>
                                 </View>
                             );

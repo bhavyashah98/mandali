@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import MandaliCoin from '../../components/MandaliCoin';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import {
     View,
@@ -105,7 +106,7 @@ const HousieDefineBountyScreen = () => {
 
     const handleStartGame = async () => {
         if (!isPoolBalanced) {
-            Alert.alert('Pool Mismatch', `Target: ₹${totalPrizePool}\nAllocated: ₹${totalAllocated}\n\nPlease balance the prizes.`);
+            Alert.alert('Pool Mismatch', `Target: 🪙${totalPrizePool}\nAllocated: 🪙${totalAllocated}\n\nPlease balance the rewards.`);
             return;
         }
 
@@ -145,8 +146,9 @@ const HousieDefineBountyScreen = () => {
                                 adjustsFontSizeToFit
                                 minimumFontScale={0.7}
                             >
-                                Define Bounties
+                                Define Rewards
                             </Text>
+                            <Text className={`text-stone-400 font-body-bold tracking-[3px] uppercase mt-1 ${isTablet ? 'text-lg' : 'text-[8px]'}`}>Mandali Glory System</Text>
                         </View>
                         <View style={{ width: isTablet ? 64 : 44 }} />
                     </View>
@@ -161,15 +163,18 @@ const HousieDefineBountyScreen = () => {
                                         className={`text-stone-400 font-body-bold uppercase ${isTablet ? 'text-2xl mb-4' : 'text-[9px] mb-1'}`}
                                         style={{ letterSpacing: isTablet ? 2 : 0.5 }}
                                         numberOfLines={1}
-                                    >Available Prize Pool</Text>
-                                    <Text
-                                        className={`font-headline-bold ${isTablet ? 'text-7xl' : 'text-3xl'} ${totalAllocated > totalPrizePool ? 'text-orange-600' : 'text-[#b30069]'}`}
-                                        numberOfLines={1}
-                                        adjustsFontSizeToFit
-                                        minimumFontScale={0.6}
-                                    >
-                                        ₹{totalPrizePool.toLocaleString()}
-                                    </Text>
+                                    >Available Points Pool</Text>
+                                    <View className="flex-row items-center">
+                                        <Text
+                                            className={`font-headline-bold ${isTablet ? 'text-7xl' : 'text-3xl'} ${totalAllocated > totalPrizePool ? 'text-orange-600' : 'text-[#b30069]'}`}
+                                            numberOfLines={1}
+                                            adjustsFontSizeToFit
+                                            minimumFontScale={0.6}
+                                        >
+                                            {totalPrizePool.toLocaleString()}
+                                        </Text>
+                                        <MandaliCoin size={isTablet ? 40 : 22} style={{ marginLeft: isTablet ? 12 : 6 }} />
+                                    </View>
                                 </View>
                                 {/* Right: players + allocated — fixed width, shrink-proof */}
                                 <View className="items-end flex-shrink-0">
@@ -180,13 +185,17 @@ const HousieDefineBountyScreen = () => {
                                             numberOfLines={1}
                                         >{stats?.participants?.length || 0} Players</Text>
                                     </View>
-                                    <Text
-                                        numberOfLines={1}
-                                        className={`font-body-bold uppercase ${isTablet ? 'text-lg' : 'text-[9px]'} ${isPoolBalanced ? 'text-green-500' : 'text-stone-300'}`}
-                                        style={{ letterSpacing: isTablet ? 2 : 0.5 }}
-                                    >
-                                        ₹{totalAllocated} alloc.
-                                    </Text>
+                                    <View className="flex-row items-center">
+                                        <Text
+                                            numberOfLines={1}
+                                            className={`font-body-bold uppercase ${isTablet ? 'text-lg' : 'text-[9px]'} ${isPoolBalanced ? 'text-green-500' : 'text-stone-300'}`}
+                                            style={{ letterSpacing: isTablet ? 2 : 0.5 }}
+                                        >
+                                            {totalAllocated}
+                                        </Text>
+                                        <MandaliCoin size={isTablet ? 18 : 12} style={{ marginLeft: 4 }} />
+                                        <Text className={`font-body-bold uppercase ${isTablet ? 'text-lg' : 'text-[9px]'} ${isPoolBalanced ? 'text-green-500' : 'text-stone-300'}`}> alloc.</Text>
+                                    </View>
                                 </View>
                             </View>
 
@@ -201,7 +210,7 @@ const HousieDefineBountyScreen = () => {
                                 <View className={`bg-orange-50 rounded-3xl flex-row items-center ${isTablet ? 'mt-6 p-4' : 'mt-3 p-3'}`}>
                                     <MaterialIcons name="warning" size={isTablet ? 32 : 14} color="#c2410c" />
                                     <Text className={`text-orange-800 font-body-medium ml-3 flex-1 ${isTablet ? 'text-2xl' : 'text-[10px]'}`}>
-                                        Allocated prizes exceed total collection.
+                                        Allocated rewards exceed total collection.
                                     </Text>
                                 </View>
                             )}
@@ -216,7 +225,7 @@ const HousieDefineBountyScreen = () => {
                 >
                     {/* Claims List Card */}
                     <View className={`bg-[#f7f2eb] rounded-[48px] border border-stone-100 mb-8 ${isTablet ? 'p-16' : 'p-8'}`}>
-                        <Text className={`text-[#1c1c18] font-headline-bold mb-10 ${isTablet ? 'text-5xl' : 'text-2xl'}`}>Game Claims</Text>
+                        <Text className={`text-[#1c1c18] font-headline-bold mb-10 ${isTablet ? 'text-5xl' : 'text-2xl'}`}>Game Milestones</Text>
 
                         <View className="gap-12">
                             {prizes.map((prize) => (
@@ -228,7 +237,7 @@ const HousieDefineBountyScreen = () => {
                                                 value={prize.name}
                                                 onChangeText={(val) => updatePrizeName(prize.id, val)}
                                                 className={`flex-1 ${prize.isHighlight ? 'text-[#b30069] font-headline-bold' : 'text-stone-500 font-body-bold'} ${isTablet ? 'text-3xl' : 'text-base'}`}
-                                                placeholder="Claim Name"
+                                                placeholder="Milestone Name"
                                                 placeholderTextColor="#c4b9b0"
                                             />
                                         </View>
@@ -237,10 +246,6 @@ const HousieDefineBountyScreen = () => {
                                         </TouchableOpacity>
                                     </View>
                                     <View className={`flex-row items-center bg-[#efede8] rounded-[32px] px-8 border border-white/50 ${isTablet ? 'h-28' : 'h-16'}`}>
-                                        <Text
-                                            className={`text-stone-400 font-body-bold mr-3 ${isTablet ? 'text-4xl' : 'text-lg'}`}
-                                            style={{ includeFontPadding: false, textAlignVertical: 'center' }}
-                                        >₹</Text>
                                         <TextInput
                                             value={prize.amount}
                                             onChangeText={(val) => updatePrizeAmount(prize.id, val)}
@@ -252,6 +257,7 @@ const HousieDefineBountyScreen = () => {
                                                 height: isTablet ? 60 : 40
                                             }}
                                         />
+                                        <MandaliCoin size={isTablet ? 36 : 22} style={{ marginLeft: 12 }} />
                                     </View>
                                 </View>
                             ))}
@@ -263,7 +269,7 @@ const HousieDefineBountyScreen = () => {
                             className={`mt-12 rounded-[40px] border-2 border-dashed border-stone-200 flex-row items-center justify-center ${isTablet ? 'h-28' : 'h-16'}`}
                         >
                             <MaterialIcons name="add-circle" size={isTablet ? 32 : 20} color="#a09d96" />
-                            <Text className={`text-stone-400 font-body-bold ml-4 ${isTablet ? 'text-3xl' : 'text-base'}`}>Add Custom Prize</Text>
+                            <Text className={`text-stone-400 font-body-bold ml-4 ${isTablet ? 'text-3xl' : 'text-base'}`}>Add Custom Reward</Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>

@@ -6,6 +6,7 @@ import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { fetchGroups } from '../../lib/api';
+import MandaliCoin from '../../components/MandaliCoin';
 
 const HousieSelectGroupScreen = () => {
     const navigation = useNavigation<any>();
@@ -131,6 +132,14 @@ const HousieSelectGroupScreen = () => {
                             {item.is_admin ? 'Admin • ' : ''}{item.memberCount || 0} Members
                         </Text>
                     </View>
+                    {item.totalWinnings > 0 && (
+                        <View className="flex-row items-center mt-1">
+                            <Text className={`font-headline-bold text-[#d97706] ${isTablet ? 'text-2xl' : 'text-[14px]'}`}>
+                                {item.totalWinnings.toLocaleString()} Won
+                            </Text>
+                            <MandaliCoin size={isTablet ? 24 : 14} style={{ marginLeft: 6 }} />
+                        </View>
+                    )}
                 </View>
 
                 {/* Navigation Icon */}
@@ -141,10 +150,18 @@ const HousieSelectGroupScreen = () => {
 
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top']}>
-            <View className="px-6 py-4 flex-row items-center justify-between">
+            <View className="px-6 py-4 flex-row items-center">
+                {/* Back Button */}
+                <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    className={`items-center justify-center bg-white rounded-full shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                >
+                    <MaterialIcons name="arrow-back" size={isTablet ? 32 : 24} color="#31302d" />
+                </TouchableOpacity>
+
                 {/* Centered Header Section */}
                 <View
-                    className="items-center w-full"
+                    className="items-center flex-1 pr-10"
                     style={{
                         marginTop: isTablet ? 30 : 12,
                         marginBottom: isTablet ? 20 : 12
