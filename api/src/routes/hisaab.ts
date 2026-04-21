@@ -4,8 +4,41 @@ import { authMiddleware, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
-// All hisaab routes require authentication
 router.use(authMiddleware);
+
+// Helper function: Simplify Debts (Greedy Algorithm)
+// Minimizes the number of transactions required to settle up
+const simplifyDebts = (balances: { [userId: string]: number }) => {
+    const debtors = Object.keys(balances)
+        .filter(id => balances[id] < -0.01)
+        .map(id => ({ id, amount: Math.abs(balances[id]) }))
+        .sort((a, b) => b.amount - a.amount);
+
+    const creditors = Object.keys(balances)
+        .filter(id => balances[id] > 0.01)
+        .map(id => ({ id, amount: balances[id] }))
+        .sort((a, b) => b.amount - a.amount);
+
+    const transactions: { from: string; to: string; amount: number }[] = [];
+
+    let d = 0, c = 0;
+    while (d < debtors.length && c < creditors.length) {
+        const amount = Math.min(debtors[d].amount, creditors[c].amount);
+        transactions.push({
+            from: debtors[d].id,
+            to: creditors[c].id,
+            amount: Number(amount.toFixed(2))
+        });
+
+        debtors[d].amount -= amount;
+        creditors[c].amount -= amount;
+
+        if (debtors[d].amount < 0.01) d++;
+        if (creditors[c].amount < 0.01) c++;
+    }
+
+    return transactions;
+};
 
 // ──────────────────────────────────────────────
 // GET /hisaab/balances — Get user's net balances across all groups
@@ -14,230 +47,216 @@ router.get('/balances', async (req: AuthRequest, res) => {
     try {
         const userId = req.userId!;
 
-        const { data, error } = await supabase.rpc('get_user_group_balances', {
-            p_user_id: userId
+        const { data: memberships } = await supabase
+            .from('group_members')
+            .select('group_id')
+            .eq('user_id', userId);
+
+        if (!memberships || memberships.length === 0) return res.json({ balances: [] });
+        const groupIds = memberships.map(m => m.group_id);
+
+        // Fetch all 3 tables for these groups
+        // We use expenses!inner(group_id) to ensure we can map participants back to their groups
+        const [expensesRes, partRes, settledRes] = await Promise.all([
+            supabase.from('expenses').select('group_id, amount, paid_by, created_at').in('group_id', groupIds),
+            supabase.from('expense_participants').select('amount, expenses!inner(group_id)').eq('user_id', userId),
+            supabase.from('settlements').select('group_id, amount, from_user_id, to_user_id').or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`).in('group_id', groupIds)
+        ]);
+
+        const groupStats: { [key: string]: { netBalance: number; lastActivity: string } } = {};
+        groupIds.forEach(gid => { groupStats[gid] = { netBalance: 0, lastActivity: '' }; });
+
+        // 1. Expenses I Paid (+)
+        expensesRes.data?.forEach(e => {
+            if (e.paid_by === userId) groupStats[e.group_id].netBalance += Number(e.amount);
+            if (!groupStats[e.group_id].lastActivity || new Date(e.created_at) > new Date(groupStats[e.group_id].lastActivity)) {
+                groupStats[e.group_id].lastActivity = e.created_at;
+            }
         });
 
-        if (error) {
-            console.error('[Hisaab] Get balances error:', error);
-            return res.status(500).json({ error: 'Failed to fetch balances' });
-        }
+        // 2. My Share in Expenses (-)
+        partRes.data?.forEach((p: any) => {
+            const gid = p.expenses?.group_id;
+            if (gid && groupStats[gid]) groupStats[gid].netBalance -= Number(p.amount);
+        });
 
-        res.json({ balances: data || [] });
+        // 3. Settlements Received (+) and Paid (-)
+        settledRes.data?.forEach(s => {
+            if (s.to_user_id === userId) groupStats[s.group_id].netBalance += Number(s.amount);
+            if (s.from_user_id === userId) groupStats[s.group_id].netBalance -= Number(s.amount);
+        });
+
+        const balances = Object.keys(groupStats).map(gid => ({
+            groupId: gid,
+            netBalance: Number(groupStats[gid].netBalance.toFixed(2)),
+            lastActivity: groupStats[gid].lastActivity || null
+        }));
+
+        res.json({ balances });
     } catch (err) {
-        console.error('[Hisaab] Unexpected error:', err);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('[Hisaab] Balances error:', err);
+        res.status(500).json({ error: 'Failed to fetch balances' });
     }
 });
 
 // ──────────────────────────────────────────────
-// GET /hisaab/ledger/:groupId — Get group's expense ledger
+// GET /hisaab/ledger/:groupId — Get group's mixed ledger
 // ──────────────────────────────────────────────
 router.get('/ledger/:groupId', async (req: AuthRequest, res) => {
     try {
         const { groupId } = req.params;
-        const userId = req.userId!;
+        const [expensesRes, settledRes] = await Promise.all([
+            supabase
+                .from('expenses')
+                .select('*, users:paid_by(name), expense_participants(*, users:user_id(name))')
+                .eq('group_id', groupId),
+            supabase
+                .from('settlements')
+                .select('*, from:from_user_id(name), to:to_user_id(name)')
+                .eq('group_id', groupId)
+        ]);
 
-        // 1. Verify membership
-        const { data: membership } = await supabase
-            .from('group_members')
-            .select('id')
-            .eq('group_id', groupId)
-            .eq('user_id', userId)
-            .single();
+        const ledger: any[] = [];
 
-        if (!membership) {
-            return res.status(403).json({ error: 'You are not a member of this group' });
-        }
+        expensesRes.data?.forEach(e => {
+            ledger.push({
+                id: e.id,
+                description: e.description,
+                amount: e.amount,
+                paidBy: e.paid_by,
+                paidByName: (e.users as any)?.name || 'Unknown',
+                type: 'expense',
+                createdAt: e.created_at,
+                participants: e.expense_participants.map((p: any) => ({
+                    userId: p.user_id,
+                    amount: p.amount,
+                    userName: p.users?.name
+                }))
+            });
+        });
 
-        // 2. Fetch ledger
-        const { data: expenses, error } = await supabase
-            .from('expenses')
-            .select(`
-                *,
-                profiles:paid_by (full_name),
-                expense_participants (
-                    user_id,
-                    amount,
-                    profiles:user_id (full_name)
-                )
-            `)
-            .eq('group_id', groupId)
-            .order('created_at', { ascending: false });
+        settledRes.data?.forEach(s => {
+            ledger.push({
+                id: s.id,
+                description: 'Settlement',
+                amount: s.amount,
+                paidBy: s.from_user_id,
+                paidByName: (s.from as any)?.name,
+                toUserId: s.to_user_id,
+                toUserName: (s.to as any)?.name,
+                type: 'settlement',
+                createdAt: s.created_at,
+                participants: []
+            });
+        });
 
-        if (error) {
-            console.error('[Hisaab] Get ledger error:', error);
-            return res.status(500).json({ error: 'Failed to fetch ledger' });
-        }
-
-        // Formatting for frontend compatibility
-        const ledger = expenses.map((e: any) => ({
-            id: e.id,
-            groupId: e.group_id,
-            description: e.description,
-            amount: e.amount,
-            paidBy: e.paid_by,
-            paidByName: e.profiles?.full_name || 'Unknown',
-            type: e.type,
-            createdAt: e.created_at,
-            participants: e.expense_participants.map((p: any) => ({
-                userId: p.user_id,
-                amount: p.amount,
-                userName: p.profiles?.full_name
-            }))
-        }));
-
+        ledger.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         res.json({ ledger });
     } catch (err) {
-        console.error('[Hisaab] Unexpected error:', err);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Failed to fetch ledger' });
     }
 });
 
 // ──────────────────────────────────────────────
-// GET /hisaab/members/:groupId — Get members for split selection
+// GET /hisaab/members/:groupId — Pairwise & Simplified Balances
 // ──────────────────────────────────────────────
 router.get('/members/:groupId', async (req: AuthRequest, res) => {
     try {
         const { groupId } = req.params;
         const userId = req.userId!;
 
-        const { data: members, error } = await supabase
-            .from('group_members')
-            .select('user_id, profiles(full_name)')
-            .eq('group_id', groupId);
+        const [membersRes, expensesRes, settledRes] = await Promise.all([
+            supabase.from('group_members').select('user_id, users(name)').eq('group_id', groupId),
+            supabase.from('expenses').select('paid_by, amount, expense_participants(user_id, amount)').eq('group_id', groupId),
+            supabase.from('settlements').select('from_user_id, to_user_id, amount').eq('group_id', groupId)
+        ]);
 
-        if (error) {
-            console.error('[Hisaab] Get members error:', error);
-            return res.status(500).json({ error: 'Failed to fetch members' });
-        }
+        const members = membersRes.data || [];
+        const netBalances: { [key: string]: number } = {};
+        members.forEach(m => netBalances[m.user_id] = 0);
 
-        // Optional: Get peer-to-peer balances if requested
-        const { data: balancesData } = await supabase.rpc('get_group_member_balances', {
-            p_group_id: groupId,
-            p_user_id: userId
+        // 1. Process Expenses
+        expensesRes.data?.forEach(e => {
+            netBalances[e.paid_by] += Number(e.amount);
+            e.expense_participants.forEach((p: any) => {
+                netBalances[p.user_id] -= Number(p.amount);
+            });
         });
 
-        const formattedMembers = members.map((m: any) => {
-            const balanceData = (balancesData || []).find((b: any) => b.user_id === m.user_id);
-            return {
-                id: m.user_id,
-                name: m.profiles?.full_name || 'Unknown',
-                balance: balanceData?.balance || 0
-            };
+        // 2. Process Settlements
+        settledRes.data?.forEach(s => {
+            netBalances[s.from_user_id] -= Number(s.amount);
+            netBalances[s.to_user_id] += Number(s.amount);
         });
 
-        res.json({ members: formattedMembers });
+        // 3. Simplified view for the UI
+        const simplified = simplifyDebts(netBalances);
+        
+        // 4. Return formatted response
+        const formattedMembers = members.map((m: any) => ({
+            id: m.user_id,
+            name: m.users?.name,
+            balance: Number(netBalances[m.user_id].toFixed(2))
+        }));
+
+        res.json({ 
+            members: formattedMembers, 
+            simplifiedReports: simplified 
+        });
     } catch (err) {
-        console.error('[Hisaab] Unexpected error:', err);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Calculation failed' });
     }
 });
 
 // ──────────────────────────────────────────────
-// POST /hisaab/expense — Add a new expense
+// POST /hisaab/expense 
 // ──────────────────────────────────────────────
 router.post('/expense', async (req: AuthRequest, res) => {
     try {
-        const { groupId, description, amount, participants, type = 'expense' } = req.body;
+        const { groupId, description, amount, participants } = req.body;
         const userId = req.userId!;
 
-        if (!groupId || !amount || !participants || !participants.length) {
-            return res.status(400).json({ error: 'Missing required expense fields' });
-        }
-
-        // 1. Insert main expense
-        const { data: expense, error: expError } = await supabase
+        const { data: expense, error: expErr } = await supabase
             .from('expenses')
-            .insert({
-                group_id: groupId,
-                description,
-                amount,
-                paid_by: userId,
-                type
-            })
-            .select()
-            .single();
+            .insert({ group_id: groupId, description, amount, paid_by: userId })
+            .select().single();
 
-        if (expError) {
-            console.error('[Hisaab] Expense creation error:', expError);
-            return res.status(500).json({ error: 'Failed to create expense' });
-        }
+        if (expErr) throw expErr;
 
-        // 2. Insert participants (splits)
-        const participantsToInsert = participants.map((p: any) => ({
+        const partToInsert = participants.map((p: any) => ({
             expense_id: expense.id,
             user_id: p.userId,
             amount: p.amount
         }));
 
-        const { error: partError } = await supabase
-            .from('expense_participants')
-            .insert(participantsToInsert);
-
-        if (partError) {
-            console.error('[Hisaab] Expense participants creation error:', partError);
-            // Cleanup main expense
-            await supabase.from('expenses').delete().eq('id', expense.id);
-            return res.status(500).json({ error: 'Failed to add participants' });
-        }
-
-        res.status(201).json({ expense, message: 'Expense recorded successfully' });
+        await supabase.from('expense_participants').insert(partToInsert);
+        res.status(201).json({ message: 'Expense added' });
     } catch (err) {
-        console.error('[Hisaab] Unexpected error:', err);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Failed to record expense' });
     }
 });
 
 // ──────────────────────────────────────────────
-// POST /hisaab/settle — Record a settlement
+// POST /hisaab/settle
 // ──────────────────────────────────────────────
 router.post('/settle', async (req: AuthRequest, res) => {
     try {
         const { groupId, toUserId, amount } = req.body;
         const userId = req.userId!;
 
-        if (!groupId || !toUserId || !amount) {
-            return res.status(400).json({ error: 'Missing settlement details' });
-        }
+        await supabase.from('settlements').insert({
+            group_id: groupId,
+            from_user_id: userId,
+            to_user_id: toUserId,
+            amount
+        });
 
-        // Settlement is just a special case of expense
-        const { data: expense, error: expError } = await supabase
-            .from('expenses')
-            .insert({
-                group_id: groupId,
-                description: 'Settlement',
-                amount,
-                paid_by: userId,
-                type: 'settlement'
-            })
-            .select()
-            .single();
-
-        if (expError) {
-            console.error('[Hisaab] Settlement record error:', expError);
-            return res.status(500).json({ error: 'Failed to record settlement' });
-        }
-
-        const { error: partError } = await supabase
-            .from('expense_participants')
-            .insert({
-                expense_id: expense.id,
-                user_id: toUserId,
-                amount
-            });
-
-        if (partError) {
-            console.error('[Hisaab] Settlement participant record error:', partError);
-            await supabase.from('expenses').delete().eq('id', expense.id);
-            return res.status(500).json({ error: 'Failed to link settlement profile' });
-        }
-
-        res.status(201).json({ message: 'Balance settled successfully' });
+        res.status(201).json({ message: 'Settlement recorded' });
     } catch (err) {
-        console.error('[Hisaab] Unexpected error:', err);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Failed to settle' });
     }
 });
+
+export default router;
 
 export default router;
