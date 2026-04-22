@@ -1,12 +1,13 @@
 import React from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
-import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, RefreshControl, useWindowDimensions } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, RefreshControl, useWindowDimensions, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { fetchGroups } from '../../lib/api';
 import MandaliCoin from '../../components/MandaliCoin';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const HousieSelectGroupScreen = () => {
     const navigation = useNavigation<any>();
@@ -16,6 +17,44 @@ const HousieSelectGroupScreen = () => {
         queryKey: ['groups'],
         queryFn: fetchGroups
     });
+
+    const totalGlory = groups?.reduce((acc: number, g: any) => acc + (g.totalWinnings || 0), 0) || 0;
+
+    const renderTotalGloryCard = () => {
+        if (!groups || groups.length === 0) return <View className="h-4" />;
+        return (
+            <TouchableOpacity 
+                activeOpacity={0.9}
+                onPress={() => Alert.alert(
+                    "Mandali Glory",
+                    "This represents your total social points won across all groups. These points are virtual and have no cash value."
+                )}
+                className={`bg-[#1c1c18] rounded-[40px] shadow-lg shadow-black/20 mb-8 overflow-hidden ${isTablet ? 'p-12' : 'p-6'}`}
+                style={{ elevation: 10 }}
+            >
+                <LinearGradient
+                    colors={['rgba(255,255,255,0.05)', 'transparent']}
+                    className="absolute inset-0"
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                />
+                <View className="flex-row items-center justify-between">
+                    <View>
+                        <Text className={`text-stone-400 font-body-bold uppercase tracking-widest ${isTablet ? 'text-2xl mb-4' : 'text-[10px] mb-1'}`}>Total Mandali Glory</Text>
+                        <View className="flex-row items-center">
+                            <Text className={`text-[#f59e0b] font-headline-bold ${isTablet ? 'text-7xl' : 'text-3xl'}`}>
+                                {totalGlory.toLocaleString()}
+                            </Text>
+                            <MandaliCoin size={isTablet ? 48 : 24} style={{ marginLeft: 12 }} />
+                        </View>
+                    </View>
+                    <View className={`bg-white/10 rounded-[28px] items-center justify-center ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}>
+                        <MaterialIcons name="emoji-events" size={isTablet ? 48 : 24} color="#f59e0b" />
+                    </View>
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     const renderContextCards = () => (
         <View className={`gap-4 flex-1 w-full pb-12 ${isTablet ? 'mt-12' : 'mt-4'}`}>
@@ -197,6 +236,7 @@ const HousieSelectGroupScreen = () => {
                     data={groups}
                     renderItem={renderGroupItem}
                     keyExtractor={(item) => item.id}
+                    ListHeaderComponent={renderTotalGloryCard}
                     ListEmptyComponent={renderEmptyState}
                     ListFooterComponent={renderContextCards}
                     contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}

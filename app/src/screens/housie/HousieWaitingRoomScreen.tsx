@@ -148,6 +148,11 @@ const HousieWaitingRoomScreen = () => {
                         MANDALI • {groupData?.group?.name || '...'}
                     </Text>
                     <Text className={`text-[#1c1c18] font-headline-bold ${isTablet ? 'text-4xl mt-1' : 'text-lg'}`}>Waiting Room</Text>
+                    {game?.hostName && (
+                        <Text className={`text-[#b30069] font-body-bold mt-1 ${isTablet ? 'text-xl' : 'text-[11px]'}`}>
+                            Hosted by {isHost ? 'You' : game.hostName}
+                        </Text>
+                    )}
                 </View>
                 {isHost ? (
                     <TouchableOpacity

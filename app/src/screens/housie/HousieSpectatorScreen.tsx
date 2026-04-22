@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import {
-    View, Text, ScrollView, ActivityIndicator, FlatList, useWindowDimensions
+    View, Text, ScrollView, ActivityIndicator, FlatList, useWindowDimensions, Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
@@ -128,6 +128,11 @@ const HousieSpectatorScreen = () => {
                         MANDALI • {groupData?.group?.name || 'SPECTATING'}
                     </Text>
                     <Text className={`text-[#b30069] font-headline-bold leading-tight ${isTablet ? 'text-2xl mt-1' : 'text-xs'}`}>Live Game Board</Text>
+                    {game?.hostName && (
+                        <Text className={`text-stone-400 font-body-bold mt-1 ${isTablet ? 'text-sm' : 'text-[10px]'}`}>
+                            Hosted by {game.hostName}
+                        </Text>
+                    )}
                 </View>
                 <View className={`bg-green-100 rounded-full flex-row items-center border border-green-200 ${isTablet ? 'px-6 py-2' : 'px-3 py-1'}`}>
                     <View className={`rounded-full bg-green-500 ${isTablet ? 'w-3 h-3 mr-3' : 'w-2 h-2 mr-2'}`} />
@@ -140,7 +145,7 @@ const HousieSpectatorScreen = () => {
                 contentContainerStyle={{ paddingHorizontal: isTablet ? 80 : 20, paddingBottom: 60 }}
             >
                 {/* Drawing Indicator */}
-                <View className={`items-center ${isTablet ? 'mb-16 mt-10' : 'mb-10 mt-4'}`}>
+                <View className={`items-center ${isTablet ? 'mb-12 mt-10' : 'mb-8 mt-4'}`}>
                     <Text className={`text-stone-400 font-body-bold uppercase tracking-[4px] mb-6 ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>NOW CALLING</Text>
                     <View
                         style={{ 
@@ -159,6 +164,34 @@ const HousieSpectatorScreen = () => {
                         {calledNumbers.length} of 90 numbers called
                     </Text>
                 </View>
+
+                {/* Players in Game Carousel */}
+                {(game?.participants || []).length > 0 && (
+                    <View className="mb-10">
+                        <Text className={`text-stone-400 font-body-bold text-center uppercase tracking-[3px] mb-4 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>
+                            PLAYERS IN GAME
+                        </Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 4 }}>
+                            {(game?.participants || []).map((participant: any) => (
+                                <View key={participant.id} className="items-center" style={{ width: isTablet ? 100 : 70 }}>
+                                    <View className={`rounded-full bg-stone-100 overflow-hidden items-center justify-center border-2 border-stone-200 mb-2 ${isTablet ? 'w-20 h-20' : 'w-12 h-12'}`}>
+                                        {participant.avatarUrl ? (
+                                            <Image source={{ uri: participant.avatarUrl }} style={{ width: '100%', height: '100%' }} />
+                                        ) : (
+                                            <Text className={`text-[#b30069] font-headline-bold ${isTablet ? 'text-3xl' : 'text-base'}`}>{participant.name[0]}</Text>
+                                        )}
+                                    </View>
+                                    <Text className={`font-body-bold text-[#594048] text-center ${isTablet ? 'text-sm' : 'text-[9px]'}`} numberOfLines={1}>
+                                        {participant.name}
+                                    </Text>
+                                    <Text className={`text-stone-400 font-body-bold text-center ${isTablet ? 'text-[10px]' : 'text-[8px]'}`}>
+                                        {participant.ticketCount} {participant.ticketCount === 1 ? 'ticket' : 'tickets'}
+                                    </Text>
+                                </View>
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
 
                 {/* Number Board Grid */}
                 <View className={`bg-white rounded-[32px] shadow-sm border border-stone-100 mb-10 ${isTablet ? 'p-10 px-12' : 'p-4'}`}>

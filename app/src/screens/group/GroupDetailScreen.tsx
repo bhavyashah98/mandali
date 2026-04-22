@@ -23,6 +23,7 @@ const GroupDetailScreen = () => {
     const [showTransferModal, setShowTransferModal] = useState(false);
     const [showModMenu, setShowModMenu] = useState(false);
     const [modTargetUser, setModTargetUser] = useState<{ id: string, name: string, isBlocked: boolean } | null>(null);
+    const [profileTargetUser, setProfileTargetUser] = useState<{ name: string, phone: string, avatar_url: string } | null>(null);
 
     const { data, isLoading, isRefetching, error, refetch } = useQuery({
         queryKey: ['group', groupId],
@@ -339,7 +340,16 @@ const GroupDetailScreen = () => {
                     </View>
 
                     {members.map((member: any) => (
-                        <View key={member.id} className={`flex-row items-center mb-6 bg-white/50 rounded-[28px] border border-stone-100 ${isTablet ? 'p-8' : 'p-3'}`}>
+                        <TouchableOpacity
+                            key={member.id}
+                            className={`flex-row items-center mb-6 bg-white/50 rounded-[28px] border border-stone-100 ${isTablet ? 'p-8' : 'p-3'}`}
+                            onPress={() => setProfileTargetUser({
+                                name: member.users.name,
+                                phone: member.users.phone || '',
+                                avatar_url: member.users.avatar_url || ''
+                            })}
+                            activeOpacity={0.8}
+                        >
                             <View className={`rounded-full overflow-hidden bg-stone-100 mr-6 border border-stone-200 ${isTablet ? 'w-20 h-20' : 'w-12 h-12'}`}>
                                 {member.users.avatar_url ? (
                                     <Image source={{ uri: member.users.avatar_url }} style={{ width: '100%', height: '100%' }} />
@@ -364,8 +374,9 @@ const GroupDetailScreen = () => {
                             
                             {/* THREE DOTS MODERATION MENU */}
                             {member.user_id !== currentUser?.id && (
-                                <TouchableOpacity 
-                                    onPress={() => {
+                                <TouchableOpacity
+                                    onPress={(e) => {
+                                        e.stopPropagation();
                                         const isBlocked = blockedUsers?.includes(member.user_id);
                                         setModTargetUser({ id: member.user_id, name: member.users.name, isBlocked: !!isBlocked });
                                         setShowModMenu(true);
@@ -377,7 +388,7 @@ const GroupDetailScreen = () => {
                                     </View>
                                 </TouchableOpacity>
                             )}
-                        </View>
+                        </TouchableOpacity>
                     ))}
                 </View>
 
@@ -426,6 +437,70 @@ const GroupDetailScreen = () => {
                             <TouchableOpacity onPress={() => setShowModMenu(false)} className="mt-4 p-4 items-center">
                                 <Text className="text-stone-300 font-headline-bold uppercase tracking-widest text-xs">Cancel</Text>
                             </TouchableOpacity>
+                        </Pressable>
+                    </Pressable>
+                </Modal>
+
+                {/* USER PROFILE MODAL */}
+                <Modal
+                    visible={!!profileTargetUser}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setProfileTargetUser(null)}
+                >
+                    <Pressable className="flex-1 bg-black/70 justify-center items-center p-6" onPress={() => setProfileTargetUser(null)}>
+                        <Pressable className="bg-white rounded-[40px] overflow-hidden w-full max-w-sm shadow-2xl" onPress={e => e.stopPropagation()}>
+                            {/* Pinch-zoomable profile photo */}
+                            <View style={{ width: '100%', aspectRatio: 1, backgroundColor: '#f5f0e8' }}>
+                                {profileTargetUser?.avatar_url ? (
+                                    <ScrollView
+                                        contentContainerStyle={{ flex: 1 }}
+                                        maximumZoomScale={4}
+                                        minimumZoomScale={1}
+                                        showsVerticalScrollIndicator={false}
+                                        showsHorizontalScrollIndicator={false}
+                                        centerContent
+                                        bouncesZoom
+                                        style={{ width: '100%', height: '100%' }}
+                                    >
+                                        <Image
+                                            source={{ uri: profileTargetUser.avatar_url }}
+                                            style={{ width: '100%', aspectRatio: 1 }}
+                                            contentFit="cover"
+                                        />
+                                    </ScrollView>
+                                ) : (
+                                    <View className="w-full h-full items-center justify-center bg-primary/5">
+                                        <Text className={`text-primary font-headline-bold ${isTablet ? 'text-[120px]' : 'text-[80px]'}`}>{profileTargetUser?.name?.charAt(0)}</Text>
+                                    </View>
+                                )}
+                                {/* Pinch hint */}
+                                {profileTargetUser?.avatar_url && (
+                                    <View style={{ position: 'absolute', bottom: 12, right: 12 }} className="bg-black/40 rounded-full px-3 py-1 flex-row items-center">
+                                        <Ionicons name="search" size={11} color="white" />
+                                        <Text className="text-white text-[10px] font-body-bold ml-1">Pinch to zoom</Text>
+                                    </View>
+                                )}
+                            </View>
+
+                            {/* Info section */}
+                            <View className={`items-center ${isTablet ? 'p-10' : 'p-6'}`}>
+                                <Text className={`font-headline-bold text-[#1c1c18] text-center mb-2 ${isTablet ? 'text-4xl' : 'text-2xl'}`}>{profileTargetUser?.name}</Text>
+                                {profileTargetUser?.phone ? (
+                                    <View className="flex-row items-center mt-2 bg-stone-50 px-5 py-3 rounded-full border border-stone-100">
+                                        <Ionicons name="call" size={16} color="#b30069" />
+                                        <Text className={`font-body-medium text-stone-600 ml-2 ${isTablet ? 'text-xl' : 'text-base'}`}>{profileTargetUser.phone}</Text>
+                                    </View>
+                                ) : (
+                                    <View className="flex-row items-center mt-2 bg-stone-50 px-5 py-3 rounded-full border border-stone-100">
+                                        <Ionicons name="call-outline" size={16} color="#a8a29e" />
+                                        <Text className={`font-body-medium text-stone-400 ml-2 ${isTablet ? 'text-xl' : 'text-base'}`}>No number shared</Text>
+                                    </View>
+                                )}
+                                <TouchableOpacity onPress={() => setProfileTargetUser(null)} className="mt-6 bg-stone-100 px-10 py-3 rounded-full">
+                                    <Text className="text-stone-600 font-headline-bold">Close</Text>
+                                </TouchableOpacity>
+                            </View>
                         </Pressable>
                     </Pressable>
                 </Modal>

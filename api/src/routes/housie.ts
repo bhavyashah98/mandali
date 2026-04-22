@@ -300,7 +300,7 @@ router.get('/:gameCode', authMiddleware, async (req: AuthRequest, res) => {
 
         if (error || !game) return res.status(404).json({ error: 'Game not found' });
 
-        // 2. Verify user is a member of the group this game belongs to
+
         const { data: membership } = await supabase
             .from('group_members')
             .select('id')
@@ -344,8 +344,12 @@ router.get('/:gameCode', authMiddleware, async (req: AuthRequest, res) => {
         const recentNumbers = [...calledNumbers].reverse().slice(0, 5);
         const remainingCount = 90 - calledNumbers.length;
 
+        const { data: hostUser } = await supabase.from('users').select('name').eq('id', game.host_id).single();
+        const hostName = hostUser?.name || 'Host';
+
         const responsePayload = {
             ...game,
+            hostName,
             recentNumbers,
             calledCount: calledNumbers.length,
             remainingCount,

@@ -192,7 +192,6 @@ const MemoryDetailScreen = () => {
                                     <Ionicons name="share-outline" size={isTablet ? 28 : 22} color="white" />
                                 </TouchableOpacity>
                             </View>
-
                             {isOwner ? (
                                 <TouchableOpacity onPress={() => handleDelete(item.memory.id)} className={`items-center justify-center bg-red-500/10 border border-red-500/20 rounded-full ${isTablet ? 'w-16 h-16' : 'w-12 h-12'}`}>
                                     <MaterialCommunityIcons name="delete-outline" size={isTablet ? 28 : 22} color="#ef4444" />
@@ -204,13 +203,12 @@ const MemoryDetailScreen = () => {
                                         className={`flex-row items-center bg-red-500/10 border border-red-500/20 rounded-2xl px-6 ${isTablet ? 'h-16' : 'h-12'}`}
                                     >
                                         <Ionicons name="shield-outline" size={isTablet ? 22 : 18} color="#ef4444" />
-                                        <Text className="text-red-400 ml-3 font-body-bold text-sm">Report Inappropriate</Text>
+                                        <Text className="text-red-400 ml-3 font-body-bold text-sm">Report</Text>
                                     </TouchableOpacity>
                                 </View>
                             )}
                         </View>
 
-                        {/* Description Section */}
                         {item.memory.story ? (
                             <Text
                                 className={`text-white/95 font-body-medium leading-relaxed ${isTablet ? 'text-2xl' : 'text-base'}`}

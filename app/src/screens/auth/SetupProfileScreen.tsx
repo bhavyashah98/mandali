@@ -21,7 +21,6 @@ import { API_URL, getAuthHeaders, uploadProfileImage } from '../../lib/api';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
-import * as WebBrowser from 'expo-web-browser';
 
 const SetupProfileScreen = () => {
     const { user, setUser, logout } = useAuthStore();
@@ -61,14 +60,14 @@ const SetupProfileScreen = () => {
             return;
         }
 
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             aspect: [1, 1],
             quality: 0.5,
         });
 
-        if (!result.canceled && result.assets[0]) {
+        if (!result.canceled) {
             setProfileImage(result.assets[0].uri);
         }
     };
@@ -151,7 +150,7 @@ const SetupProfileScreen = () => {
                 </View>
 
                 <View className="flex-1 items-center">
-                    <Text 
+                    <Text
                         className="font-headline-bold text-on-surface text-[#1c1c18]"
                         style={{ fontSize: isTablet ? 36 : 22 }}
                         numberOfLines={1}
@@ -280,13 +279,13 @@ const SetupProfileScreen = () => {
                                     <MaterialIcons name={isFirstTime ? "stars" : "verified-user"} size={isTablet ? 48 : 22} color="#b30069" />
                                 </View>
                                 <View className="flex-1">
-                                    <Text 
+                                    <Text
                                         className="font-body-bold text-on-surface"
                                         style={{ fontSize: isTablet ? 32 : 15, marginBottom: isTablet ? 12 : 4 }}
                                     >
                                         {isFirstTime ? 'Make it Yours' : 'Account Identity'}
                                     </Text>
-                                    <Text 
+                                    <Text
                                         className="font-body-regular text-on-surface-variant"
                                         style={{ fontSize: isTablet ? 22 : 13, lineHeight: isTablet ? 36 : 20 }}
                                     >

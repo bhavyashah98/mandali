@@ -313,7 +313,12 @@ const HousieTicketScreen = () => {
                 contentContainerStyle={{ paddingHorizontal: isTablet ? 40 : 20, paddingBottom: 60 }}
                 ListHeaderComponent={() => (
                     <View className={`mb-12 mt-6 items-center ${isTablet ? 'py-12' : ''}`}>
-                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[4px] mb-8 ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>NOW CALLING</Text>
+                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[4px] mb-2 ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>NOW CALLING</Text>
+                        {game?.hostName && (
+                            <Text className={`text-[#b30069] font-body-bold mb-8 ${isTablet ? 'text-xl' : 'text-[11px]'}`}>
+                                Hosted by {game.hostName}
+                            </Text>
+                        )}
                         <View
                             style={{ 
                                 width: isTablet ? 280 : 160, 
