@@ -73,15 +73,19 @@ io.on('connection', async (socket) => {
     console.log(`[Socket] Authenticated: ${userId} (${socket.id})`);
 
     // 1. Presence Setup
-    onlineUsers.set(userId, socket.id);
-    await supabase.from('users').update({ online_status: true, last_seen: new Date().toISOString() }).eq('id', userId);
-    io.emit('online_status', { userId, status: true });
+    if (userId) {
+        onlineUsers.set(userId, socket.id);
+        await supabase.from('users').update({ online_status: true, last_seen: new Date().toISOString() }).eq('id', userId);
+        io.emit('online_status', { userId, status: true });
+    }
 
     // 2. Room Joins
-    // Auto-join group rooms the user is a member of
-    const { data: memberships } = await supabase.from('group_members').select('group_id').eq('user_id', userId);
-    if (memberships) {
-        memberships.forEach(m => socket.join(m.group_id));
+    if (userId) {
+        // Auto-join group rooms the user is a member of
+        const { data: memberships } = await supabase.from('group_members').select('group_id').eq('user_id', userId);
+        if (memberships) {
+            memberships.forEach(m => socket.join(m.group_id));
+        }
     }
 
     // 3. Delegate Feature Handlers

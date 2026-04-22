@@ -9,6 +9,7 @@ import { useAuthStore } from '../stores/authStore';
 import SetupProfileScreen from '../screens/auth/SetupProfileScreen';
 import { registerForPushNotificationsAsync } from '../lib/pushNotifications';
 import { fetchCurrentUser } from '../lib/api';
+import { initializeSocket, disconnectSocket } from '../lib/socketService';
 import * as Notifications from 'expo-notifications';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 
@@ -103,6 +104,7 @@ export const RootNavigator = () => {
                     if (userData && token) {
                         setUser(JSON.parse(userData));
                         setAuthenticated(true);
+                        initializeSocket(token);
                         registerForPushNotificationsAsync();
                     } else if (token) {
                         try {
@@ -112,13 +114,16 @@ export const RootNavigator = () => {
                                 setUser(profile);
                             }
                             setAuthenticated(true);
+                            initializeSocket(token);
                         } catch (err) {
                             setAuthenticated(true);
+                            initializeSocket(token);
                         }
                     }
                 } else {
                     setAuthenticated(false);
                     setUser(null);
+                    disconnectSocket();
                 }
             } catch (err) {
                 console.error('[Auth Listener] Error:', err);
