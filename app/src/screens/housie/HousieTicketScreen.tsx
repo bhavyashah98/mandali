@@ -46,11 +46,6 @@ const HousieTicketScreen = () => {
         return participant?.name || 'Player';
     };
 
-    useEffect(() => {
-        if (game?.status === 'ended') {
-            setIsGameEnded(true);
-        }
-    }, [game?.status]);
 
     // 2. Fetch User's Tickets
     const { data: ticketData, isLoading: isLoadingTickets } = useQuery({
@@ -156,16 +151,17 @@ const HousieTicketScreen = () => {
         };
 
         const onGameEnded = () => {
-            // Close any open modal before navigating — prevents modal floating over Results screen
+            // Guard: Prevent double-navigation if already on Results screen
+            const state = navigation.getState();
+            if (state?.routes[state?.index]?.name === 'HousieResults') return;
+
+            setIsGameEnded(true); // Stop interactions locally
             setPrizesModalVisible(false);
             setClaimingTicketId(null);
-            // Small delay to let modal animate closed before navigation
+            
             setTimeout(() => {
-                navigation.replace('HousieResults', {
-                    gameCode: gameCode,
-                    groupId: groupId
-                });
-            }, 150);
+                navigation.replace('HousieResults', { gameCode, groupId });
+            }, 100);
         };
 
         socket.on('number_called', onNumberCalled);
@@ -181,15 +177,6 @@ const HousieTicketScreen = () => {
         };
     }, [gameCode]); // Stable dep — game?.id caused re-registration on every refresh
 
-    // Double-Safety: Navigate via query if socket was missed
-    useEffect(() => {
-        if (game?.status === 'ended' && gameCode) {
-            navigation.replace('HousieResults', {
-                gameCode: gameCode,
-                groupId: groupId
-            });
-        }
-    }, [game?.status]);
 
     const toggleMark = (ticketId: string, num: number) => {
         if (isGameEnded) return;
@@ -294,7 +281,7 @@ const HousieTicketScreen = () => {
             {/* Header */}
             <View className={`px-6 items-center flex-row justify-between ${isTablet ? 'py-8' : 'py-4'}`}>
                 <TouchableOpacity 
-                    onPress={() => navigation.goBack()} 
+                    onPress={() => navigation.navigate('HousieLobby', { groupId })} 
                     className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                 >
                     <MaterialIcons name="arrow-back-ios" size={isTablet ? 24 : 18} color="#594048" style={{ marginLeft: isTablet ? 10 : 5 }} />

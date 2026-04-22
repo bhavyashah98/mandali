@@ -174,10 +174,11 @@ const HousieGameScreen = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
             await queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
-            navigation.replace('HousieResults', {
-                gameCode: gameCode,
-                groupId: groupId
-            });
+            
+            const state = navigation.getState();
+            if (state?.routes[state?.index]?.name === 'HousieResults') return;
+
+            navigation.replace('HousieResults', { gameCode, groupId });
         },
         onError: (err: any) => {
             const msg = err?.response?.data?.error || err?.message || 'Failed to end session.';
@@ -271,7 +272,7 @@ const HousieGameScreen = () => {
             {/* Header */}
             <View className={`px-6 flex-row items-center justify-between ${isTablet ? 'py-6 px-12' : 'py-2 px-6'}`}>
                 <View style={{ width: isTablet ? 64 : 44 }}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}>
+                    <TouchableOpacity onPress={() => navigation.navigate('HousieLobby', { groupId })} className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}>
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 18} color="#594048" style={{ marginLeft: isTablet ? 8 : 5 }} />
                     </TouchableOpacity>
                 </View>

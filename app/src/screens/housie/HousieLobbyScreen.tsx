@@ -50,14 +50,20 @@ const HousieLobbyScreen = () => {
             queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
         };
 
+        const onGameActivated = () => {
+            queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
+        }
+
         socket.on('game_created', onGameCreated);
         socket.on('game_status_changed', onGameStatusChanged);
         socket.on('game_ended', onGameEnded);
+        socket.on('game_activated', onGameActivated);
 
         return () => {
             socket.off('game_created', onGameCreated);
             socket.off('game_status_changed', onGameStatusChanged);
             socket.off('game_ended', onGameEnded);
+            socket.off('game_activated', onGameActivated);
         };
     }, [groupId]);
 
@@ -231,13 +237,13 @@ const HousieLobbyScreen = () => {
                                 {isLoading
                                     ? <ActivityIndicator color="white" />
                                     : <>
-                                <Ionicons name="play" size={isTablet ? 40 : 28} color="white" />
-                                <Text 
-                                    numberOfLines={1} 
-                                    adjustsFontSizeToFit 
-                                    className={`text-white font-headline-bold ml-3 ${isTablet ? 'text-3xl' : 'text-2xl'}`}
-                                >Host a Game</Text>
-                            </>
+                                        <Ionicons name="play" size={isTablet ? 40 : 28} color="white" />
+                                        <Text
+                                            numberOfLines={1}
+                                            adjustsFontSizeToFit
+                                            className={`text-white font-headline-bold ml-3 ${isTablet ? 'text-3xl' : 'text-2xl'}`}
+                                        >Host a Game</Text>
+                                    </>
                                 }
                             </TouchableOpacity>
                         )}
@@ -252,9 +258,9 @@ const HousieLobbyScreen = () => {
                                         className={`bg-[#b30069] rounded-[32px] flex-row items-center justify-center shadow-lg shadow-[#b30069]/30 ${isTablet ? 'h-28' : 'h-20'}`}
                                     >
                                         <Ionicons name="play-forward" size={isTablet ? 40 : 28} color="white" />
-                                        <Text 
-                                            numberOfLines={1} 
-                                            adjustsFontSizeToFit 
+                                        <Text
+                                            numberOfLines={1}
+                                            adjustsFontSizeToFit
                                             className={`text-white font-headline-bold ml-3 ${isTablet ? 'text-3xl' : 'text-2xl'}`}
                                         >Resume Hosting</Text>
                                     </TouchableOpacity>

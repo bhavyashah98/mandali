@@ -26,18 +26,29 @@ export const sendGroupPushNotification = async (
             return;
         }
 
+        console.log(`[Push] Found ${members?.length || 0} potential recipients for group ${groupId}`);
         if (!members || members.length === 0) return;
 
-        // 2. Extract tokens
-        const tokens: string[] = [];
+        // 2. Extract tokens and ensure uniqueness
+        const tokenSet = new Set<string>();
         members.forEach((member: any) => {
+            // Strict equality check (handles string vs uuid object if necessary)
+            if (String(member.user_id) === String(senderUserId)) {
+                return;
+            }
+
             const token = member.users?.expo_push_token;
             if (token && typeof token === 'string' && token.startsWith('ExponentPushToken')) {
-                tokens.push(token);
+                tokenSet.add(token);
             }
         });
 
-        if (tokens.length === 0) return;
+        const tokens = Array.from(tokenSet);
+        console.log(`[Push] Prepared ${tokens.length} unique tokens for broadcast (Sender: ${senderUserId})`);
+
+        if (tokens.length === 0) {
+            return;
+        }
 
         // 3. Send via Expo HTTP API (No SDK required!)
         const messages = tokens.map(token => ({
@@ -46,6 +57,8 @@ export const sendGroupPushNotification = async (
             title,
             body,
             data: data || {},
+            // Android-specific: Must match channel set in the app
+            channelId: 'default',
         }));
 
         await axios.post('https://exp.host/--/api/v2/push/send', messages, {

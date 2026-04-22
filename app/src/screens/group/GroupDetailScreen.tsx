@@ -24,6 +24,7 @@ const GroupDetailScreen = () => {
     const [showModMenu, setShowModMenu] = useState(false);
     const [modTargetUser, setModTargetUser] = useState<{ id: string, name: string, isBlocked: boolean } | null>(null);
     const [profileTargetUser, setProfileTargetUser] = useState<{ name: string, phone: string, avatar_url: string } | null>(null);
+    const [showCoverModal, setShowCoverModal] = useState(false);
 
     const { data, isLoading, isRefetching, error, refetch } = useQuery({
         queryKey: ['group', groupId],
@@ -214,23 +215,26 @@ const GroupDetailScreen = () => {
                     style={{ height: isTablet ? 550 : 320 }}
                     className="w-full rounded-[48px] overflow-hidden mt-6 mb-12 shadow-2xl shadow-black/20 bg-stone-100"
                 >
-                    {group.cover_photo_url ? (
-                        <Image
-                            source={{ uri: group.cover_photo_url }}
-                            style={{ width: '100%', height: '100%' }}
-                            contentFit="cover"
-                            contentPosition="top"
-                        />
-                    ) : (
-                        <View className="w-full h-full bg-[#fcecf2] items-center justify-center">
-                            <Ionicons name="people" size={isTablet ? 200 : 100} color="#b30069" style={{ opacity: 0.15 }} />
-                        </View>
-                    )}
+                    <Pressable onPress={() => setShowCoverModal(true)} style={{ width: '100%', height: '100%' }}>
+                        {group.cover_photo_url ? (
+                            <Image
+                                source={{ uri: group.cover_photo_url }}
+                                style={{ width: '100%', height: '100%' }}
+                                contentFit="cover"
+                                contentPosition="top"
+                            />
+                        ) : (
+                            <View className="w-full h-full bg-[#fcecf2] items-center justify-center">
+                                <Ionicons name="people" size={isTablet ? 200 : 100} color="#b30069" style={{ opacity: 0.15 }} />
+                            </View>
+                        )}
+                    </Pressable>
 
                     {/* Gradient Overlay for Text Readability */}
                     <LinearGradient
                         colors={['transparent', 'rgba(0,0,0,0.95)']}
                         style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '75%', justifyContent: 'flex-end', padding: isTablet ? 60 : 24 }}
+                        pointerEvents="none"
                     >
                         <Text
                             className="text-white font-headline-bold mb-4 leading-tight"
@@ -474,11 +478,9 @@ const GroupDetailScreen = () => {
                                         <Text className={`text-primary font-headline-bold ${isTablet ? 'text-[120px]' : 'text-[80px]'}`}>{profileTargetUser?.name?.charAt(0)}</Text>
                                     </View>
                                 )}
-                                {/* Pinch hint */}
                                 {profileTargetUser?.avatar_url && (
-                                    <View style={{ position: 'absolute', bottom: 12, right: 12 }} className="bg-black/40 rounded-full px-3 py-1 flex-row items-center">
-                                        <Ionicons name="search" size={11} color="white" />
-                                        <Text className="text-white text-[10px] font-body-bold ml-1">Pinch to zoom</Text>
+                                    <View style={{ position: 'absolute', bottom: 12, right: 12 }} className="bg-black/20 rounded-full p-2 flex-row items-center">
+                                        <Ionicons name="resize" size={12} color="white" />
                                     </View>
                                 )}
                             </View>
@@ -521,6 +523,49 @@ const GroupDetailScreen = () => {
                         </Text>
                     </TouchableOpacity>
                 </View>
+
+                {/* MANDALI PHOTO MODAL */}
+                <Modal
+                    visible={showCoverModal}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setShowCoverModal(false)}
+                >
+                    <Pressable className="flex-1 bg-black/90 justify-center items-center" onPress={() => setShowCoverModal(false)}>
+                        <View style={{ width: '100%', height: '100%' }}>
+                            {group.cover_photo_url ? (
+                                <ScrollView
+                                    contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+                                    maximumZoomScale={5}
+                                    minimumZoomScale={1}
+                                    showsVerticalScrollIndicator={false}
+                                    showsHorizontalScrollIndicator={false}
+                                    centerContent
+                                    bouncesZoom
+                                    style={{ width: '100%', height: '100%' }}
+                                >
+                                    <Image
+                                        source={{ uri: group.cover_photo_url }}
+                                        style={{ width: '100%', height: undefined, aspectRatio: 1 }}
+                                        contentFit="contain"
+                                    />
+                                </ScrollView>
+                            ) : (
+                                <View className="flex-1 items-center justify-center bg-primary/5">
+                                    <Text className={`text-primary font-headline-bold ${isTablet ? 'text-[120px]' : 'text-[80px]'}`}>{group.name?.charAt(0)}</Text>
+                                </View>
+                            )}
+                            
+                            {/* Close button overlay */}
+                            <TouchableOpacity 
+                                onPress={() => setShowCoverModal(false)}
+                                className="absolute top-16 right-8 w-12 h-12 bg-white/10 rounded-full items-center justify-center border border-white/20"
+                            >
+                                <Ionicons name="close" size={28} color="white" />
+                            </TouchableOpacity>
+                        </View>
+                    </Pressable>
+                </Modal>
             </ScrollView>
 
             {/* Transfer Ownership Modal */}

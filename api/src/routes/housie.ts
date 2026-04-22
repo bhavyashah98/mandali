@@ -200,7 +200,7 @@ router.patch('/:gameCode/activate', authMiddleware, async (req: AuthRequest, res
 
         const { data: game, error: fetchError } = await supabase
             .from('housie_games')
-            .select('host_id')
+            .select('host_id, group_id')
             .eq('game_code', gameCode)
             .single();
 
@@ -222,10 +222,19 @@ router.patch('/:gameCode/activate', authMiddleware, async (req: AuthRequest, res
 
         if (updateError) throw updateError;
 
-        req.app.get('io').to(gameCode).emit('game_activated', {
-            gameCode,
-            status: 'active'
-        });
+        const io = req.app.get('io');
+        if (io) {
+            // Notify players in the game
+            io.to(gameCode).emit('game_activated', {
+                gameCode,
+                status: 'active'
+            });
+            // Notify group members in lobby
+            io.to(game.group_id).emit('game_activated', {
+                gameCode,
+                status: 'active'
+            });
+        }
 
         res.json(updatedGame);
     } catch (error: any) {
@@ -696,7 +705,7 @@ router.get('/:gameCode/results', authMiddleware, async (req: AuthRequest, res) =
                 user_id,
                 prize_name,
                 prize_amount,
-                users:user_id(name, avatar_url)
+                users(name, avatar_url)
             `)
             .eq('game_id', game.id);
 

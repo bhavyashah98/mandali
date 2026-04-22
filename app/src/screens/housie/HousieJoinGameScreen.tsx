@@ -86,7 +86,7 @@ const HousieJoinGameScreen = () => {
             <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                 <View style={{ width: isTablet ? 64 : 44 }}>
                     <TouchableOpacity 
-                        onPress={() => navigation.goBack()} 
+                        onPress={() => navigation.navigate('HousieLobby', { groupId })} 
                         className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                     >
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />
@@ -142,36 +142,45 @@ const HousieJoinGameScreen = () => {
                             <View>
                                 <Text className={`text-[#594048] font-body-bold uppercase tracking-widest mb-3 ml-2 ${isTablet ? 'text-xl' : 'text-xs'}`}>Number of Tickets</Text>
                                 <View 
-                                    style={{ height: isTablet ? 100 : 72 }}
-                                    className="flex-row items-center bg-white rounded-[32px] px-6 shadow-sm border border-stone-100"
+                                    style={{ height: isTablet ? 110 : 80 }}
+                                    className="flex-row items-center bg-white rounded-[32px] px-4 shadow-sm border border-stone-100"
                                 >
                                     <TouchableOpacity
                                         onPress={() => setTicketCount(Math.max(1, parseInt(ticketCount) - 1).toString())}
-                                        className={`${isTablet ? 'w-16 h-16' : 'w-12 h-12'} items-center justify-center bg-stone-50 rounded-full`}
+                                        activeOpacity={0.7}
+                                        className={`${isTablet ? 'w-20 h-20' : 'w-14 h-14'} items-center justify-center bg-stone-50 rounded-[20px]`}
                                     >
-                                        <MaterialIcons name="remove" size={isTablet ? 32 : 24} color="#b30069" />
+                                        <MaterialIcons name="remove" size={isTablet ? 36 : 28} color="#b30069" />
                                     </TouchableOpacity>
-                                    <TextInput
-                                        value={ticketCount}
-                                        onChangeText={setTicketCount}
-                                        keyboardType="number-pad"
-                                        className="flex-1 text-center font-headline-bold text-[#1c1c18]"
-                                        style={{ fontSize: isTablet ? 36 : 24 }}
-                                    />
+                                    
+                                    <View className="flex-1 items-center justify-center">
+                                        <TextInput
+                                            value={ticketCount}
+                                            onChangeText={(v) => setTicketCount(v.replace(/[^0-9]/g, ''))}
+                                            keyboardType="number-pad"
+                                            className="font-headline-bold text-[#1c1c18]"
+                                            style={{ fontSize: isTablet ? 48 : 32, padding: 0 }}
+                                        />
+                                        <Text className={`text-[#a09d96] font-body-bold uppercase ${isTablet ? 'text-lg' : 'text-[9px]'} tracking-[1px]`}>Tickets</Text>
+                                    </View>
+
                                     <TouchableOpacity
                                         onPress={() => setTicketCount((parseInt(ticketCount) + 1).toString())}
-                                        className={`${isTablet ? 'w-16 h-16' : 'w-12 h-12'} items-center justify-center bg-stone-50 rounded-full`}
+                                        activeOpacity={0.7}
+                                        className={`${isTablet ? 'w-20 h-20' : 'w-14 h-14'} items-center justify-center bg-[#b30069]/5 rounded-[20px]`}
                                     >
-                                        <MaterialIcons name="add" size={isTablet ? 32 : 24} color="#b30069" />
+                                        <MaterialIcons name="add" size={isTablet ? 36 : 28} color="#b30069" />
                                     </TouchableOpacity>
                                 </View>
-                            <View className="flex-row items-center mt-4 ml-2">
-                                <Text 
-                                    className="text-stone-400 font-body-medium"
-                                    style={{ fontSize: isTablet ? 20 : 13 }}
-                                >Each ticket costs {ticketPrice} </Text>
-                                <MandaliCoin size={isTablet ? 20 : 13} />
-                            </View>
+                                
+                                <View className="flex-row items-center mt-5 ml-4 bg-primary/5 self-start px-4 py-2 rounded-full border border-primary/10">
+                                    <Text 
+                                        className="text-primary/70 font-body-bold uppercase tracking-[1px]"
+                                        style={{ fontSize: isTablet ? 20 : 11 }}
+                                    >Price: {ticketPrice}</Text>
+                                    <MandaliCoin size={isTablet ? 22 : 14} style={{ marginLeft: 6 }} />
+                                    <Text className="text-primary/50 font-body-bold ml-1" style={{ fontSize: isTablet ? 18 : 10 }}>/ ea</Text>
+                                </View>
                             </View>
                         </View>
 
@@ -185,23 +194,30 @@ const HousieJoinGameScreen = () => {
                                 <ActivityIndicator color="white" size={isTablet ? 'large' : 'small'} />
                             ) : (
                                 <>
-                                    <MaterialIcons name="local-activity" size={isTablet ? 36 : 24} color="white" />
-                                    <Text 
-                                        className="text-white font-headline-bold ml-4"
-                                        style={{ fontSize: isTablet ? 32 : 22 }}
-                                    >
-                                        Get {ticketCount} Tickets • {parseInt(ticketCount) * ticketPrice} <MandaliCoin size={isTablet ? 32 : 22} />
-                                    </Text>
+                                    <View className="flex-row items-center justify-center px-4 w-full">
+                                        <MaterialIcons name="local-activity" size={isTablet ? 36 : 24} color="white" />
+                                        <View className="flex-row items-center ml-4 flex-shrink-1">
+                                            <Text 
+                                                className="text-white font-headline-bold"
+                                                style={{ fontSize: isTablet ? 32 : 22 }}
+                                                numberOfLines={1}
+                                                adjustsFontSizeToFit
+                                            >
+                                                Get {ticketCount} {parseInt(ticketCount) === 1 ? 'Ticket' : 'Tickets'} • {parseInt(ticketCount) * ticketPrice}
+                                            </Text>
+                                            <MandaliCoin size={isTablet ? 32 : 22} style={{ marginLeft: 8 }} />
+                                        </View>
+                                    </View>
                                 </>
                             )}
                         </TouchableOpacity>
 
                         {/* Back Link */}
                         <TouchableOpacity 
-                            onPress={() => navigation.goBack()}
+                            onPress={() => navigation.navigate('HousieLobby', { groupId })}
                             className="mt-10 self-center"
                         >
-                            <Text className={`text-stone-300 font-body-bold uppercase tracking-[4px] ${isTablet ? 'text-lg' : 'text-xs'}`}>Go Back</Text>
+                            <Text className={`text-stone-300 font-body-bold uppercase tracking-[4px] ${isTablet ? 'text-lg' : 'text-xs'}`}>Return to Lobby</Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>

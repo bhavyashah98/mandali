@@ -3,6 +3,7 @@ import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import axios from 'axios';
 import { API_URL, getAuthHeaders } from './api';
+import Constants from 'expo-constants';
 
 import { useSettingsStore } from '../stores/settingsStore';
 
@@ -49,7 +50,7 @@ export const registerForPushNotificationsAsync = async () => {
         try {
             // Get the Expo Push Token mapping cleanly to Expo's routing hardware
             const tokenResult = await Notifications.getExpoPushTokenAsync({
-                projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
+                projectId: Constants.expoConfig?.extra?.eas?.projectId || process.env.EXPO_PUBLIC_PROJECT_ID,
             });
             token = tokenResult.data;
 

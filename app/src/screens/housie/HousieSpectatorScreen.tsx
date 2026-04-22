@@ -55,6 +55,8 @@ const HousieSpectatorScreen = () => {
         };
 
         const onGameEnded = () => {
+            const state = navigation.getState();
+            if (state?.routes[state?.index]?.name === 'HousieResults') return;
             navigation.replace('HousieResults', { gameCode, groupId });
         };
 
@@ -86,27 +88,50 @@ const HousieSpectatorScreen = () => {
         );
     }
 
-    const renderNumberCell = (num: number) => {
-        const isCalled = calledNumbers.includes(num);
-        const isLatest = num === latestNumber;
-        return (
-            <View
-                key={num}
-                className={`m-0.5 rounded-lg items-center justify-center aspect-square ${
-                    isLatest ? 'bg-[#b30069]' : isCalled ? 'bg-[#b30069]/10' : 'bg-stone-50'
-                }`}
-                style={{ width: '9%' }}
-            >
-                <Text
-                    className={`font-headline-bold ${
-                        isLatest ? 'text-white' : isCalled ? 'text-[#b30069]' : 'text-stone-300'
-                    } ${isTablet ? 'text-xl' : 'text-[9px]'}`}
-                >
-                    {num}
-                </Text>
-            </View>
-        );
+    const renderBoard = () => {
+        const itemRadius = isTablet ? 12 : 6;
+        const fontSize = isTablet ? 20 : 10;
+        const rows: React.JSX.Element[] = [];
+        for (let i = 0; i < 9; i++) {
+            const row: React.JSX.Element[] = [];
+            for (let j = 1; j <= 10; j++) {
+                const num = i * 10 + j;
+                const isCalled = calledNumbers.includes(num);
+                const isCurrent = num === calledNumbers[calledNumbers.length - 1];
+                row.push(
+                    <View
+                        key={num}
+                        style={{ flex: 1, aspectRatio: 1, borderRadius: itemRadius, margin: isTablet ? 3 : 1.5 }}
+                        className={`items-center justify-center ${
+                            isCurrent ? 'bg-[#b30069]' : isCalled ? 'bg-[#f59e0b]' : 'bg-[#f0ebe6]'
+                        }`}
+                    >
+                        <Text
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.3}
+                            style={{ fontSize }}
+                            className={`font-headline-bold text-center ${
+                                isCurrent ? 'text-white' : isCalled ? 'text-white' : 'text-[#b0a09a]'
+                            }`}
+                        >
+                            {num}
+                        </Text>
+                    </View>
+                );
+            }
+            rows.push(<View key={i} className="flex-row justify-between w-full">{row}</View>);
+        }
+        return rows;
     };
+
+    const prizesArr = (game?.prizes || []).map((p: any) => {
+        const winnerList = game?.winners?.[p.id];
+        const winners = Array.isArray(winnerList) ? winnerList : (winnerList ? [winnerList] : []);
+        const isClaimed = winners.length > 0;
+        const individualAmount = isClaimed ? (p.amount / winners.length).toFixed(0) : p.amount;
+        return { ...p, status: isClaimed ? 'CLAIMED' : 'OPEN', winners, individualAmount };
+    });
 
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
@@ -193,91 +218,65 @@ const HousieSpectatorScreen = () => {
                     </View>
                 )}
 
-                {/* Number Board Grid */}
-                <View className={`bg-white rounded-[32px] shadow-sm border border-stone-100 mb-10 ${isTablet ? 'p-10 px-12' : 'p-4'}`}>
-                    <Text className={`text-stone-400 font-body-bold text-center uppercase tracking-[3px] mb-6 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>
-                        MASTER NUMBER BOARD
-                    </Text>
-                    <View className="flex-row flex-wrap justify-center">
-                        {Array.from({ length: 90 }, (_, i) => i + 1).map(renderNumberCell)}
-                    </View>
-                    
-                    <View className={`flex-row justify-center gap-8 ${isTablet ? 'mt-10' : 'mt-6'}`}>
-                        <View className="flex-row items-center">
-                            <View className={`rounded bg-[#b30069] ${isTablet ? 'w-6 h-6 mr-3' : 'w-3 h-3 mr-2'}`} />
-                            <Text className={`text-stone-400 font-body-bold uppercase ${isTablet ? 'text-lg' : 'text-[10px]'}`}>Latest</Text>
-                        </View>
-                        <View className="flex-row items-center">
-                            <View className={`rounded bg-[#b30069]/20 ${isTablet ? 'w-6 h-6 mr-3' : 'w-3 h-3 mr-2'}`} />
-                            <Text className={`text-stone-400 font-body-bold uppercase ${isTablet ? 'text-lg' : 'text-[10px]'}`}>Called</Text>
-                        </View>
+                {/* Number Board */}
+                <View className={`bg-white rounded-[40px] shadow-sm border border-stone-100 mb-10 ${isTablet ? 'p-10' : 'p-6'}`}>
+                    <Text className={`text-[#594048] font-headline-bold mb-6 ${isTablet ? 'text-4xl' : 'text-xl'}`}>Main Board</Text>
+                    <View className="items-center w-full">
+                        {renderBoard()}
                     </View>
                 </View>
 
-                {/* Prize Status Dashboard */}
-                <Text className={`text-stone-400 font-body-bold text-center uppercase tracking-[4px] mb-8 ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>
-                    REWARDS LEADERBOARD
-                </Text>
-
-                {prizes.length === 0 ? (
-                    <View className="bg-white rounded-[40px] p-20 items-center justify-center border border-stone-100">
-                        <Ionicons name="sparkles" size={isTablet ? 60 : 40} color="#e7d5cc" />
-                        <Text className={`text-stone-300 font-body-bold text-center mt-6 ${isTablet ? 'text-2xl' : 'text-sm'}`}>
-                            Rewards will update here live as players win
-                        </Text>
-                    </View>
-                ) : (
-                    <View className="gap-3">
-                        {prizes.map((prize: any) => {
-                            const winnerList = game?.winners?.[prize.id];
-                            const winners = Array.isArray(winnerList) ? winnerList : (winnerList ? [winnerList] : []);
-                            const currentCalledCount = calledNumbers.length;
-                            const isClaimed = winners.length > 0 && winners[0].claimedOnIndex < currentCalledCount;
-                            const isPending = winners.length > 0 && !isClaimed;
-
-                            return (
-                                <View
-                                    key={prize.id}
-                                    className={`flex-row items-center rounded-[28px] mb-2 ${
-                                        isClaimed ? 'bg-stone-50 border border-stone-100' : 'bg-white shadow-sm border border-stone-100'
-                                    } ${isTablet ? 'p-8' : 'p-4'}`}
-                                >
-                                    <View className={`${isTablet ? 'w-20 h-20' : 'w-10 h-10'} rounded-full items-center justify-center mr-4 ${
-                                        isClaimed ? 'bg-stone-200' : isPending ? 'bg-orange-50' : 'bg-[#b30069]/5'
-                                    }`}>
-                                        <MaterialIcons
-                                            name={prize.icon || 'stars'}
-                                            size={isTablet ? 36 : 20}
-                                            color={isClaimed ? '#a8a29e' : isPending ? '#f97316' : '#b30069'}
-                                        />
+                {/* Rewards */}
+                <View className="mt-4 px-2">
+                    <Text className={`text-[#594048] font-headline-bold mb-6 ${isTablet ? 'text-4xl' : 'text-xl'}`}>Rewards</Text>
+                    <View className="gap-4 pb-10">
+                        {prizesArr.map((prize: any, idx: number) => (
+                            <View key={idx} className={`bg-white rounded-[24px] border border-stone-100 shadow-sm mb-1 ${isTablet ? 'p-8' : 'p-4'}`}>
+                                <View className="flex-row items-center justify-between">
+                                    <View className="flex-row items-center flex-1 min-w-0 mr-3">
+                                        <View className={`rounded-2xl bg-stone-50 items-center justify-center mr-3 flex-shrink-0 ${isTablet ? 'w-20 h-20' : 'w-9 h-9'}`}>
+                                            <MaterialIcons name={prize.icon as any || 'stars'} size={isTablet ? 40 : 18} color="#b30069" />
+                                        </View>
+                                        <View className="flex-1 min-w-0">
+                                            <Text
+                                                numberOfLines={1}
+                                                adjustsFontSizeToFit
+                                                minimumFontScale={0.75}
+                                                className={`text-[#594048] font-headline-bold ${isTablet ? 'text-3xl' : 'text-[15px]'}`}
+                                            >{prize.name}</Text>
+                                            <View className={`flex-row items-center ${isTablet ? 'mt-1' : ''}`}>
+                                                <Text className={`text-[#b30069] font-body-bold ${isTablet ? 'text-xl' : 'text-[11px]'}`}>
+                                                    {prize.winners?.length > 1 ? `Split: ${prize.individualAmount} each ` : `${prize.amount} `}
+                                                </Text>
+                                                <MandaliCoin size={isTablet ? 20 : 12} />
+                                            </View>
+                                        </View>
                                     </View>
-
-                                    <View className="flex-1">
-                                        <Text className={`font-headline-bold ${isClaimed ? 'text-stone-400 line-through' : 'text-[#31302d]'} ${isTablet ? 'text-3xl' : 'text-base'}`}>
-                                            {prize.name}
+                                    <View
+                                        className={`rounded-full flex-shrink-0 ${prize.status === 'CLAIMED' ? 'bg-green-100' : 'bg-stone-50'} ${isTablet ? 'px-8 py-4' : 'px-2.5 py-1'}`}
+                                        style={{ maxWidth: isTablet ? 300 : 130 }}
+                                    >
+                                        <Text
+                                            numberOfLines={1}
+                                            adjustsFontSizeToFit
+                                            minimumFontScale={0.6}
+                                            className={`font-body-bold tracking-widest uppercase text-center ${isTablet ? 'text-lg' : 'text-[8px]'} ${prize.status === 'CLAIMED' ? 'text-green-700' : 'text-stone-400'}`}
+                                        >
+                                            {prize.winners?.length > 1
+                                                ? `${prize.winners.length} WINNERS`
+                                                : prize.winners?.length === 1
+                                                    ? `✓ ${getParticipantName(prize.winners[0].userId)}`
+                                                    : prize.status
+                                            }
                                         </Text>
-                                        {winners.length > 0 && (
-                                            <Text className={`uppercase font-body-bold mt-1 ${isClaimed ? 'text-stone-400' : 'text-orange-500'} ${isTablet ? 'text-lg' : 'text-[9px]'}`}>
-                                                {isClaimed
-                                                    ? `Winner: ${winners.map((w: any) => getParticipantName(w.userId)).join(', ')}`
-                                                    : `Verification in progress (${winners.length})...`}
-                                            </Text>
-                                        )}
-                                    </View>
-
-                                    <View className="flex-row items-center">
-                                        <Text className={`font-headline-bold ${isClaimed ? 'text-stone-400' : 'text-[#b30069]'} ${isTablet ? 'text-4xl' : 'text-lg'}`}>
-                                            {winners.length > 1 ? (prize.amount / winners.length).toFixed(0) : prize.amount}
-                                        </Text>
-                                        <MandaliCoin size={isTablet ? 32 : 14} style={{ marginLeft: 6 }} />
                                     </View>
                                 </View>
-                            );
-                        })}
+                            </View>
+                        ))}
                     </View>
-                )}
+                </View>
 
-                <View className="flex-row items-center justify-center mt-12 opacity-30">
+                <View className="flex-row items-center justify-center mt-4 mb-12 opacity-30">
                     <Ionicons name="eye" size={isTablet ? 24 : 16} color="#94a3b8" />
                     <Text className={`text-stone-400 font-body-bold uppercase tracking-widest ml-3 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>
                         Spectator View

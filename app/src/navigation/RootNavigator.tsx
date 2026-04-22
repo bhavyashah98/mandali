@@ -21,7 +21,10 @@ export const RootNavigator = () => {
     const isProfileIncomplete = isAuthenticated && (!user?.name || user?.name.trim() === '');
 
     const navigateToFeature = (feature: string, params: any) => {
-        if (!navigationRef.current) return;
+        if (!navigationRef.current || !navigationRef.current.isReady()) {
+            setTimeout(() => navigateToFeature(feature, params), 500);
+            return;
+        }
 
         switch (feature) {
             case 'join':
@@ -71,8 +74,6 @@ export const RootNavigator = () => {
                 params.id = segments[0];
             }
 
-            console.log(`[DeepLink] Processing: ${feature}`, params);
-
             if (isAppReady && isAuthenticated && !isProfileIncomplete) {
                 navigateToFeature(feature, params);
             } else {
@@ -112,7 +113,6 @@ export const RootNavigator = () => {
                             }
                             setAuthenticated(true);
                         } catch (err) {
-                            console.log('[Root Navigator] Profile fetch failed');
                             setAuthenticated(true);
                         }
                     }
@@ -130,12 +130,33 @@ export const RootNavigator = () => {
         return unsubscribe;
     }, []);
 
-    // Handle Push Notification Clicks
+    // Handle Push Notification Clicks (Foreground & Background)
     useEffect(() => {
+        if (isAuthenticated && !isProfileIncomplete) {
+            registerForPushNotificationsAsync();
+        }
+
+        // Handle clicks while app is already open
         const subscription = Notifications.addNotificationResponseReceivedListener(response => {
             const data = response.notification.request.content.data;
             if (data?.url) handleDeepLink(String(data.url));
         });
+
+        // Handle cold boot (app was closed)
+        const checkInitialNotification = async () => {
+            try {
+                const response = await Notifications.getLastNotificationResponseAsync();
+                if (response) {
+                    const data = response.notification.request.content.data;
+                    if (data?.url) handleDeepLink(String(data.url));
+                }
+            } catch (err) {
+                console.error('[Push] Failed to check initial notification:', err);
+            }
+        };
+
+        checkInitialNotification();
+
         return () => subscription.remove();
     }, [isAppReady, isAuthenticated, isProfileIncomplete]);
 
