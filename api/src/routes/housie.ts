@@ -119,7 +119,17 @@ router.get('/active/:groupId', authMiddleware, async (req: AuthRequest, res) => 
             .limit(1)
             .maybeSingle();
 
-        res.json({ activeGame, lastGame });
+        // Flatten host name into activeGame for frontend consistency (matches /:gameCode behavior)
+        let activeGameWithHost = activeGame;
+        if (activeGame) {
+            const { data: hostUser } = await supabase.from('users').select('name').eq('id', activeGame.host_id).single();
+            activeGameWithHost = {
+                ...activeGame,
+                hostName: hostUser?.name || 'Host'
+            };
+        }
+
+        res.json({ activeGame: activeGameWithHost, lastGame });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -409,7 +419,6 @@ router.post('/:gameCode/call', authMiddleware, async (req: AuthRequest, res) => 
             .from('housie_games')
             .update({
                 called_numbers: updatedNumbers,
-                last_number_called_at: new Date().toISOString(),
                 last_activity_at: new Date().toISOString()
             })
             .eq('game_code', gameCode)

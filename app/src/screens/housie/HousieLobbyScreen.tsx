@@ -311,10 +311,10 @@ const HousieLobbyScreen = () => {
 
                 {/* Active Game Info */}
                 {activeGame && activeGame.status !== 'ended' && (
-                    <View className={`mt-8 items-center bg-white rounded-[32px] border border-stone-100 shadow-sm w-full ${isTablet ? 'p-12' : 'p-6'}`}>
+                    <View className={`mt-8 items-center bg-white rounded-[40px] border border-stone-100 shadow-sm w-full ${isTablet ? 'p-12' : 'p-6'}`}>
                         <Text className={`text-stone-400 font-body-bold uppercase tracking-widest mb-3 ${isTablet ? 'text-xl' : 'text-xs'}`}>Live Game Code</Text>
-                        <Text className={`text-[#b30069] font-headline-bold mb-2 ${isTablet ? 'text-7xl' : 'text-3xl'}`}>{activeGame.game_code}</Text>
-                        <Text className={`text-stone-400 font-body-medium text-center ${isTablet ? 'text-2xl mt-2' : ''}`}>Share this code with your Mandali.</Text>
+                        <Text className={`text-[#b30069] font-headline-bold mb-2 ${isTablet ? 'text-7xl' : 'text-4xl'}`}>{activeGame.game_code}</Text>
+                        <Text className={`text-stone-400 font-body-bold text-center ${isTablet ? 'text-2xl mt-2' : ''}`}>Hosted by: <Text className="text-stone-600">{activeGame.hostName || 'MANDALI'}</Text></Text>
                     </View>
                 )}
 

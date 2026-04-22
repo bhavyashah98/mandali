@@ -219,59 +219,100 @@ const HousieTicketScreen = () => {
         const dbDeniedList = game?.winners?.['__denied']?.[ticket.id] || [];
         const isBoggy = (deniedClaims[ticket.id]?.length || 0) > 0 || dbDeniedList.length > 0;
 
+        // Calculate wins for this specific ticket
+        const ticketWins: string[] = [];
+        let isFullHouseWin = false;
+
+        Object.keys(game?.winners || {}).forEach(prizeId => {
+            if (prizeId === '__pending' || prizeId === '__denied') return;
+            const winners = game.winners[prizeId];
+            const winnerArray = Array.isArray(winners) ? winners : (winners ? [winners] : []);
+            
+            const myWinOnThisTicket = winnerArray.find((w: any) => w.ticketId === ticket.id);
+            if (myWinOnThisTicket) {
+                const prize = game.prizes.find((p: any) => p.id === prizeId);
+                const prizeName = prize?.name || 'Prize';
+                if (prizeName.toLowerCase().includes('full house')) {
+                    isFullHouseWin = true;
+                } else {
+                    ticketWins.push(prizeName);
+                }
+            }
+        });
+
         return (
             <View className={`mb-12 w-full ${isBoggy ? 'opacity-90' : ''} ${isTablet ? 'px-12' : ''}`}>
                 <View className="flex-row items-center justify-between mb-4 px-2">
-                    <Text className={`text-stone-400 font-body-bold uppercase tracking-[3px] ${isTablet ? 'text-xl' : 'text-[10px]'}`}>TICKET #{ticket.id.slice(-4).toUpperCase()}</Text>
-                    <TouchableOpacity
-                        onPress={() => {
-                            setClaimingTicketId(ticket.id);
-                            setPrizesModalVisible(true);
-                        }}
-                        disabled={isBoggy}
-                        style={{ height: isTablet ? 60 : 36 }}
-                        className={`flex-row items-center ${isTablet ? 'px-8' : 'px-4'} rounded-full ${isBoggy ? 'bg-stone-200' : 'bg-primary/10'}`}
-                    >
-                        <FontAwesome5 name="trophy" size={isTablet ? 18 : 12} color={isBoggy ? '#a8a29e' : '#b30069'} />
-                        <Text className={`font-headline-bold ml-3 uppercase tracking-tight ${isBoggy ? 'text-stone-400' : 'text-primary'} ${isTablet ? 'text-xl' : 'text-[11px]'}`}>
-                            {isBoggy ? 'Disqualified' : 'Claim Reward'}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-                <View className={`relative bg-white rounded-[32px] shadow-lg shadow-black/5 border border-black/5 overflow-hidden ${isTablet ? 'p-6' : 'p-3'}`}>
-                    {/* The Boggy Overlay */}
-                    {isBoggy && (
-                        <View className="absolute z-10 bottom-0 top-0 left-0 right-0 bg-[#594048]/60 items-center justify-center rounded-[32px]" style={{ elevation: 5 }}>
-                            <View className="bg-primary px-10 py-4 rounded-[32px] border-[4px] border-white shadow-2xl opacity-95" style={{ transform: [{ rotate: '-8deg' }] }}>
-                                <Text className={`text-white font-headline-bold tracking-widest ${isTablet ? 'text-6xl' : 'text-3xl'}`}>OOPS BOGGY</Text>
-                            </View>
-                        </View>
-                    )}
-
-                    <View className={isBoggy ? 'opacity-50' : ''}>
-                        {ticket.ticket_data.map((row: any[], rIdx: number) => (
-                            <View key={rIdx} className="flex-row">
-                                {row.map((num: number | null, cIdx: number) => (
-                                    <View key={cIdx} className="flex-1 aspect-square p-1">
-                                        {num ? (
-                                            <TouchableOpacity
-                                                onPress={() => toggleMark(ticket.id, num)}
-                                                disabled={isBoggy}
-                                                className={`w-full h-full rounded-xl items-center justify-center border ${(markedTickets[ticket.id] || []).includes(num) ? 'bg-primary border-primary' : 'bg-stone-50 border-stone-100'}`}
-                                            >
-                                                <Text className={`font-headline-bold ${(markedTickets[ticket.id] || []).includes(num) ? 'text-white' : 'text-[#1c1c18]'} ${isTablet ? 'text-3xl' : 'text-sm'}`}>
-                                                    {num}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        ) : (
-                                            <View className="w-full h-full rounded-xl bg-stone-50/10" />
-                                        )}
-                                    </View>
-                                ))}
+                    <View className="flex-row items-center">
+                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[3px] ${isTablet ? 'text-xl' : 'text-[10px]'}`}>TICKET #{ticket.id.slice(-4).toUpperCase()}</Text>
+                        
+                        {/* Standard Win Badges */}
+                        {ticketWins.map((win, idx) => (
+                            <View key={idx} className="bg-green-100 px-3 py-1 rounded-full ml-3 border border-green-200">
+                                <Text className={`text-green-700 font-headline-bold uppercase tracking-tight ${isTablet ? 'text-lg' : 'text-[9px]'}`}>Won {win}</Text>
                             </View>
                         ))}
                     </View>
-                </View>
+
+                        <TouchableOpacity
+                            onPress={() => {
+                                setClaimingTicketId(ticket.id);
+                                setPrizesModalVisible(true);
+                            }}
+                            disabled={isBoggy || isFullHouseWin}
+                            style={{ height: isTablet ? 60 : 36 }}
+                            className={`flex-row items-center ${isTablet ? 'px-8' : 'px-4'} rounded-full ${isBoggy ? 'bg-stone-200' : isFullHouseWin ? 'bg-green-50' : 'bg-white border border-stone-100'}`}
+                        >
+                            <FontAwesome5 name="trophy" size={isTablet ? 18 : 12} color={isBoggy ? '#a8a29e' : isFullHouseWin ? '#16a34a' : '#b30069'} />
+                            <Text className={`font-headline-bold ml-3 uppercase tracking-tight ${isBoggy ? 'text-stone-400' : isFullHouseWin ? 'text-green-600' : 'text-primary'} ${isTablet ? 'text-xl' : 'text-[11px]'}`}>
+                                {isBoggy ? 'Disqualified' : isFullHouseWin ? 'Winner!' : 'Claim Reward'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    <View className={`relative bg-white rounded-[32px] shadow-lg shadow-black/5 border border-black/5 overflow-hidden ${isTablet ? 'p-6' : 'p-3'}`}>
+                        {/* The Boggy Overlay */}
+                        {isBoggy && (
+                            <View className="absolute z-10 bottom-0 top-0 left-0 right-0 bg-[#594048]/60 items-center justify-center rounded-[32px]" style={{ elevation: 5 }}>
+                                <View className="bg-primary px-10 py-4 rounded-[32px] border-[4px] border-white shadow-2xl opacity-95" style={{ transform: [{ rotate: '-8deg' }] }}>
+                                    <Text className={`text-white font-headline-bold tracking-widest ${isTablet ? 'text-6xl' : 'text-3xl'}`}>OOPS BOGGY</Text>
+                                </View>
+                            </View>
+                        )}
+
+                        {/* The Full House Win Overlay */}
+                        {isFullHouseWin && (
+                            <View className="absolute z-10 bottom-0 top-0 left-0 right-0 bg-green-900/40 items-center justify-center rounded-[32px]" style={{ elevation: 5 }}>
+                                <View className="bg-[#16a34a] px-10 py-4 rounded-[32px] border-[4px] border-white shadow-2xl opacity-95">
+                                    <Text className={`text-white font-headline-bold tracking-widest ${isTablet ? 'text-6xl' : 'text-3xl'}`}>FULL HOUSE</Text>
+                                </View>
+                            </View>
+                        )}
+
+                        <View className={(isBoggy || isFullHouseWin) ? 'opacity-50' : ''}>
+                            {ticket.ticket_data.map((row: any[], rIdx: number) => (
+                                <View key={rIdx} className="flex-row">
+                                    {row.map((num: number | null, cIdx: number) => (
+                                        <View key={cIdx} className="flex-1 aspect-square p-1">
+                                            {num ? (
+                                                <TouchableOpacity
+                                                    onPress={() => toggleMark(ticket.id, num)}
+                                                    disabled={isBoggy || isFullHouseWin}
+                                                    className={`w-full h-full rounded-xl items-center justify-center border ${(markedTickets[ticket.id] || []).includes(num) ? 'bg-primary border-primary' : 'bg-stone-50 border-stone-100'}`}
+                                                >
+                                                    <Text className={`font-headline-bold ${(markedTickets[ticket.id] || []).includes(num) ? 'text-white' : 'text-[#1c1c18]'} ${isTablet ? 'text-3xl' : 'text-sm'}`}>
+                                                        {num}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ) : (
+                                                <View className="w-full h-full rounded-xl bg-stone-50/10" />
+                                            )}
+                                        </View>
+                                    ))}
+                                </View>
+                            ))}
+                        </View>
+                    </View>
             </View>
         );
     };
@@ -286,9 +327,11 @@ const HousieTicketScreen = () => {
                 >
                     <MaterialIcons name="arrow-back-ios" size={isTablet ? 24 : 18} color="#594048" style={{ marginLeft: isTablet ? 10 : 5 }} />
                 </TouchableOpacity>
-                <View className={`bg-green-100 rounded-full flex-row items-center border border-green-200 ${isTablet ? 'px-6 py-2' : 'px-3 py-1'}`}>
-                    <View className={`rounded-full bg-green-500 ${isTablet ? 'w-3 h-3 mr-3' : 'w-2 h-2 mr-2'}`} />
-                    <Text className={`text-green-800 font-body-bold uppercase tracking-widest ${isTablet ? 'text-lg' : 'text-[10px]'}`}>Live Game</Text>
+                <View className={`bg-white rounded-full flex-row items-center border border-stone-100 shadow-sm ${isTablet ? 'px-6 py-2.5' : 'px-3 py-1.5'}`}>
+                    <View className={`rounded-full bg-green-500 ${isTablet ? 'w-3 h-3 mr-2.5' : 'w-2 h-2 mr-1.5'}`} />
+                    <Text className={`text-stone-600 font-body-bold uppercase tracking-widest ${isTablet ? 'text-lg' : 'text-[9px]'}`}>
+                        {gameCode} <Text className="text-stone-300 mx-1">•</Text> LIVE <Text className="text-stone-300 mx-1">•</Text> {game?.hostName || 'MANDALI'}
+                    </Text>
                 </View>
                 <View style={{ width: isTablet ? 64 : 40 }} />
             </View>
@@ -300,12 +343,7 @@ const HousieTicketScreen = () => {
                 contentContainerStyle={{ paddingHorizontal: isTablet ? 40 : 20, paddingBottom: 60 }}
                 ListHeaderComponent={() => (
                     <View className={`mb-12 mt-6 items-center ${isTablet ? 'py-12' : ''}`}>
-                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[4px] mb-2 ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>NOW CALLING</Text>
-                        {game?.hostName && (
-                            <Text className={`text-[#b30069] font-body-bold mb-8 ${isTablet ? 'text-xl' : 'text-[11px]'}`}>
-                                Hosted by {game.hostName}
-                            </Text>
-                        )}
+                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[4px] mb-8 ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>NOW CALLING</Text>
                         <View
                             style={{ 
                                 width: isTablet ? 280 : 160, 

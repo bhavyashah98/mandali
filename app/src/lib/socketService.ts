@@ -22,11 +22,6 @@ const handleAppStateChange = (nextAppState: AppStateStatus) => {
 // Start listening for app state changes immediately
 AppState.addEventListener('change', handleAppStateChange);
 
-/**
- * Initializes the socket with the provided auth token.
- * If a socket session already exists with the same token, it does nothing.
- * If the token changed, it disconnects the old one and creates a new one.
- */
 export const initializeSocket = (token: string) => {
     if (socketInstance && currentToken === token) return socketInstance;
 

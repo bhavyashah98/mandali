@@ -288,7 +288,7 @@ const HousieWaitingRoomScreen = () => {
                                     adjustsFontSizeToFit
                                     className={`text-white font-headline-bold ${isTablet ? 'text-4xl' : 'text-2xl'}`}
                                 >
-                                    Get Tickets
+                                    Buy More
                                 </Text>
                             )}
                         </TouchableOpacity>

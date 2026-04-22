@@ -6,6 +6,7 @@ export const registerChatHandlers = (io: Server, socket: Socket, onlineUsers: Ma
     const userId = (socket as any).userId;
 
     socket.on('send_message', async (data) => {
+        if (!userId) return;
         const { group_id, content, type = 'text', media_url, reply_to_id } = data;
         
         try {
