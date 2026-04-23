@@ -16,7 +16,7 @@ import {
     useWindowDimensions,
     Dimensions
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { setupHousieGame, fetchGroupDetail } from '../../lib/api';
@@ -28,6 +28,7 @@ const PRESETS = ['20', '50', '100', '200'];
 const HousieCreateGameScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute();
+    const insets = useSafeAreaInsets();
     const { groupId, gameCode } = (route.params as { groupId: string, gameCode: string }) || {};
     const [ticketPrice, setTicketPrice] = useState('50');
     const [isLoading, setIsLoading] = useState(false);
@@ -74,7 +75,7 @@ const HousieCreateGameScreen = () => {
 
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
+            <View className="flex-1 bg-[#fdf9f3]" style={{ paddingTop: insets.top }}>
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                     style={{ flex: 1 }}
@@ -104,7 +105,7 @@ const HousieCreateGameScreen = () => {
                         contentContainerStyle={{
                             flexGrow: 1,
                             paddingHorizontal: isTablet ? 60 : 24,
-                            paddingBottom: isTablet ? 80 : 40,
+                            paddingBottom: 40,
                         }}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
@@ -208,35 +209,43 @@ const HousieCreateGameScreen = () => {
                                         Mandali Glory points have no cash value. All ticket collections go into the reward pool, split across milestones you define next.
                                     </Text>
                                 </View>
-
-                                {/* CTA */}
-                                <TouchableOpacity
-                                    onPress={handleCreateGame}
-                                    disabled={isLoading || !ticketPrice || ticketPrice === '0'}
-                                    activeOpacity={0.9}
-                                    style={{ height: isTablet ? 110 : 64 }}
-                                    className={`bg-primary rounded-[40px] flex-row items-center justify-center shadow-lg shadow-primary/30 ${isLoading || !ticketPrice || ticketPrice === '0' ? 'opacity-50' : 'opacity-100'
-                                        }`}
-                                >
-                                    {isLoading ? (
-                                        <ActivityIndicator color="white" />
-                                    ) : (
-                                        <>
-                                            <MaterialIcons name="bolt" size={isTablet ? 42 : 22} color="white" />
-                                            <Text
-                                                style={{ fontSize: isTablet ? 32 : 20 }}
-                                                className="text-white font-headline-bold ml-4"
-                                            >
-                                                Initialize Game
-                                            </Text>
-                                        </>
-                                    )}
-                                </TouchableOpacity>
                             </View>
                         </TouchableWithoutFeedback>
                     </ScrollView>
+
+                    <View 
+                        className="bg-[#fdf9f3] border-t border-stone-100"
+                        style={{ 
+                            paddingHorizontal: isTablet ? 60 : 24,
+                            paddingTop: isTablet ? 32 : 16,
+                            paddingBottom: Math.max(insets.bottom, isTablet ? 48 : 24)
+                        }}
+                    >
+                        <TouchableOpacity
+                            onPress={handleCreateGame}
+                            disabled={isLoading || !ticketPrice || ticketPrice === '0'}
+                            activeOpacity={0.9}
+                            style={{ height: isTablet ? 110 : 72 }}
+                            className={`bg-primary rounded-[40px] flex-row items-center justify-center shadow-lg shadow-primary/30 ${isLoading || !ticketPrice || ticketPrice === '0' ? 'opacity-50' : 'opacity-100'
+                                }`}
+                        >
+                            {isLoading ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <>
+                                    <MaterialIcons name="bolt" size={isTablet ? 42 : 22} color="white" />
+                                    <Text
+                                        style={{ fontSize: isTablet ? 32 : 20 }}
+                                        className="text-white font-headline-bold ml-4"
+                                    >
+                                        Initialize Game
+                                    </Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    </View>
                 </KeyboardAvoidingView>
-            </SafeAreaView>
+            </View>
         </TouchableWithoutFeedback>
     );
 };

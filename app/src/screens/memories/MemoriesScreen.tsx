@@ -154,10 +154,10 @@ const MemoriesScreen = () => {
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />
                     </TouchableOpacity>
                 </View>
-                
+
                 {/* Centered Title Stack */}
                 <View className="flex-1 items-center">
-                    <Text 
+                    <Text
                         className="font-headline-bold text-[#1c1c18] text-center"
                         style={{ fontSize: isTablet ? 32 : 20 }}
                         numberOfLines={1}
@@ -165,11 +165,11 @@ const MemoriesScreen = () => {
                     >
                         {group?.group?.name || 'Mandali'}
                     </Text>
-                    <Text 
+                    <Text
                         className="font-body-bold text-[#b30069] opacity-60 uppercase tracking-widest text-center"
                         style={{ fontSize: isTablet ? 18 : 10, marginTop: isTablet ? 2 : 0 }}
                     >
-                        Gallery
+                        Memories
                     </Text>
                 </View>
 
@@ -184,8 +184,8 @@ const MemoriesScreen = () => {
                 </View>
             </View>
 
-            <ScrollView 
-                className="flex-1" 
+            <ScrollView
+                className="flex-1"
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#b30069" />

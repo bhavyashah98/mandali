@@ -80,13 +80,13 @@ const CreateMemoryScreen = () => {
                 story,
                 memoryDate
             }));
-            
+
             await Promise.all(createPromises);
 
             queryClient.invalidateQueries({ queryKey: ['memories', groupId] });
 
-            Alert.alert('Moment Preserved', 'Your story has been added to the Mandali Memories Gallery.', [
-                { text: 'View Gallery', onPress: () => navigation.goBack() }
+            Alert.alert('Moment Preserved', 'Your story has been added to the Mandali Memories', [
+                { text: 'View Memories', onPress: () => navigation.goBack() }
             ]);
         } catch (error: any) {
             Alert.alert('Upload Failed', 'We couldn\'t capture this moment. Please try again.');
@@ -103,8 +103,8 @@ const CreateMemoryScreen = () => {
             {/* Header */}
             <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                 <View style={{ width: isTablet ? 64 : 40 }}>
-                    <TouchableOpacity 
-                        onPress={() => navigation.goBack()} 
+                    <TouchableOpacity
+                        onPress={() => navigation.goBack()}
                         className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                     >
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />
@@ -112,7 +112,7 @@ const CreateMemoryScreen = () => {
                 </View>
 
                 <View className="flex-1 items-center">
-                    <Text 
+                    <Text
                         className="font-headline-bold text-on-surface text-[#1c1c18]"
                         style={{ fontSize: isTablet ? 36 : 22 }}
                         numberOfLines={1}
@@ -142,9 +142,9 @@ const CreateMemoryScreen = () => {
                         <TouchableOpacity
                             onPress={pickImages}
                             className={`bg-white border-2 border-dashed border-stone-200 rounded-[32px] items-center justify-center`}
-                            style={{ 
-                                width: selectedImages.length === 0 ? (isTablet ? width - 120 : width - 48) : GRID_SIZE, 
-                                height: selectedImages.length === 0 ? (isTablet ? 300 : 180) : GRID_SIZE 
+                            style={{
+                                width: selectedImages.length === 0 ? (isTablet ? width - 120 : width - 48) : GRID_SIZE,
+                                height: selectedImages.length === 0 ? (isTablet ? 300 : 180) : GRID_SIZE
                             }}
                         >
                             <View className={`rounded-full bg-[#fde8f3] items-center justify-center mb-6 ${isTablet ? 'w-24 h-24' : 'w-10 h-10'}`}>
@@ -172,7 +172,7 @@ const CreateMemoryScreen = () => {
                     {/* Story Input */}
                     <View className="mt-10">
                         <Text className={`text-[#594048] font-headline-bold mb-6 ${isTablet ? 'text-4xl' : 'text-lg'}`}>The Story Behind the Moment</Text>
-                        <View 
+                        <View
                             className="bg-white rounded-[32px] p-8 shadow-sm border border-stone-100"
                             style={{ minHeight: isTablet ? 300 : 120 }}
                         >
@@ -250,10 +250,10 @@ const CreateMemoryScreen = () => {
                     ) : (
                         <>
                             <Ionicons name="sparkles" size={isTablet ? 32 : 20} color="white" />
-                            <Text 
+                            <Text
                                 className="text-white font-headline-bold ml-4"
                                 style={{ fontSize: isTablet ? 32 : 20 }}
-                            >Upload to Gallery</Text>
+                            >Upload to Memories</Text>
                         </>
                     )}
                 </TouchableOpacity>

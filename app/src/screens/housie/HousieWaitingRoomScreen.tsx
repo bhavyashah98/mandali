@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Alert, Image, useWindowDimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -14,6 +14,7 @@ import MandaliCoin from '../../components/MandaliCoin';
 const HousieWaitingRoomScreen = () => {
     const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
+    const insets = useSafeAreaInsets();
     const navigation = useNavigation<any>();
     const route = useRoute();
     const queryClient = useQueryClient();
@@ -135,7 +136,7 @@ const HousieWaitingRoomScreen = () => {
     );
 
     return (
-        <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
+        <View className="flex-1 bg-[#fdf9f3]" style={{ paddingTop: insets.top }}>
             {/* Header */}
             <View className={`px-6 flex-row items-center justify-between ${isTablet ? 'py-8 px-12' : 'py-4 px-6'}`}>
                 <View style={{ width: isTablet ? 64 : 44 }}>
@@ -244,8 +245,15 @@ const HousieWaitingRoomScreen = () => {
                 showsVerticalScrollIndicator={false}
             />
 
-            {/* Action Footer - Fixed layout, no longer absolute to avoid cropping */}
-            <View className={`bg-[#fdf9f3] border-t border-stone-100 ${isTablet ? 'p-16' : 'p-8'}`}>
+            {/* Action Footer - Fixed layout, pins to absolute bottom */}
+            <View 
+                className="bg-[#fdf9f3] border-t border-stone-100"
+                style={{ 
+                    paddingHorizontal: isTablet ? 64 : 24,
+                    paddingTop: isTablet ? 32 : 16,
+                    paddingBottom: Math.max(insets.bottom, isTablet ? 48 : 24)
+                }}
+            >
                 {isHost ? (
                     <TouchableOpacity
                         onPress={handleStartGame}
@@ -288,14 +296,14 @@ const HousieWaitingRoomScreen = () => {
                                     adjustsFontSizeToFit
                                     className={`text-white font-headline-bold ${isTablet ? 'text-4xl' : 'text-2xl'}`}
                                 >
-                                    Buy More
+                                    Get More
                                 </Text>
                             )}
                         </TouchableOpacity>
                     </View>
                 )}
             </View>
-        </SafeAreaView>
+        </View>
     );
 };
 

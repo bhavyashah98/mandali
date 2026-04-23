@@ -13,7 +13,7 @@ import {
     Platform,
     useWindowDimensions
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -23,6 +23,7 @@ import axios from 'axios';
 const HousieDefineBountyScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute();
+    const insets = useSafeAreaInsets();
     const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};
 
     const [isStarting, setIsStarting] = useState(false);
@@ -121,7 +122,7 @@ const HousieDefineBountyScreen = () => {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
+        <View className="flex-1 bg-[#fdf9f3]" style={{ paddingTop: insets.top }}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 className="flex-1"
@@ -221,7 +222,7 @@ const HousieDefineBountyScreen = () => {
                 <ScrollView
                     className="flex-1"
                     showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingHorizontal: isTablet ? 60 : 24, paddingBottom: 150 }}
+                    contentContainerStyle={{ paddingHorizontal: isTablet ? 60 : 24, paddingBottom: 40 }}
                 >
                     {/* Claims List Card */}
                     <View className={`bg-[#f7f2eb] rounded-[48px] border border-stone-100 mb-8 ${isTablet ? 'p-16' : 'p-8'}`}>
@@ -275,7 +276,14 @@ const HousieDefineBountyScreen = () => {
                 </ScrollView>
 
                 {/* Footer Action */}
-                <View className={`bg-[#fdf9f3]/95 border-t border-stone-100 ${isTablet ? 'p-16' : 'p-8'}`}>
+                <View 
+                    className="bg-[#fdf9f3] border-t border-stone-100"
+                    style={{ 
+                        paddingHorizontal: isTablet ? 60 : 24,
+                        paddingTop: isTablet ? 32 : 16,
+                        paddingBottom: Math.max(insets.bottom, isTablet ? 48 : 24)
+                    }}
+                >
                     <TouchableOpacity
                         onPress={handleStartGame}
                         disabled={isStarting || !isPoolBalanced}
@@ -300,7 +308,7 @@ const HousieDefineBountyScreen = () => {
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
-        </SafeAreaView>
+        </View>
     );
 };
 

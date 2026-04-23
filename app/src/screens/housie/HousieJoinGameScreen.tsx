@@ -16,7 +16,7 @@ import {
     KeyboardAvoidingView,
     useWindowDimensions
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -25,6 +25,7 @@ import { fetchHousieGame, joinHousieGame, fetchGroupDetail } from '../../lib/api
 const HousieJoinGameScreen = () => {
     const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
+    const insets = useSafeAreaInsets();
     const navigation = useNavigation<any>();
     const route = useRoute();
     const { gameCode: passedGameCode, groupId } = (route.params as { gameCode?: string, groupId?: string }) || {};
@@ -81,7 +82,7 @@ const HousieJoinGameScreen = () => {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
+        <View className="flex-1 bg-[#fdf9f3]" style={{ paddingTop: insets.top }}>
             {/* Header Branding */}
             <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                 <View style={{ width: isTablet ? 64 : 44 }}>
@@ -110,11 +111,11 @@ const HousieJoinGameScreen = () => {
                 <ScrollView 
                     className="flex-1" 
                     showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ flexGrow: 1, paddingHorizontal: isTablet ? 80 : 32, paddingBottom: 100 }}
+                    contentContainerStyle={{ flexGrow: 1, paddingHorizontal: isTablet ? 80 : 32, paddingBottom: 40 }}
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode="on-drag"
                 >
-                    <View className={`flex-1 justify-center ${isTablet ? 'py-12' : 'py-6'}`}>
+                    <View className={`${isTablet ? 'py-12' : 'py-6'}`}>
                         <Text 
                             className="text-[#1c1c18] font-headline-bold mb-4"
                             style={{ fontSize: isTablet ? 72 : 42, lineHeight: isTablet ? 80 : 48 }}
@@ -184,35 +185,7 @@ const HousieJoinGameScreen = () => {
                             </View>
                         </View>
 
-                        <TouchableOpacity
-                            onPress={handleJoin}
-                            disabled={isLoading || !gameCode}
-                            style={{ height: isTablet ? 110 : 72 }}
-                            className={`bg-[#b30069] rounded-[32px] ${isTablet ? 'mt-20' : 'mt-12'} flex-row items-center justify-center shadow-lg shadow-[#b30069]/20`}
-                        >
-                            {isLoading ? (
-                                <ActivityIndicator color="white" size={isTablet ? 'large' : 'small'} />
-                            ) : (
-                                <>
-                                    <View className="flex-row items-center justify-center px-4 w-full">
-                                        <MaterialIcons name="local-activity" size={isTablet ? 36 : 24} color="white" />
-                                        <View className="flex-row items-center ml-4 flex-shrink-1">
-                                            <Text 
-                                                className="text-white font-headline-bold"
-                                                style={{ fontSize: isTablet ? 32 : 22 }}
-                                                numberOfLines={1}
-                                                adjustsFontSizeToFit
-                                            >
-                                                Get {ticketCount} {parseInt(ticketCount) === 1 ? 'Ticket' : 'Tickets'} • {parseInt(ticketCount) * ticketPrice}
-                                            </Text>
-                                            <MandaliCoin size={isTablet ? 32 : 22} style={{ marginLeft: 8 }} />
-                                        </View>
-                                    </View>
-                                </>
-                            )}
-                        </TouchableOpacity>
-
-                        {/* Back Link */}
+                        {/* Back Link shifted above if inside scroll for small devices */}
                         <TouchableOpacity 
                             onPress={() => navigation.navigate('HousieLobby', { groupId })}
                             className="mt-10 self-center"
@@ -221,8 +194,46 @@ const HousieJoinGameScreen = () => {
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
+
+                {/* Sticky Footer */}
+                <View 
+                    className="bg-[#fdf9f3] border-t border-stone-100"
+                    style={{ 
+                        paddingHorizontal: isTablet ? 80 : 32,
+                        paddingTop: isTablet ? 32 : 16,
+                        paddingBottom: Math.max(insets.bottom, isTablet ? 48 : 24)
+                    }}
+                >
+                    <TouchableOpacity
+                        onPress={handleJoin}
+                        disabled={isLoading || !gameCode}
+                        style={{ height: isTablet ? 110 : 72 }}
+                        className={`bg-[#b30069] rounded-[32px] flex-row items-center justify-center shadow-lg shadow-[#b30069]/20`}
+                    >
+                        {isLoading ? (
+                            <ActivityIndicator color="white" size={isTablet ? 'large' : 'small'} />
+                        ) : (
+                            <>
+                                <View className="flex-row items-center justify-center px-4 w-full">
+                                    <MaterialIcons name="local-activity" size={isTablet ? 36 : 24} color="white" />
+                                    <View className="flex-row items-center ml-4 flex-shrink-1">
+                                        <Text 
+                                            className="text-white font-headline-bold"
+                                            style={{ fontSize: isTablet ? 32 : 22 }}
+                                            numberOfLines={1}
+                                            adjustsFontSizeToFit
+                                        >
+                                            Get {ticketCount} {parseInt(ticketCount) === 1 ? 'Ticket' : 'Tickets'} • {parseInt(ticketCount) * ticketPrice}
+                                        </Text>
+                                        <MandaliCoin size={isTablet ? 32 : 22} style={{ marginLeft: 8 }} />
+                                    </View>
+                                </View>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                </View>
             </KeyboardAvoidingView>
-        </SafeAreaView>
+        </View>
     );
 };
 
