@@ -2,7 +2,7 @@
   "expo": {
     "name": "Mandali",
     "slug": "mandali",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,7 @@
       "supportsTablet": true,
       "requireFullScreen": true,
       "bundleIdentifier": "com.mandaliapp.mandali",
-      "buildNumber": "2",
+      "buildNumber": "5",
       "googleServicesFile": "./GoogleService-Info.plist",
       "associatedDomains": [
         "applinks:api.mandaliapp.com"
@@ -34,7 +34,7 @@
     },
     "android": {
       "package": "com.mandaliapp.mandali",
-      "versionCode": 2,
+      "versionCode": 5,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

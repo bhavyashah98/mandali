@@ -106,6 +106,13 @@ const HousieTicketScreen = () => {
 
         const socket = getSocket();
         setSocket(socket);
+
+        const onConnect = () => {
+            console.log('[Socket] Re-connected in Tickets, re-joining room:', gameCode);
+            socket.emit('join_game', gameCode);
+        };
+
+        // Emit immediately on mount
         socket.emit('join_game', gameCode);
 
         const onNumberCalled = (data: any) => {
@@ -164,12 +171,14 @@ const HousieTicketScreen = () => {
             }, 100);
         };
 
+        socket.on('connect', onConnect);
         socket.on('number_called', onNumberCalled);
         socket.on('claim_result', onClaimResult);
         socket.on('tickets_bought', onTicketsBought);
         socket.on('game_ended', onGameEnded);
 
         return () => {
+            socket.off('connect', onConnect);
             socket.off('number_called', onNumberCalled);
             socket.off('claim_result', onClaimResult);
             socket.off('tickets_bought', onTicketsBought);

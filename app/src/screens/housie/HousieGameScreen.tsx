@@ -89,6 +89,13 @@ const HousieGameScreen = () => {
 
         const socket = getSocket();
         setSocket(socket);
+
+        const onConnect = () => {
+            console.log('[Socket] Re-connected in Game, re-joining room:', gameCode);
+            socket.emit('join_game', gameCode);
+        };
+
+        // Emit immediately on mount
         socket.emit('join_game', gameCode);
 
         const onNumberCalled = (data: any) => {
@@ -115,11 +122,13 @@ const HousieGameScreen = () => {
             queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
         };
 
+        socket.on('connect', onConnect);
         socket.on('number_called', onNumberCalled);
         socket.on('new_claim', onNewClaim);
         socket.on('claim_result', onClaimResult);
 
         return () => {
+            socket.off('connect', onConnect);
             socket.off('number_called', onNumberCalled);
             socket.off('new_claim', onNewClaim);
             socket.off('claim_result', onClaimResult);
