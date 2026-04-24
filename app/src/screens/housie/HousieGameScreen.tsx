@@ -13,6 +13,9 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import io from 'socket.io-client';
 import { getSocket } from '../../lib/socketService';
+import HousieStartingModal from '../../components/housie/HousieStartingModal';
+import HousieWinNotification from '../../components/housie/HousieWinNotification';
+import HousieClaimCheckingIndicator from '../../components/housie/HousieClaimCheckingIndicator';
 
 const HousieGameScreen = () => {
     const { width } = useWindowDimensions();
@@ -29,7 +32,16 @@ const HousieGameScreen = () => {
 
     const [socket, setSocket] = React.useState<any>(null);
     const [claimsQueue, setClaimsQueue] = React.useState<any[]>([]);
+    const initialHydrationRef = React.useRef(false);
     const [verifyingTicket, setVerifyingTicket] = React.useState<any>(null);
+    const [isPlayerClaiming, setIsPlayerClaiming] = React.useState(false);
+    const [secondsSinceLastCall, setSecondsSinceLastCall] = React.useState(0);
+    const [activeNotification, setActiveNotification] = React.useState<{
+        type: 'win' | 'boggy';
+        playerName: string;
+        avatarUrl?: string;
+        prizeName: string;
+    } | null>(null);
 
     // The current claim being reviewed is always the first in the queue
     const activeClaim = claimsQueue[0] || null;
@@ -46,15 +58,14 @@ const HousieGameScreen = () => {
 
     // Hydrate pending claims queue from DB when game data loads (handles host re-open)
     React.useEffect(() => {
+        console.log(game);
         if (!game?.winners?.['__pending'] || !user?.id || game?.host_id !== user?.id) return;
+        if (initialHydrationRef.current) return; // Only hydrate once on mount/join
+
         const pending: any[] = game.winners['__pending'];
         if (pending.length === 0) return;
 
-        // Only hydrate if queue is currently empty (avoid double-adding on re-renders)
-        setClaimsQueue(prev => {
-            if (prev.length > 0) return prev; // Already has live socket claims, don't overwrite
-            return []; // Will be populated below
-        });
+        initialHydrationRef.current = true;
 
         // Fetch ticket data for each pending claim and rebuild the queue
         Promise.all(
@@ -69,14 +80,10 @@ const HousieGameScreen = () => {
         ).then(resolved => {
             const valid = resolved.filter(Boolean);
             if (valid.length > 0) {
-                setClaimsQueue(prev => {
-                    // Don't overwrite if live socket claims came in while we were fetching
-                    if (prev.length > 0) return prev;
-                    return valid;
-                });
+                setClaimsQueue(prev => [...valid, ...prev]); // Add pending claims to front of any live ones
             }
         });
-    }, [game?.winners?.['__pending']?.length, game?.host_id, user?.id]);
+    }, [!!game, user?.id, gameCode]); // Only run when game is first loaded or user changes
 
     const getParticipantName = (userId: string) => {
         const participant = game?.participants?.find((p: any) => p.id === userId);
@@ -103,37 +110,97 @@ const HousieGameScreen = () => {
                 ...old,
                 called_numbers: data.calledNumbers,
                 calledCount: data.calledCount,
-                remainingCount: data.remainingCount
+                remainingCount: data.remainingCount,
+                last_activity_at: data.lastActivityAt
             }));
         };
 
         const onNewClaim = async (data: any) => {
             if (user?.id === game?.host_id) {
-                try {
-                    const ticket = await fetchTicketById(data.ticketId);
-                    setClaimsQueue(prev => [...prev, { ...data, ticket }]);
-                } catch (e) {
-                    console.error('Failed to load claiming ticket', e);
-                }
+                setClaimsQueue(prev => {
+                    const alreadyInQueue = prev.some(c => c.ticketId === data.ticketId && c.prizeId === data.prizeId);
+                    if (alreadyInQueue) return prev;
+
+                    // Fetch ticket and add
+                    fetchTicketById(data.ticketId).then(ticket => {
+                        setClaimsQueue(current => [...current, { ...data, ticket }]);
+                    }).catch(e => console.error('Failed to load claiming ticket', e));
+
+                    return prev; // We update inside the .then
+                });
             }
         };
 
-        const onClaimResult = () => {
+        const onClaimResult = (data: any) => {
+            const { prizeId, status, playerName, avatarUrl, prizeName } = data;
+            queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
+
+            if (status === 'accepted') {
+                setActiveNotification({ type: 'win', playerName, avatarUrl, prizeName });
+            } else if (status === 'denied' && data.message !== 'Prize already claimed') {
+                setActiveNotification({ type: 'boggy', playerName, avatarUrl, prizeName });
+            }
+        };
+
+        const onGameEnded = () => {
+            const state = navigation.getState();
+            if (state?.routes[state?.index]?.name === 'HousieResults') return;
+
+            // Cleanup all claiming state
+            setClaimsQueue([]);
+            setIsPlayerClaiming(false);
+
+            navigation.replace('HousieResults', { gameCode, groupId });
+        };
+
+        const onGameStarting = () => {
             queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
         };
+
+        const onGameActivated = () => {
+            queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
+        };
+
+        const onPlayerClaimingOpen = () => setIsPlayerClaiming(true);
+        const onPlayerClaimingClosed = () => setIsPlayerClaiming(false);
 
         socket.on('connect', onConnect);
         socket.on('number_called', onNumberCalled);
         socket.on('new_claim', onNewClaim);
         socket.on('claim_result', onClaimResult);
+        socket.on('game_ended', onGameEnded);
+        socket.on('game_starting', onGameStarting);
+        socket.on('game_activated', onGameActivated);
+        socket.on('player_claiming_open', onPlayerClaimingOpen);
+        socket.on('player_claiming_closed', onPlayerClaimingClosed);
 
         return () => {
             socket.off('connect', onConnect);
             socket.off('number_called', onNumberCalled);
             socket.off('new_claim', onNewClaim);
             socket.off('claim_result', onClaimResult);
+            socket.off('game_ended', onGameEnded);
+            socket.off('game_starting', onGameStarting);
+            socket.off('game_activated', onGameActivated);
+            socket.off('player_claiming_open', onPlayerClaimingOpen);
+            socket.off('player_claiming_closed', onPlayerClaimingClosed);
         };
     }, [gameCode, game?.host_id]);
+
+    // Track time since last call
+    React.useEffect(() => {
+        if (!game?.last_activity_at || game?.status !== 'active') return;
+
+        const updateTimer = () => {
+            const lastCall = new Date(game.last_activity_at).getTime();
+            const now = Date.now();
+            setSecondsSinceLastCall(Math.floor((now - lastCall) / 1000));
+        };
+
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+    }, [game?.last_activity_at, game?.status]);
 
     // When activeClaim changes, load its ticket into verifyingTicket
     React.useEffect(() => {
@@ -183,7 +250,7 @@ const HousieGameScreen = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
             await queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
-            
+
             const state = navigation.getState();
             if (state?.routes[state?.index]?.name === 'HousieResults') return;
 
@@ -253,17 +320,17 @@ const HousieGameScreen = () => {
                                 : 'bg-[#f0ebe6]'
                             }`}
                     >
-                        <Text 
+                        <Text
                             numberOfLines={1}
                             adjustsFontSizeToFit
                             minimumFontScale={0.3}
                             style={{ fontSize }}
                             className={`font-headline-bold text-center ${isCurrent
-                            ? 'text-white'
-                            : isCalled
                                 ? 'text-white'
-                                : 'text-[#b0a09a]'
-                            }`}>
+                                : isCalled
+                                    ? 'text-white'
+                                    : 'text-[#b0a09a]'
+                                }`}>
                             {num}
                         </Text>
                     </View>
@@ -278,88 +345,114 @@ const HousieGameScreen = () => {
 
     return (
         <SafeAreaView className="flex-1 bg-[#FDF9F3]" edges={['top']}>
-            {/* Header */}
-            <View className={`px-6 flex-row items-center justify-between ${isTablet ? 'py-6 px-12' : 'py-2 px-6'}`}>
-                <View style={{ width: isTablet ? 64 : 44 }}>
+            <View className={`px-6 flex-row items-center justify-between ${isTablet ? 'py-6 px-12' : 'py-3 px-6'}`}>
+                <View style={{ width: isTablet ? 120 : 80 }}>
                     <TouchableOpacity onPress={() => navigation.navigate('HousieLobby', { groupId })} className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}>
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 18} color="#594048" style={{ marginLeft: isTablet ? 8 : 5 }} />
                     </TouchableOpacity>
                 </View>
                 <View className="flex-1 items-center">
                     <Text className={`text-[#a09d96] font-body-bold uppercase tracking-widest text-center ${isTablet ? 'text-lg' : 'text-[9px]'}`} numberOfLines={1}>
-                        MANDALI • {groupData?.group?.name || '...'}
+                        {groupData?.group?.name || 'MANDALI'}
                     </Text>
                     <Text className={`text-[#594048] font-headline-bold ${isTablet ? 'text-4xl mt-1' : 'text-base'}`}>{gameCode}</Text>
                 </View>
-                <View style={{ width: isTablet ? 64 : 44 }} />
+                <View style={{ width: isTablet ? 120 : 80, alignItems: 'flex-end' }}>
+                    {isHost && (
+                        <TouchableOpacity
+                            onPress={handleEndGamePress}
+                            disabled={endGameMutation.isPending}
+                            className={`bg-red-50 px-2 py-1.5 rounded-xl border border-red-100 flex-row items-center justify-center`}
+                        >
+                            <MaterialIcons name="power-settings-new" size={isTablet ? 24 : 14} color="#dc2626" />
+                            <Text className={`text-[#dc2626] font-headline-bold ml-1.5 ${isTablet ? 'text-xl' : 'text-[10px] uppercase tracking-tighter'}`}>
+                                {endGameMutation.isPending ? '...' : 'Finish'}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
             </View>
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: isTablet ? 60 : 20, paddingBottom: 60, paddingTop: 5 }}>
-                {/* 1. NOW CALLING CARD */}
-                <View className={`bg-white rounded-[40px] items-center shadow-2xl shadow-black/5 border border-black/5 mb-6 ${isTablet ? 'p-16' : 'p-6'}`} style={{ elevation: 8 }}>
-                    <Text className={`text-stone-400 font-body-bold uppercase tracking-[3px] mb-6 ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>NOW CALLING</Text>
-
-                    <View
-                        style={{ width: isTablet ? 300 : 160, height: isTablet ? 300 : 160, borderRadius: isTablet ? 150 : 120, elevation: 12 }}
-                        className="bg-[#b30069] items-center justify-center shadow-2xl shadow-[#b30069]/40 border-[10px] border-[#FAF7F2] mb-8"
-                    >
-                        <Text
-                            style={{ fontSize: isTablet ? 140 : 64, lineHeight: isTablet ? 150 : 72 }}
-                            className="text-white font-headline-bold"
-                            adjustsFontSizeToFit
-                            numberOfLines={1}
-                        >
-                            {currentNumber}
-                        </Text>
+                {/* 1. COMPACT NOW CALLING CARD */}
+                <View className={`bg-white rounded-[40px] items-center shadow-md border border-stone-100 mb-6 ${isTablet ? 'p-10' : 'p-4'}`}>
+                    <View className="w-full flex-row items-center justify-between px-2 mb-4">
+                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[3px] ${isTablet ? 'text-xl' : 'text-[9px]'}`}>LIVE CALLER</Text>
+                        {game?.status === 'active' && !isPlayerClaiming && (
+                            <View className="bg-stone-50 px-3 py-1 rounded-full border border-stone-100 flex-row items-center">
+                                <MaterialIcons name="timer" size={isTablet ? 18 : 12} color="#b30069" />
+                                <Text className={`text-stone-400 font-headline-bold ml-1.5 uppercase ${isTablet ? 'text-base' : 'text-[9px]'}`}>
+                                    {secondsSinceLastCall}s Ago
+                                </Text>
+                            </View>
+                        )}
                     </View>
 
-                    <View className="w-full mb-8">
-                        <View className="flex-row items-center justify-center gap-4">
-                            {recentNumbers.map((num, i) => (
-                                <View key={i} className="items-center">
-                                    <View
-                                        className="rounded-full bg-[#FAF7F2] border-[3px] border-white items-center justify-center shadow-md shadow-black/10"
-                                        style={{ elevation: 4, width: isTablet ? 64 : 44, height: isTablet ? 64 : 44 }}
-                                    >
-                                        <Text className={`text-[#594048] font-headline-bold ${isTablet ? 'text-3xl' : 'text-lg'}`}>{num}</Text>
-                                    </View>
-                                    <View className="w-2 h-1" />
+                    <View className="w-full items-center justify-center mb-8">
+                        <View className="flex-row items-center justify-center gap-x-5 px-4">
+                            {/* Ball p-2 */}
+                            <View className="items-center">
+                                <View
+                                    style={{ width: isTablet ? 90 : 58, height: isTablet ? 90 : 58, borderRadius: 45 }}
+                                    className="bg-[#b30069]/10 border border-[#b30069]/20 items-center justify-center"
+                                >
+                                    <Text className={`text-[#594048] font-headline-bold text-center ${isTablet ? 'text-3xl' : 'text-lg'}`}>
+                                        {recentNumbers[1] || '--'}
+                                    </Text>
                                 </View>
-                            ))}
+                            </View>
+
+                            {/* Ball p-1 */}
+                            <View className="items-center">
+                                <View
+                                    style={{ width: isTablet ? 110 : 72, height: isTablet ? 110 : 72, borderRadius: 55 }}
+                                    className="bg-[#b30069]/20 border border-[#b30069]/30 items-center justify-center"
+                                >
+                                    <Text className={`text-[#594048] font-headline-bold text-center ${isTablet ? 'text-4xl' : 'text-2xl'}`}>
+                                        {recentNumbers[0] || '--'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* CURRENT BALL */}
+                            <View className="items-center">
+                                <View
+                                    style={{ width: isTablet ? 180 : 110, height: isTablet ? 180 : 110, borderRadius: 90, elevation: 12 }}
+                                    className="bg-[#b30069] items-center justify-center shadow-2xl shadow-[#b30069]/30 border-[5px] border-white"
+                                >
+                                    <Text className={`text-white font-headline-bold text-center ${isTablet ? 'text-[84px]' : 'text-[54px]'}`}>
+                                        {currentNumber}
+                                    </Text>
+                                </View>
+                            </View>
                         </View>
                     </View>
 
                     {isHost && (
-                        <View className="w-full gap-5 px-6">
-                            <TouchableOpacity
-                                onPress={() => callNumberMutation.mutate()}
-                                disabled={callNumberMutation.isPending || (game?.called_numbers?.length || 0) >= 90 || endGameMutation.isPending}
-                                className={`bg-[#b30069] rounded-full flex-row items-center justify-center shadow-lg shadow-[#b30069]/20 ${isTablet ? 'h-28' : 'h-14'} ${endGameMutation.isPending ? 'opacity-50' : ''}`}
-                            >
-                                {callNumberMutation.isPending ? (
-                                    <ActivityIndicator color="white" size={isTablet ? 'large' : 'small'} />
-                                ) : (
-                                    <>
-                                        <Ionicons name="megaphone-sharp" size={isTablet ? 36 : 20} color="white" />
-                                        <Text className={`text-white font-headline-bold ml-4 ${isTablet ? 'text-4xl' : 'text-lg'}`}>Next Number</Text>
-                                    </>
-                                )}
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                onPress={handleEndGamePress}
-                                disabled={endGameMutation.isPending}
-                                className={`bg-red-50 rounded-full flex-row items-center justify-center border border-red-100 ${isTablet ? 'h-28' : 'h-14'}`}
-                            >
-                                {endGameMutation.isPending ? (
-                                    <ActivityIndicator color="#dc2626" size={isTablet ? 'large' : 'small'} />
-                                ) : (
-                                    <>
-                                        <MaterialIcons name="power-settings-new" size={isTablet ? 36 : 20} color="#dc2626" />
-                                        <Text className={`text-[#dc2626] font-headline-bold ml-3 ${isTablet ? 'text-4xl' : 'text-lg'}`}>Game Over</Text>
-                                    </>
-                                )}
-                            </TouchableOpacity>
+                        <View className="w-full">
+                            {isPlayerClaiming ? (
+                                <View className={`bg-amber-50 border border-amber-200 rounded-[24px] flex-row items-center justify-center ${isTablet ? 'h-24' : 'h-14'}`}>
+                                    <ActivityIndicator color="#d97706" size="small" />
+                                    <Text className={`text-amber-600 font-headline-bold ml-3 ${isTablet ? 'text-2xl' : 'text-xs uppercase'}`}>
+                                        A player is claiming...
+                                    </Text>
+                                </View>
+                            ) : (
+                                <TouchableOpacity
+                                    onPress={() => callNumberMutation.mutate()}
+                                    disabled={callNumberMutation.isPending || (game?.called_numbers?.length || 0) >= 90 || endGameMutation.isPending}
+                                    className={`bg-[#b30069] rounded-[24px] flex-row items-center justify-center shadow-md shadow-[#b30069]/20 ${isTablet ? 'h-24' : 'h-14'} ${endGameMutation.isPending ? 'opacity-50' : ''}`}
+                                >
+                                    {callNumberMutation.isPending ? (
+                                        <ActivityIndicator color="white" size={isTablet ? 'large' : 'small'} />
+                                    ) : (
+                                        <>
+                                            <Ionicons name="megaphone-sharp" size={isTablet ? 32 : 18} color="white" />
+                                            <Text className={`text-white font-headline-bold ml-4 ${isTablet ? 'text-3xl' : 'text-lg'}`}>Next Number</Text>
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+                            )}
                         </View>
                     )}
                 </View>
@@ -419,7 +512,7 @@ const HousieGameScreen = () => {
                                         </Text>
                                     </View>
                                 </View>
-                             </View>
+                            </View>
                         ))}
                     </View>
                 </View>
@@ -432,13 +525,13 @@ const HousieGameScreen = () => {
                             <View key={idx} className={`bg-white rounded-[24px] border border-stone-100 shadow-sm ${isTablet ? 'p-10' : 'p-4'}`}>
                                 <View className="flex-row items-center justify-between">
                                     <View className="flex-row items-center flex-1 min-w-0 mr-2">
-                                       <MaterialIcons name={prize.icon || 'stars'} size={isTablet ? 36 : 16} color="#b30069" />
-                                       <Text
-                                           numberOfLines={1}
-                                           adjustsFontSizeToFit
-                                           minimumFontScale={0.75}
-                                           className={`text-[#594048] font-headline-bold ml-3 flex-1 ${isTablet ? 'text-2xl' : 'text-[13px]'}`}
-                                       >{prize.name}</Text>
+                                        <MaterialIcons name={prize.icon || 'stars'} size={isTablet ? 36 : 16} color="#b30069" />
+                                        <Text
+                                            numberOfLines={1}
+                                            adjustsFontSizeToFit
+                                            minimumFontScale={0.75}
+                                            className={`text-[#594048] font-headline-bold ml-3 flex-1 ${isTablet ? 'text-2xl' : 'text-[13px]'}`}
+                                        >{prize.name}</Text>
                                     </View>
                                     <View className={`bg-green-100 rounded-md flex-shrink-0 ${isTablet ? 'px-4 py-2' : 'px-2 py-0.5'}`}>
                                         <Text className={`text-green-700 font-body-bold ${isTablet ? 'text-xl' : 'text-[10px]'}`}>{prize.winners.length} collected</Text>
@@ -457,7 +550,7 @@ const HousieGameScreen = () => {
             </ScrollView>
 
             {/* Verification Modal */}
-            <Modal visible={!!activeClaim} transparent animationType="fade">
+            <Modal visible={!!activeClaim && game?.status !== 'ended'} transparent animationType="fade">
                 <View className={`flex-1 justify-center bg-[#594048]/90 ${isTablet ? 'px-20 py-20' : 'px-4 py-16'}`}>
                     <View className={`bg-[#FDF9F3] rounded-[40px] shadow-2xl border border-white/20 max-h-[100%] ${isTablet ? 'p-12' : 'p-6'}`}>
                         <ScrollView showsVerticalScrollIndicator={false}>
@@ -477,7 +570,7 @@ const HousieGameScreen = () => {
                                 </Text>
                             </View>
 
-                            <View 
+                            <View
                                 style={{ width: isTablet ? '80%' : '100%', alignSelf: 'center' }}
                                 className="bg-white rounded-[32px] p-4 shadow-lg shadow-black/5 border border-black/5 mb-10"
                             >
@@ -506,7 +599,7 @@ const HousieGameScreen = () => {
                                                 <View key={cidx} className="flex-1 aspect-square p-1">
                                                     {num ? (
                                                         <View className={`w-full h-full rounded-xl items-center justify-center border ${cellBg} ${borderColor}`}>
-                                                            <Text 
+                                                            <Text
                                                                 numberOfLines={1}
                                                                 adjustsFontSizeToFit
                                                                 minimumFontScale={0.3}
@@ -527,7 +620,7 @@ const HousieGameScreen = () => {
 
                             <View className="mb-4">
                                 <Text className={`text-center text-stone-400 font-body-bold uppercase tracking-[3px] mb-4 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Master Board Reference</Text>
-                                <View 
+                                <View
                                     style={{ width: isTablet ? '90%' : '100%', alignSelf: 'center' }}
                                     className="items-center bg-white p-2 rounded-[24px] shadow-sm border border-stone-100"
                                 >
@@ -536,14 +629,14 @@ const HousieGameScreen = () => {
                             </View>
 
                             <View className={`flex-row gap-6 mb-4 ${isTablet ? 'px-12' : ''}`}>
-                                <TouchableOpacity 
-                                    onPress={() => handleVerifyClaim('denied')} 
+                                <TouchableOpacity
+                                    onPress={() => handleVerifyClaim('denied')}
                                     className={`flex-1 rounded-[32px] bg-white border border-stone-200 items-center justify-center ${isTablet ? 'h-28' : 'h-14'}`}
                                 >
                                     <Text className={`text-stone-400 font-headline-bold ${isTablet ? 'text-4xl' : 'text-lg'}`}>Deny</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity 
-                                    onPress={() => handleVerifyClaim('accepted')} 
+                                <TouchableOpacity
+                                    onPress={() => handleVerifyClaim('accepted')}
                                     className={`flex-[1.5] rounded-[32px] bg-[#b30069] items-center justify-center shadow-lg shadow-[#b30069]/30 ${isTablet ? 'h-28' : 'h-14'}`}
                                 >
                                     <Text className={`text-white font-headline-bold ${isTablet ? 'text-4xl' : 'text-lg'}`}>Approve Reward</Text>
@@ -553,6 +646,23 @@ const HousieGameScreen = () => {
                     </View>
                 </View>
             </Modal>
+
+            <HousieStartingModal
+                visible={game?.status === 'starting'}
+                game={game}
+                onComplete={() => queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] })}
+            />
+
+            {activeNotification && (
+                <HousieWinNotification
+                    visible={!!activeNotification}
+                    type={activeNotification.type}
+                    playerName={activeNotification.playerName}
+                    avatarUrl={activeNotification.avatarUrl}
+                    prizeName={activeNotification.prizeName}
+                    onComplete={() => setActiveNotification(null)}
+                />
+            )}
         </SafeAreaView>
     );
 };

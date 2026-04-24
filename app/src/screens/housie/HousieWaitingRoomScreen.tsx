@@ -21,8 +21,6 @@ const HousieWaitingRoomScreen = () => {
     const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};
     const { user } = useAuthStore();
 
-    const [buyCount, setBuyCount] = useState(1);
-    const [isBuying, setIsBuying] = useState(false);
 
     // Fetch once on mount — socket handles all subsequent state changes
     const { data: game } = useQuery({
@@ -71,12 +69,27 @@ const HousieWaitingRoomScreen = () => {
             navigation.replace('HousieTicket', { gameCode, groupId });
         };
 
+        const onGameStarting = () => {
+            if (isHostRef.current) return;
+            navigation.replace('HousieTicket', { gameCode, groupId });
+        };
+
+        const onGameEnded = () => {
+            if (isHostRef.current) return; // Host handles their own navigation
+            Alert.alert('Game Ended', 'The game has ended.');
+            navigation.navigate('HousieLobby', { groupId });
+        };
+
         socket.on('tickets_bought', onTicketsBought);
         socket.on('game_activated', onGameActivated);
+        socket.on('game_starting', onGameStarting);
+        socket.on('game_ended', onGameEnded);
 
         return () => {
             socket.off('tickets_bought', onTicketsBought);
             socket.off('game_activated', onGameActivated);
+            socket.off('game_starting', onGameStarting);
+            socket.off('game_ended', onGameEnded);
         };
     }, [gameCode]);
 
@@ -84,28 +97,6 @@ const HousieWaitingRoomScreen = () => {
         navigation.navigate('HousieDefineBounty', { gameCode, groupId });
     };
 
-    const handleBuyTickets = async () => {
-        const myTickets = stats?.participants?.find((p: any) => p.id === user?.id)?.ticketCount || 0;
-        if (myTickets + buyCount > 6) {
-            Alert.alert('Limit Reached', 'You can have at most 6 tickets total.');
-            return;
-        }
-
-        try {
-            setIsBuying(true);
-            const response = await joinHousieGame(gameCode!, buyCount);
-            if (response.success) {
-                Alert.alert('🎟️ Tickets Received!', `You now have ${buyCount} ticket${buyCount > 1 ? 's' : ''}!`);
-                queryClient.invalidateQueries({ queryKey: ['housieParticipants', gameCode] });
-                queryClient.invalidateQueries({ queryKey: ['housieTickets', gameCode] });
-                setBuyCount(1);
-            }
-        } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.error || 'Failed to buy tickets');
-        } finally {
-            setIsBuying(false);
-        }
-    };
 
     if (!user) {
         return (
@@ -127,10 +118,6 @@ const HousieWaitingRoomScreen = () => {
             <View className="ml-6 flex-1">
                 <Text className={`font-headline-bold text-[#594048] ${isTablet ? 'text-3xl' : 'text-base'}`}>{item.name}</Text>
                 <Text className={`text-stone-400 font-body-medium ${isTablet ? 'text-xl mt-1' : 'text-xs'}`}>{item.ticketCount} Tickets Bought</Text>
-            </View>
-            <View className={`bg-[#f59e0b]/10 rounded-full flex-row items-center ${isTablet ? 'px-6 py-3' : 'px-3 py-1.5'}`}>
-                <Text className={`text-[#d97706] font-headline-bold ${isTablet ? 'text-2xl' : 'text-sm'}`}>{item.ticketCount * (stats?.ticketPrice || 0)} </Text>
-                <MandaliCoin size={isTablet ? 24 : 14} />
             </View>
         </View>
     );
@@ -201,26 +188,10 @@ const HousieWaitingRoomScreen = () => {
                                 adjustsFontSizeToFit
                                 numberOfLines={1}
                             >{gameCode}</Text>
-                            <View className={`flex-row items-center bg-white/20 rounded-full ${isTablet ? 'mt-8 px-6 py-3' : 'mt-5 px-4 py-2'}`}>
-                                <Text className={`text-white font-headline-bold mr-1 ${isTablet ? 'text-xl' : 'text-base'}`}>{stats?.ticketPrice}</Text>
-                                <MandaliCoin size={isTablet ? 22 : 16} />
-                                <Text className={`text-white font-headline-bold ml-2 ${isTablet ? 'text-xl' : 'text-base'}`}>/ Ticket</Text>
-                            </View>
                         </View>
 
-                        {/* Prize Pool Display */}
+                        {/* Stats Display */}
                         <View className={`bg-white rounded-[40px] border border-stone-100 items-center shadow-sm ${isTablet ? 'p-12' : 'p-6'}`}>
-                            <Text className={`text-stone-400 font-body-bold uppercase tracking-[2px] mb-1 ${isTablet ? 'text-lg' : 'text-[9px]'}`}>Total Rewards Pool</Text>
-                            <View className="flex-row items-center text-center justify-center">
-                                <Text
-                                    className={`font-headline-bold text-[#594048] items-center text-center ${isTablet ? 'text-6xl' : 'text-4xl'}`}
-                                    numberOfLines={1}
-                                    adjustsFontSizeToFit
-                                    minimumFontScale={0.6}
-                                >{stats?.totalPrizePool || 0}</Text>
-                                <MandaliCoin size={isTablet ? 48 : 32} style={{ marginLeft: 8 }} />
-                            </View>
-                            <View className={`w-full bg-stone-100 ${isTablet ? 'my-10 h-[2px]' : 'my-6 h-[1px]'}`} />
                             <View className={`flex-row justify-between w-full ${isTablet ? 'px-16' : 'px-4'}`}>
                                 <View className="items-center">
                                     <Text className={`text-stone-400 uppercase font-body-bold mb-1 ${isTablet ? 'text-lg' : 'text-[9px]'}`}>Players</Text>
@@ -246,9 +217,9 @@ const HousieWaitingRoomScreen = () => {
             />
 
             {/* Action Footer - Fixed layout, pins to absolute bottom */}
-            <View 
+            <View
                 className="bg-[#fdf9f3] border-t border-stone-100"
-                style={{ 
+                style={{
                     paddingHorizontal: isTablet ? 64 : 24,
                     paddingTop: isTablet ? 32 : 16,
                     paddingBottom: Math.max(insets.bottom, isTablet ? 48 : 24)
@@ -265,41 +236,9 @@ const HousieWaitingRoomScreen = () => {
                         <Text className={`text-white font-headline-bold ml-4 ${isTablet ? 'text-4xl' : 'text-2xl'}`}>Set the Stage →</Text>
                     </TouchableOpacity>
                 ) : (
-                    <View className="flex-row items-center gap-8">
-                        <View className={`flex-row items-center bg-white border border-stone-100 rounded-[40px] shadow-sm ${isTablet ? 'px-10 h-28' : 'px-6 h-20'}`}>
-                            <TouchableOpacity onPress={() => setBuyCount(Math.max(1, buyCount - 1))}>
-                                <MaterialIcons name="remove" size={isTablet ? 36 : 24} color="#b30069" />
-                            </TouchableOpacity>
-                            <Text className={`font-headline-bold text-[#594048] text-center ${isTablet ? 'mx-8 text-4xl w-14' : 'mx-4 text-2xl w-6'}`}>{buyCount}</Text>
-                            <TouchableOpacity
-                                onPress={() => {
-                                    const myTickets = stats?.participants?.find((p: any) => p.id === user?.id)?.ticketCount || 0;
-                                    if (myTickets + buyCount < 6) {
-                                        setBuyCount(buyCount + 1);
-                                    } else {
-                                        Alert.alert('Limit Reached', 'Max 6 tickets allowed');
-                                    }
-                                }}
-                            >
-                                <MaterialIcons name="add" size={isTablet ? 36 : 24} color="#b30069" />
-                            </TouchableOpacity>
-                        </View>
-                        <TouchableOpacity
-                            onPress={handleBuyTickets}
-                            disabled={isBuying}
-                            activeOpacity={0.9}
-                            className={`flex-1 rounded-[40px] flex-row items-center justify-center shadow-2xl shadow-primary/30 ${isTablet ? 'h-28' : 'h-20'} ${isBuying ? 'bg-primary/50' : 'bg-primary'}`}
-                        >
-                            {isBuying ? <ActivityIndicator color="white" size={isTablet ? 'large' : 'small'} /> : (
-                                <Text
-                                    numberOfLines={1}
-                                    adjustsFontSizeToFit
-                                    className={`text-white font-headline-bold ${isTablet ? 'text-4xl' : 'text-2xl'}`}
-                                >
-                                    Get More
-                                </Text>
-                            )}
-                        </TouchableOpacity>
+                    <View className={`rounded-[40px] flex-row items-center justify-center border border-stone-200 bg-stone-50 ${isTablet ? 'h-28' : 'h-20'}`}>
+                        <ActivityIndicator color="#b30069" size={isTablet ? 'large' : 'small'} style={{ marginRight: 12 }} />
+                        <Text className={`text-stone-400 font-headline-bold ${isTablet ? 'text-3xl' : 'text-lg'}`}>Waiting for host to start...</Text>
                     </View>
                 )}
             </View>

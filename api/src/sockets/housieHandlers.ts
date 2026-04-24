@@ -11,6 +11,16 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
         socket.join(groupId); 
     });
 
+    // Player signals they've opened the prize selection modal (host should pause calling numbers)
+    socket.on('claiming_open', ({ gameCode }) => {
+        socket.to(gameCode).emit('player_claiming_open');
+    });
+
+    // Player signals they've closed/resolved the prize modal
+    socket.on('claiming_closed', ({ gameCode }) => {
+        socket.to(gameCode).emit('player_claiming_closed');
+    });
+
     socket.on('claim_prize', async (data) => {
         const { gameCode, prizeId, userId, ticketId, markedNumbers } = data;
         
@@ -133,8 +143,37 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
             console.error("Error updating winners and results:", err);
         }
 
+        // Fetch user and prize info for a rich broadcast notification
+        let playerName = 'Player';
+        let avatarUrl = '';
+        let prizeName = 'Prize';
+
+        try {
+            const [{ data: userData }, { data: pData }] = await Promise.all([
+                supabase.from('users').select('name, avatar_url').eq('id', userId).single(),
+                supabase.from('housie_games').select('prizes').eq('game_code', gameCode).single()
+            ]);
+            
+            if (userData) {
+                playerName = userData.name;
+                avatarUrl = userData.avatar_url;
+            }
+            if (pData?.prizes) {
+                const prize = pData.prizes.find((p: any) => p.id === prizeId);
+                if (prize) prizeName = prize.name;
+            }
+        } catch (infoErr) {
+            console.error("Error fetching notification info:", infoErr);
+        }
+
         io.to(gameCode).emit('claim_result', {
-            prizeId, userId, ticketId, status 
+            prizeId, 
+            userId, 
+            ticketId, 
+            status,
+            playerName,
+            avatarUrl,
+            prizeName
         });
     });
 

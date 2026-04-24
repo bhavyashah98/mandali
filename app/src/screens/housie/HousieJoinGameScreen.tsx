@@ -32,6 +32,7 @@ const HousieJoinGameScreen = () => {
     const queryClient = useQueryClient();
 
     const [gameCode, setGameCode] = useState(passedGameCode || '');
+    const [difficulty, setDifficulty] = useState<'easy'|'medium'|'hard'>('easy');
     const [ticketCount, setTicketCount] = useState('1');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -141,46 +142,42 @@ const HousieJoinGameScreen = () => {
                             </View>
 
                             <View>
-                                <Text className={`text-[#594048] font-body-bold uppercase tracking-widest mb-3 ml-2 ${isTablet ? 'text-xl' : 'text-xs'}`}>Number of Tickets</Text>
-                                <View 
-                                    style={{ height: isTablet ? 110 : 80 }}
-                                    className="flex-row items-center bg-white rounded-[32px] px-4 shadow-sm border border-stone-100"
-                                >
+                                <Text className={`text-[#594048] font-body-bold uppercase tracking-widest mb-3 ml-2 ${isTablet ? 'text-xl' : 'text-xs'}`}>Select Difficulty</Text>
+                                <View className="flex-row justify-between gap-3 mb-6">
                                     <TouchableOpacity
-                                        onPress={() => setTicketCount(Math.max(1, parseInt(ticketCount) - 1).toString())}
-                                        activeOpacity={0.7}
-                                        className={`${isTablet ? 'w-20 h-20' : 'w-14 h-14'} items-center justify-center bg-stone-50 rounded-[20px]`}
+                                        onPress={() => { setDifficulty('easy'); setTicketCount('1'); }}
+                                        className={`flex-1 rounded-[24px] items-center justify-center border shadow-sm ${isTablet ? 'h-24' : 'h-16'} ${difficulty === 'easy' ? 'bg-[#b30069] border-[#b30069]' : 'bg-white border-stone-100'}`}
                                     >
-                                        <MaterialIcons name="remove" size={isTablet ? 36 : 28} color="#b30069" />
+                                        <Text className={`font-headline-bold ${difficulty === 'easy' ? 'text-white' : 'text-[#1c1c18]'} ${isTablet ? 'text-2xl' : 'text-base'}`}>Easy</Text>
                                     </TouchableOpacity>
-                                    
-                                    <View className="flex-1 items-center justify-center">
-                                        <TextInput
-                                            value={ticketCount}
-                                            onChangeText={(v) => setTicketCount(v.replace(/[^0-9]/g, ''))}
-                                            keyboardType="number-pad"
-                                            className="font-headline-bold text-[#1c1c18]"
-                                            style={{ fontSize: isTablet ? 48 : 32, padding: 0 }}
-                                        />
-                                        <Text className={`text-[#a09d96] font-body-bold uppercase ${isTablet ? 'text-lg' : 'text-[9px]'} tracking-[1px]`}>Tickets</Text>
-                                    </View>
 
                                     <TouchableOpacity
-                                        onPress={() => setTicketCount((parseInt(ticketCount) + 1).toString())}
-                                        activeOpacity={0.7}
-                                        className={`${isTablet ? 'w-20 h-20' : 'w-14 h-14'} items-center justify-center bg-[#b30069]/5 rounded-[20px]`}
+                                        onPress={() => { setDifficulty('medium'); setTicketCount('3'); }}
+                                        className={`flex-1 rounded-[24px] items-center justify-center border shadow-sm ${isTablet ? 'h-24' : 'h-16'} ${difficulty === 'medium' ? 'bg-[#f59e0b] border-[#f59e0b]' : 'bg-white border-stone-100'}`}
                                     >
-                                        <MaterialIcons name="add" size={isTablet ? 36 : 28} color="#b30069" />
+                                        <Text className={`font-headline-bold ${difficulty === 'medium' ? 'text-white' : 'text-[#1c1c18]'} ${isTablet ? 'text-2xl' : 'text-base'}`}>Medium</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        onPress={() => { setDifficulty('hard'); setTicketCount('5'); }}
+                                        className={`flex-1 rounded-[24px] items-center justify-center border shadow-sm ${isTablet ? 'h-24' : 'h-16'} ${difficulty === 'hard' ? 'bg-[#ef4444] border-[#ef4444]' : 'bg-white border-stone-100'}`}
+                                    >
+                                        <Text className={`font-headline-bold ${difficulty === 'hard' ? 'text-white' : 'text-[#1c1c18]'} ${isTablet ? 'text-2xl' : 'text-base'}`}>Hard</Text>
                                     </TouchableOpacity>
                                 </View>
-                                
-                                <View className="flex-row items-center mt-5 ml-4 bg-primary/5 self-start px-4 py-2 rounded-full border border-primary/10">
-                                    <Text 
-                                        className="text-primary/70 font-body-bold uppercase tracking-[1px]"
-                                        style={{ fontSize: isTablet ? 20 : 11 }}
-                                    >Price: {ticketPrice}</Text>
-                                    <MandaliCoin size={isTablet ? 22 : 14} style={{ marginLeft: 6 }} />
-                                    <Text className="text-primary/50 font-body-bold ml-1" style={{ fontSize: isTablet ? 18 : 10 }}>/ ea</Text>
+
+                                {/* Ticket Count Sub-selection */}
+                                <Text className={`text-[#594048] font-body-bold uppercase tracking-widest mb-3 ml-2 ${isTablet ? 'text-xl' : 'text-xs'}`}>Choose Tickets</Text>
+                                <View className="flex-row gap-4">
+                                    {(difficulty === 'easy' ? ['1', '2'] : difficulty === 'medium' ? ['3', '4'] : ['5', '6']).map((count) => (
+                                        <TouchableOpacity
+                                            key={count}
+                                            onPress={() => setTicketCount(count)}
+                                            className={`flex-1 rounded-[24px] items-center justify-center border shadow-sm ${isTablet ? 'h-20' : 'h-14'} ${ticketCount === count ? 'bg-[#1c1c18] border-[#1c1c18]' : 'bg-white border-stone-200'}`}
+                                        >
+                                            <Text className={`font-headline-bold ${ticketCount === count ? 'text-white' : 'text-[#1c1c18]'} ${isTablet ? 'text-2xl' : 'text-lg'}`}>{count} {count === '1' ? 'Ticket' : 'Tickets'}</Text>
+                                        </TouchableOpacity>
+                                    ))}
                                 </View>
                             </View>
                         </View>
@@ -223,9 +220,8 @@ const HousieJoinGameScreen = () => {
                                             numberOfLines={1}
                                             adjustsFontSizeToFit
                                         >
-                                            Get {ticketCount} {parseInt(ticketCount) === 1 ? 'Ticket' : 'Tickets'} • {parseInt(ticketCount) * ticketPrice}
+                                            Enter Waiting Room
                                         </Text>
-                                        <MandaliCoin size={isTablet ? 32 : 22} style={{ marginLeft: 8 }} />
                                     </View>
                                 </View>
                             </>

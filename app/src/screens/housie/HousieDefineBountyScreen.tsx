@@ -11,7 +11,8 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
-    useWindowDimensions
+    useWindowDimensions,
+    Modal
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
@@ -39,14 +40,19 @@ const HousieDefineBountyScreen = () => {
 
     // Standard Prizes
     const [prizes, setPrizes] = useState([
-        { id: 'early_five', name: 'Early Five', amount: '0', icon: 'looks-5' },
-        { id: 'top_line', name: 'Top Line', amount: '0', icon: 'horizontal-rule' },
-        { id: 'middle_line', name: 'Middle Line', amount: '0', icon: 'horizontal-rule' },
-        { id: 'bottom_line', name: 'Bottom Line', amount: '0', icon: 'horizontal-rule' },
-        { id: 'full_house_1', name: '1st Full House', amount: '0', icon: 'grid-view', isHighlight: true },
-        { id: 'full_house_2', name: '2nd Full House', amount: '0', icon: 'grid-view', isHighlight: true },
-        { id: 'full_house_3', name: '3rd Full House', amount: '0', icon: 'grid-view', isHighlight: true }
+        { id: 'top_line', name: 'Top Line', description: 'First line of housie ticket', amount: '0', icon: 'horizontal-rule' },
+        { id: 'middle_line', name: 'Middle Line', description: 'Second line of housie ticket', amount: '0', icon: 'horizontal-rule' },
+        { id: 'bottom_line', name: 'Bottom Line', description: 'Third line of housie ticket', amount: '0', icon: 'horizontal-rule' },
+        { id: 'full_house_1', name: '1st Full House', description: 'All numbers marked on the ticket', amount: '0', icon: 'grid-view', isHighlight: true },
+        { id: 'full_house_2', name: '2nd Full House', description: 'All numbers marked on the ticket', amount: '0', icon: 'grid-view', isHighlight: true },
+        { id: 'full_house_3', name: '3rd Full House', description: 'All numbers marked on the ticket', amount: '0', icon: 'grid-view', isHighlight: true }
     ]);
+
+    // Custom Modal State
+    const [isModalVisible, setIsModalVisible] = useState(false);
+    const [customPrizeName, setCustomPrizeName] = useState('');
+    const [customPrizeDesc, setCustomPrizeDesc] = useState('');
+    const [customPrizeAmount, setCustomPrizeAmount] = useState('');
 
     // Fetch Stats for Pool calculation
     const { data: stats } = useQuery({
@@ -65,13 +71,13 @@ const HousieDefineBountyScreen = () => {
     // Automated Prize Distribution Logic
     useEffect(() => {
         if (totalPrizePool > 0) {
-            // Distribution: 8% per row (4 rows = 32%), then FH3=16%, FH2=22%, FH1=30%
-            const linesAmount = Math.floor(totalPrizePool * 0.08);
-            const fh3Amount = Math.floor(totalPrizePool * 0.16);
-            const fh2Amount = Math.floor(totalPrizePool * 0.22);
-            const fh1Amount = totalPrizePool - (linesAmount * 4) - fh3Amount - fh2Amount;
+            // Distribution: 10% per row (3 rows = 30%), then FH3=15%, FH2=20%, FH1=35%
+            const linesAmount = Math.floor(totalPrizePool * 0.10);
+            const fh3Amount = Math.floor(totalPrizePool * 0.15);
+            const fh2Amount = Math.floor(totalPrizePool * 0.20);
+            const fh1Amount = totalPrizePool - (linesAmount * 3) - fh3Amount - fh2Amount;
 
-            const standardIds = ['early_five', 'top_line', 'middle_line', 'bottom_line'];
+            const standardIds = ['top_line', 'middle_line', 'bottom_line'];
 
             setPrizes(prev => {
                 return prev.map((p) => {
@@ -97,9 +103,23 @@ const HousieDefineBountyScreen = () => {
         setPrizes(prizes.filter(p => p.id !== id));
     };
 
-    const addCustomPrize = () => {
+    const handleAddCustomPrize = () => {
+        if (!customPrizeName.trim()) {
+            Alert.alert('Required', 'Please enter a name for the custom reward.');
+            return;
+        }
         const newId = `custom_${Date.now()}`;
-        setPrizes([...prizes, { id: newId, name: 'Custom Prize', amount: '0', icon: 'stars' }]);
+        setPrizes([...prizes, { 
+            id: newId, 
+            name: customPrizeName, 
+            description: customPrizeDesc,
+            amount: customPrizeAmount || '0', 
+            icon: 'stars' 
+        }]);
+        setIsModalVisible(false);
+        setCustomPrizeName('');
+        setCustomPrizeDesc('');
+        setCustomPrizeAmount('');
     };
 
     const totalAllocated = prizes.reduce((sum, p) => sum + (parseInt(p.amount) || 0), 0);
@@ -149,7 +169,7 @@ const HousieDefineBountyScreen = () => {
                             >
                                 Define Rewards
                             </Text>
-                            <Text className={`text-stone-400 font-body-bold tracking-[3px] uppercase mt-1 ${isTablet ? 'text-lg' : 'text-[8px]'}`}>Mandali Glory System</Text>
+                            <Text className={`text-stone-400 font-body-bold tracking-[3px] uppercase mt-1 ${isTablet ? 'text-lg' : 'text-[8px]'}`}>System-Generated Match Rewards</Text>
                         </View>
                         <View style={{ width: isTablet ? 64 : 44 }} />
                     </View>
@@ -164,7 +184,7 @@ const HousieDefineBountyScreen = () => {
                                         className={`text-stone-400 font-body-bold uppercase ${isTablet ? 'text-2xl mb-4' : 'text-[9px] mb-1'}`}
                                         style={{ letterSpacing: isTablet ? 2 : 0.5 }}
                                         numberOfLines={1}
-                                    >Available Points Pool</Text>
+                                    >Total Match Rewards</Text>
                                     <View className="flex-row items-center">
                                         <Text
                                             className={`font-headline-bold ${isTablet ? 'text-7xl' : 'text-3xl'} ${totalAllocated > totalPrizePool ? 'text-orange-600' : 'text-[#b30069]'}`}
@@ -234,13 +254,18 @@ const HousieDefineBountyScreen = () => {
                                     <View className="flex-row items-center justify-between mb-4">
                                         <View className="flex-row items-center flex-1 mr-6">
                                             {prize.isHighlight && <Ionicons name="star" size={isTablet ? 32 : 16} color="#b30069" style={{ marginRight: 10, marginTop: isTablet ? 4 : 0 }} />}
-                                            <TextInput
-                                                value={prize.name}
-                                                onChangeText={(val) => updatePrizeName(prize.id, val)}
-                                                className={`flex-1 ${prize.isHighlight ? 'text-[#b30069] font-headline-bold' : 'text-stone-500 font-body-bold'} ${isTablet ? 'text-3xl' : 'text-base'}`}
-                                                placeholder="Milestone Name"
-                                                placeholderTextColor="#c4b9b0"
-                                            />
+                                            <View className="flex-1">
+                                                <TextInput
+                                                    value={prize.name}
+                                                    onChangeText={(val) => updatePrizeName(prize.id, val)}
+                                                    className={`flex-1 ${prize.isHighlight ? 'text-[#b30069] font-headline-bold' : 'text-stone-500 font-body-bold'} ${isTablet ? 'text-3xl' : 'text-base'}`}
+                                                    placeholder="Milestone Name"
+                                                    placeholderTextColor="#c4b9b0"
+                                                />
+                                                {prize.description ? (
+                                                    <Text className={`text-stone-400 font-body-medium mt-1 ${isTablet ? 'text-lg' : 'text-[10px]'}`}>{prize.description}</Text>
+                                                ) : null}
+                                            </View>
                                         </View>
                                         <TouchableOpacity onPress={() => deletePrize(prize.id)}>
                                             <MaterialIcons name="delete-outline" size={isTablet ? 36 : 24} color="#c4b9b0" />
@@ -266,7 +291,7 @@ const HousieDefineBountyScreen = () => {
 
                         {/* Add Custom Button */}
                         <TouchableOpacity
-                            onPress={addCustomPrize}
+                            onPress={() => setIsModalVisible(true)}
                             className={`mt-12 rounded-[40px] border-2 border-dashed border-stone-200 flex-row items-center justify-center ${isTablet ? 'h-28' : 'h-16'}`}
                         >
                             <MaterialIcons name="add-circle" size={isTablet ? 32 : 20} color="#a09d96" />
@@ -308,6 +333,65 @@ const HousieDefineBountyScreen = () => {
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
+
+            {/* Custom Prize Modal */}
+            <Modal visible={isModalVisible} animationType="slide" transparent>
+                <View className="flex-1 justify-end bg-black/50">
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                        <View className={`bg-white rounded-t-[40px] ${isTablet ? 'p-12' : 'p-6'}`}>
+                            <View className="flex-row items-center justify-between mb-8">
+                                <Text className={`font-headline-bold text-[#1c1c18] ${isTablet ? 'text-4xl' : 'text-2xl'}`}>Add Custom Reward</Text>
+                                <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+                                    <Ionicons name="close-circle" size={isTablet ? 40 : 28} color="#c4b9b0" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View className="mb-6">
+                                <Text className={`font-body-bold text-stone-500 mb-2 ${isTablet ? 'text-2xl' : 'text-xs uppercase tracking-wider'}`}>Reward Name</Text>
+                                <TextInput
+                                    value={customPrizeName}
+                                    onChangeText={setCustomPrizeName}
+                                    placeholder="e.g. Unlucky One"
+                                    className={`bg-[#efede8] rounded-[24px] px-6 ${isTablet ? 'h-20 text-2xl' : 'h-14 text-base'} font-headline-bold text-[#1c1c18] border border-white/50`}
+                                />
+                            </View>
+
+                            <View className="mb-6">
+                                <Text className={`font-body-bold text-stone-500 mb-2 ${isTablet ? 'text-2xl' : 'text-xs uppercase tracking-wider'}`}>Description</Text>
+                                <TextInput
+                                    value={customPrizeDesc}
+                                    onChangeText={setCustomPrizeDesc}
+                                    placeholder="e.g. First person to strike 0 numbers"
+                                    className={`bg-[#efede8] rounded-[24px] px-6 py-4 ${isTablet ? 'min-h-[120px] text-xl' : 'min-h-[80px] text-sm'} font-body-medium text-[#1c1c18] border border-white/50`}
+                                    multiline
+                                />
+                            </View>
+
+                            <View className="mb-10">
+                                <Text className={`font-body-bold text-stone-500 mb-2 ${isTablet ? 'text-2xl' : 'text-xs uppercase tracking-wider'}`}>Glory Amount (Optional)</Text>
+                                <View className={`flex-row items-center bg-[#efede8] rounded-[24px] px-6 border border-white/50 ${isTablet ? 'h-20' : 'h-14'}`}>
+                                    <TextInput
+                                        value={customPrizeAmount}
+                                        onChangeText={setCustomPrizeAmount}
+                                        placeholder="0"
+                                        keyboardType="number-pad"
+                                        className={`flex-1 font-headline-bold text-[#1c1c18] ${isTablet ? 'text-2xl' : 'text-base'}`}
+                                    />
+                                    <MandaliCoin size={isTablet ? 32 : 20} style={{ marginLeft: 12 }} />
+                                </View>
+                            </View>
+
+                            <TouchableOpacity
+                                onPress={handleAddCustomPrize}
+                                className={`bg-[#b30069] rounded-full items-center justify-center ${isTablet ? 'h-24' : 'h-14'} shadow-lg shadow-primary/30`}
+                                style={{ marginBottom: insets.bottom || 20 }}
+                            >
+                                <Text className={`text-white font-headline-bold ${isTablet ? 'text-2xl' : 'text-lg'}`}>Add Default Reward</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </KeyboardAvoidingView>
+                </View>
+            </Modal>
         </View>
     );
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, useWindowDimensions, FlatList, Alert, Modal } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, useWindowDimensions, FlatList, Alert, Modal, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -11,6 +11,10 @@ import { useAuthStore } from '../../stores/authStore';
 import MandaliCoin from '../../components/MandaliCoin';
 import { fetchHousieGame, joinHousieGame, fetchHousieTickets, API_URL } from '../../lib/api';
 import { getSocket } from '../../lib/socketService';
+import HousieStartingModal from '../../components/housie/HousieStartingModal';
+import HousieWinNotification from '../../components/housie/HousieWinNotification';
+import HousieClaimCheckingIndicator from '../../components/housie/HousieClaimCheckingIndicator';
+import { canClaimPrize, registerSessionClaim, resetSessionClaims } from '../../utils/housieValidator';
 
 const HousieTicketScreen = () => {
     const { width } = useWindowDimensions();
@@ -31,13 +35,27 @@ const HousieTicketScreen = () => {
     const [claimingTicketId, setClaimingTicketId] = useState<string | null>(null);
     const [isGameEnded, setIsGameEnded] = useState(false);
 
+    // Claim confirmation modal state
+    const [claimConfirmVisible, setClaimConfirmVisible] = useState(false);
+    const [pendingClaimPrizeId, setPendingClaimPrizeId] = useState<string | null>(null);
+    const [claimCountdown, setClaimCountdown] = useState(10);
+    const claimCountdownRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const [isPlayerClaiming, setIsPlayerClaiming] = useState(false);
+    const [activeNotification, setActiveNotification] = useState<{
+        type: 'win' | 'boggy';
+        playerName: string;
+        avatarUrl?: string;
+        prizeName: string;
+    } | null>(null);
+
     // 1. Fetch Game State — staleTime 30s as socket fallback
     const { data: game } = useQuery({
         queryKey: ['housieGame', gameCode],
         queryFn: () => fetchHousieGame(gameCode),
         enabled: !!gameCode && gameCode.length >= 6,
         staleTime: 30_000,
-        refetchOnMount: 'always',   // Always refetch on mount so prizes (set at activation) are fresh
+        refetchOnMount: 'always',
         refetchOnWindowFocus: false
     });
 
@@ -84,10 +102,34 @@ const HousieTicketScreen = () => {
     const handleClaimPrize = (prizeId: string) => {
         if (!socket || !gameCode || !claimingTicketId) return;
 
-        if (deniedClaims[claimingTicketId]?.includes(prizeId)) {
-            Alert.alert('Denied', 'Your claim for this prize on this ticket was already denied by the host.');
-            return;
+        const currentNum = game?.called_numbers?.[game.called_numbers.length - 1] || 0;
+        const currentNumIndex = game?.called_numbers?.length || 0;
+
+        // Use the validator to prevent duplicates and spam
+        const dbDeniedList = game?.winners?.['__denied']?.[claimingTicketId] || [];
+        const combinedDenied = {
+            [claimingTicketId]: [...(deniedClaims[claimingTicketId] || []), ...dbDeniedList]
+        };
+
+        const { canClaim } = canClaimPrize(
+            claimingTicketId,
+            prizeId,
+            currentNum,
+            currentNumIndex,
+            combinedDenied
+        );
+
+        if (!canClaim) {
+            return; // Subtle silent return as requested to remove alerts
         }
+
+        // Register immediately to block rapid clicks
+        registerSessionClaim({
+            ticketId: claimingTicketId,
+            prizeId,
+            claimedOnNumber: currentNum,
+            claimedOnIndex: currentNumIndex
+        });
 
         socket.emit('claim_prize', {
             gameCode,
@@ -98,8 +140,48 @@ const HousieTicketScreen = () => {
         });
 
         setPrizesModalVisible(false);
-        Alert.alert('Claim Sent', 'Your claim has been sent to the host for verification.');
+        setClaimConfirmVisible(false);
+        setPendingClaimPrizeId(null);
+        if (claimCountdownRef.current) clearInterval(claimCountdownRef.current);
+        if (socket) socket.emit('claiming_closed', { gameCode });
     };
+
+    const openClaimConfirm = (prizeId: string) => {
+        setPendingClaimPrizeId(prizeId);
+        setClaimCountdown(10);
+        setClaimConfirmVisible(true);
+    };
+
+    const closeClaimConfirm = () => {
+        setClaimConfirmVisible(false);
+        setPendingClaimPrizeId(null);
+        if (claimCountdownRef.current) clearInterval(claimCountdownRef.current);
+    };
+
+    // 10-second countdown when prize selection modal is open
+    useEffect(() => {
+        if (!prizesModalVisible) {
+            if (claimCountdownRef.current) clearInterval(claimCountdownRef.current);
+            return;
+        }
+        
+        setClaimCountdown(10);
+        claimCountdownRef.current = setInterval(() => {
+            setClaimCountdown(prev => {
+                if (prev <= 1) {
+                    if (claimCountdownRef.current) clearInterval(claimCountdownRef.current);
+                    setPrizesModalVisible(false);
+                    setClaimConfirmVisible(false);
+                    setPendingClaimPrizeId(null);
+                    if (getSocket()) getSocket().emit('claiming_closed', { gameCode });
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => { if (claimCountdownRef.current) clearInterval(claimCountdownRef.current); };
+    }, [prizesModalVisible]);
 
     useEffect(() => {
         if (!gameCode || gameCode.length < 6) return;
@@ -112,7 +194,6 @@ const HousieTicketScreen = () => {
             socket.emit('join_game', gameCode);
         };
 
-        // Emit immediately on mount
         socket.emit('join_game', gameCode);
 
         const onNumberCalled = (data: any) => {
@@ -120,35 +201,25 @@ const HousieTicketScreen = () => {
                 ...old,
                 called_numbers: data.calledNumbers,
                 calledCount: data.calledCount,
-                remainingCount: data.remainingCount
+                remainingCount: data.remainingCount,
+                last_activity_at: data.lastActivityAt
             }));
         };
 
         const onClaimResult = (data: any) => {
-            const { prizeId, userId, ticketId, status } = data;
+            const { prizeId, status, playerName, avatarUrl, prizeName, userId, ticketId } = data;
+            queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
 
-            // If any claim is accepted globally, force a refresh of the game state
-            // so everyone immediately sees the prize mapped to the winners list!
             if (status === 'accepted') {
-                queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
-            }
-
-            if (userId === user?.id) {
-                if (status === 'accepted') {
-                    Alert.alert('Congratulations!', 'Your claim has been accepted!');
-                } else {
-                    const msg = data.message || 'The host has denied your claim.';
-
-                    // Only mark as Boggy if the Host manually denied it (false claim), 
-                    // not if they just lost a speed-tie ("Prize already claimed")
-                    if (msg !== 'Prize already claimed') {
-                        setDeniedClaims(prev => ({
-                            ...prev,
-                            [ticketId]: [...(prev[ticketId] || []), prizeId]
-                        }));
-                    }
-
-                    Alert.alert('Claim Denied', msg);
+                setActiveNotification({ type: 'win', playerName, avatarUrl, prizeName });
+            } else if (status === 'denied' && data.message !== 'Prize already claimed') {
+                setActiveNotification({ type: 'boggy', playerName, avatarUrl, prizeName });
+                
+                if (userId === user?.id) {
+                    setDeniedClaims(prev => ({
+                        ...prev,
+                        [ticketId]: [...(prev[ticketId] || []), prizeId]
+                    }));
                 }
             }
         };
@@ -158,24 +229,38 @@ const HousieTicketScreen = () => {
         };
 
         const onGameEnded = () => {
-            // Guard: Prevent double-navigation if already on Results screen
             const state = navigation.getState();
             if (state?.routes[state?.index]?.name === 'HousieResults') return;
-
-            setIsGameEnded(true); // Stop interactions locally
+            setIsGameEnded(true);
             setPrizesModalVisible(false);
             setClaimingTicketId(null);
-
+            setIsPlayerClaiming(false); // Reset indicator on game end
             setTimeout(() => {
                 navigation.replace('HousieResults', { gameCode, groupId });
             }, 100);
         };
+
+        const onGameStarting = () => {
+            queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
+        };
+
+        const onGameActivated = () => {
+            resetSessionClaims();
+            queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
+        };
+
+        const onPlayerClaimingOpen = () => setIsPlayerClaiming(true);
+        const onPlayerClaimingClosed = () => setIsPlayerClaiming(false);
 
         socket.on('connect', onConnect);
         socket.on('number_called', onNumberCalled);
         socket.on('claim_result', onClaimResult);
         socket.on('tickets_bought', onTicketsBought);
         socket.on('game_ended', onGameEnded);
+        socket.on('game_starting', onGameStarting);
+        socket.on('game_activated', onGameActivated);
+        socket.on('player_claiming_open', onPlayerClaimingOpen);
+        socket.on('player_claiming_closed', onPlayerClaimingClosed);
 
         return () => {
             socket.off('connect', onConnect);
@@ -183,8 +268,12 @@ const HousieTicketScreen = () => {
             socket.off('claim_result', onClaimResult);
             socket.off('tickets_bought', onTicketsBought);
             socket.off('game_ended', onGameEnded);
+            socket.off('game_starting', onGameStarting);
+            socket.off('game_activated', onGameActivated);
+            socket.off('player_claiming_open', onPlayerClaimingOpen);
+            socket.off('player_claiming_closed', onPlayerClaimingClosed);
         };
-    }, [gameCode]); // Stable dep — game?.id caused re-registration on every refresh
+    }, [gameCode, user?.id]);
 
 
     const toggleMark = (ticketId: string, num: number) => {
@@ -195,12 +284,10 @@ const HousieTicketScreen = () => {
             ? currentMarks.filter(n => n !== num)
             : [...currentMarks, num];
 
-        // Update local state for UI responsiveness
         setMarkedTickets(prev => ({ ...prev, [ticketId]: newMarks }));
-
-        // Sync with server via socket
-        if (socket) {
-            socket.emit('sync_marks', {
+        const currentSocket = getSocket();
+        if (currentSocket) {
+            currentSocket.emit('sync_marks', {
                 ticketId,
                 markedNumbers: newMarks
             });
@@ -211,10 +298,6 @@ const HousieTicketScreen = () => {
     const isJoined = tickets.length > 0;
     const calledNumbers = game?.called_numbers || [];
     const latestNumber = calledNumbers[calledNumbers.length - 1];
-
-    // Note: No redirect-if-no-tickets here.
-    // Members only reach this screen after purchasing tickets in WaitingRoom.
-    // A momentary empty ticketData during loading should never bounce them away.
 
     if (isLoadingTickets || !ticketData || !isJoined) {
         return (
@@ -228,7 +311,6 @@ const HousieTicketScreen = () => {
         const dbDeniedList = game?.winners?.['__denied']?.[ticket.id] || [];
         const isBoggy = (deniedClaims[ticket.id]?.length || 0) > 0 || dbDeniedList.length > 0;
 
-        // Calculate wins for this specific ticket
         const ticketWins: string[] = [];
         let isFullHouseWin = false;
 
@@ -236,16 +318,12 @@ const HousieTicketScreen = () => {
             if (prizeId === '__pending' || prizeId === '__denied') return;
             const winners = game.winners[prizeId];
             const winnerArray = Array.isArray(winners) ? winners : (winners ? [winners] : []);
-
             const myWinOnThisTicket = winnerArray.find((w: any) => w.ticketId === ticket.id);
             if (myWinOnThisTicket) {
                 const prize = game.prizes.find((p: any) => p.id === prizeId);
                 const prizeName = prize?.name || 'Prize';
-                if (prizeName.toLowerCase().includes('full house')) {
-                    isFullHouseWin = true;
-                } else {
-                    ticketWins.push(prizeName);
-                }
+                if (prizeName.toLowerCase().includes('full house')) isFullHouseWin = true;
+                else ticketWins.push(prizeName);
             }
         });
 
@@ -254,8 +332,6 @@ const HousieTicketScreen = () => {
                 <View className="flex-row items-center justify-between mb-4 px-2">
                     <View className="flex-row items-center">
                         <Text className={`text-stone-400 font-body-bold uppercase tracking-[3px] ${isTablet ? 'text-xl' : 'text-[10px]'}`}>TICKET #{ticket.id.slice(-4).toUpperCase()}</Text>
-
-                        {/* Standard Win Badges */}
                         {ticketWins.map((win, idx) => (
                             <View key={idx} className="bg-green-100 px-3 py-1 rounded-full ml-3 border border-green-200">
                                 <Text className={`text-green-700 font-headline-bold uppercase tracking-tight ${isTablet ? 'text-lg' : 'text-[9px]'}`}>Won {win}</Text>
@@ -266,7 +342,9 @@ const HousieTicketScreen = () => {
                     <TouchableOpacity
                         onPress={() => {
                             setClaimingTicketId(ticket.id);
+                            setClaimCountdown(10);
                             setPrizesModalVisible(true);
+                            if (getSocket()) getSocket().emit('claiming_open', { gameCode });
                         }}
                         disabled={isBoggy || isFullHouseWin}
                         style={{ height: isTablet ? 60 : 36 }}
@@ -280,7 +358,6 @@ const HousieTicketScreen = () => {
                 </View>
 
                 <View className={`relative bg-white rounded-[32px] shadow-lg shadow-black/5 border border-black/5 overflow-hidden ${isTablet ? 'p-6' : 'p-3'}`}>
-                    {/* The Boggy Overlay */}
                     {isBoggy && (
                         <View className="absolute z-10 bottom-0 top-0 left-0 right-0 bg-[#594048]/60 items-center justify-center rounded-[32px]" style={{ elevation: 5 }}>
                             <View className="bg-primary px-10 py-4 rounded-[32px] border-[4px] border-white shadow-2xl opacity-95" style={{ transform: [{ rotate: '-8deg' }] }}>
@@ -289,7 +366,6 @@ const HousieTicketScreen = () => {
                         </View>
                     )}
 
-                    {/* The Full House Win Overlay */}
                     {isFullHouseWin && (
                         <View className="absolute z-10 bottom-0 top-0 left-0 right-0 bg-green-900/40 items-center justify-center rounded-[32px]" style={{ elevation: 5 }}>
                             <View className="bg-[#16a34a] px-10 py-4 rounded-[32px] border-[4px] border-white shadow-2xl opacity-95">
@@ -329,7 +405,6 @@ const HousieTicketScreen = () => {
 
     return (
         <SafeAreaView className="flex-1 bg-[#FDF9F3]" edges={['top']}>
-            {/* Header */}
             <View className={`px-6 items-center flex-row justify-between ${isTablet ? 'py-8' : 'py-4'}`}>
                 <TouchableOpacity
                     onPress={() => navigation.navigate('HousieLobby', { groupId })}
@@ -354,19 +429,14 @@ const HousieTicketScreen = () => {
                 ListHeaderComponent={() => (
                     <View className={`mb-12 mt-6 items-center ${isTablet ? 'py-12' : ''}`}>
                         <Text className={`text-stone-400 font-body-bold uppercase tracking-[4px] mb-8 ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>NOW CALLING</Text>
-                        <View
-                            style={{
-                                width: isTablet ? 280 : 160,
-                                height: isTablet ? 280 : 160,
-                                borderRadius: isTablet ? 140 : 80,
-                                elevation: 20
-                            }}
-                            className="bg-primary items-center justify-center shadow-2xl shadow-primary/40 border-[10px] border-white"
-                        >
-                            <Text className={`text-white font-headline-bold ${isTablet ? 'text-[120px]' : 'text-[64px]'}`}>
-                                {latestNumber || "--"}
-                            </Text>
+                        <View className="items-center justify-center">
+                            <View style={{ width: isTablet ? 280 : 160, height: isTablet ? 280 : 160, borderRadius: isTablet ? 140 : 80, elevation: 20 }}
+                                className="bg-[#b30069] items-center justify-center shadow-2xl shadow-[#b30069]/40 border-[10px] border-white">
+                                <Text className={`text-white font-headline-bold text-center ${isTablet ? 'text-[120px]' : 'text-[64px]'}`}>{latestNumber || "--"}</Text>
+                            </View>
                         </View>
+                        <HousieClaimCheckingIndicator visible={isPlayerClaiming} />
+                        <Text className={`text-stone-400 font-body-medium mt-8 ${isTablet ? 'text-2xl' : 'text-xs'}`}>{calledNumbers.length} of 90 numbers called</Text>
                     </View>
                 )}
                 ListFooterComponent={() => (
@@ -379,9 +449,7 @@ const HousieTicketScreen = () => {
                                 const currentCalledCount = game?.called_numbers?.length || 0;
                                 const isGlobalClosed = winners.length > 0 && winners[0].claimedOnIndex < currentCalledCount;
                                 const isPendingShare = winners.length > 0 && !isGlobalClosed;
-
                                 const individualAmount = winners.length > 0 ? (prize.amount / winners.length).toFixed(0) : prize.amount;
-
                                 return (
                                     <View key={prize.id} className={`flex-row items-center rounded-[24px] ${isGlobalClosed ? 'bg-stone-100' : 'bg-white shadow-sm border border-stone-100'} mb-2 ${isTablet ? 'p-8' : 'p-4'}`}>
                                         <View className={`${isTablet ? 'w-20 h-20' : 'w-10 h-10'} rounded-full ${isGlobalClosed ? 'bg-stone-200' : isPendingShare ? 'bg-orange-50' : 'bg-primary/5'} items-center justify-center mr-4`}>
@@ -391,11 +459,7 @@ const HousieTicketScreen = () => {
                                             <Text className={`font-headline-bold ${isGlobalClosed ? 'text-stone-400 line-through' : 'text-[#31302d]'} ${isTablet ? 'text-3xl' : 'text-base'}`}>{prize.name}</Text>
                                             {winners.length > 0 && (
                                                 <Text className={`uppercase font-body-bold mt-1 ${isGlobalClosed ? 'text-stone-400' : 'text-orange-500'} ${isTablet ? 'text-lg' : 'text-[9px]'}`}>
-                                                    {isGlobalClosed
-                                                        ? winners.length > 1
-                                                            ? `${winners.length} WINNERS CHECKED`
-                                                            : `Winner: ${getParticipantName(winners[0].userId)}`
-                                                        : 'Verification in progress...'}
+                                                    {isGlobalClosed ? (winners.length > 1 ? `${winners.length} WINNERS CHECKED` : `Winner: ${getParticipantName(winners[0].userId)}`) : 'Verification in progress...'}
                                                 </Text>
                                             )}
                                         </View>
@@ -416,16 +480,20 @@ const HousieTicketScreen = () => {
                 <View className={`flex-1 justify-center bg-[#594048]/90 ${isTablet ? 'px-24 py-24' : 'px-4 py-8'}`}>
                     <View className={`bg-[#FDF9F3] rounded-[40px] shadow-2xl border border-white/20 max-h-[100%] ${isTablet ? 'p-12' : 'p-6'}`}>
                         <ScrollView showsVerticalScrollIndicator={false}>
-                            <View className="flex-row items-center justify-between mb-8">
+                            <View className="flex-row items-center justify-between mb-2">
                                 <Text className={`font-headline-bold text-[#594048] ${isTablet ? 'text-5xl' : 'text-2xl'}`}>Claim Reward</Text>
-                                <TouchableOpacity
-                                    onPress={() => setPrizesModalVisible(false)}
-                                    className={`items-center justify-center rounded-full bg-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
-                                >
-                                    <MaterialIcons name="close" size={isTablet ? 32 : 24} color="#594048" />
-                                </TouchableOpacity>
+                                <View className="flex-row items-center">
+                                    <View className="bg-primary/10 px-3 py-1 rounded-full mr-3 border border-primary/20 flex-row items-center">
+                                        <MaterialIcons name="timer" size={14} color="#b30069" />
+                                        <Text className="text-primary font-body-bold ml-1">{claimCountdown}s</Text>
+                                    </View>
+                                    <TouchableOpacity onPress={() => { setPrizesModalVisible(false); if (getSocket()) getSocket().emit('claiming_closed', { gameCode }); }}
+                                        className={`items-center justify-center rounded-full bg-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}>
+                                        <MaterialIcons name="close" size={isTablet ? 32 : 24} color="#594048" />
+                                    </TouchableOpacity>
+                                </View>
                             </View>
-
+                            <Text className="text-stone-400 font-body-medium mb-6 text-sm">Please select a prize to claim before the timer ends.</Text>
                             <View className="gap-4">
                                 {([...(game?.prizes || [])].sort((a: any, b: any) => {
                                     const currentCalledCount = game?.called_numbers?.length || 0;
@@ -438,77 +506,38 @@ const HousieTicketScreen = () => {
                                     if (aClosed !== bClosed) return aClosed ? 1 : -1;
                                     return parseInt(b.amount || '0') - parseInt(a.amount || '0');
                                 })).map((prize: any) => {
-                                    const winnerList = game?.winners?.[prize.id];
-                                    const winners = Array.isArray(winnerList) ? winnerList : (winnerList ? [winnerList] : []);
+                                    const winners = Array.isArray(game?.winners?.[prize.id]) ? game.winners[prize.id] : (game?.winners?.[prize.id] ? [game.winners[prize.id]] : []);
                                     const currentCalledCount = game?.called_numbers?.length || 0;
                                     const isGlobalClosed = winners.length > 0 && winners[0].claimedOnIndex < currentCalledCount;
-
-                                    let standardWinsOnTicket = 0;
-                                    let fullHouseWinsOnTicket = 0;
+                                    let standardWinsOnTicket = 0, fullHouseWinsOnTicket = 0;
                                     (game?.prizes || []).forEach((p: any) => {
-                                        const ticketWinList = game?.winners?.[p.id] || [];
-                                        const tWinners = Array.isArray(ticketWinList) ? ticketWinList : [ticketWinList];
+                                        const tWinners = Array.isArray(game?.winners?.[p.id]) ? game.winners[p.id] : (game?.winners?.[p.id] ? [game.winners[p.id]] : []);
                                         if (tWinners.some((w: any) => w.ticketId === claimingTicketId)) {
                                             if (p.name.toLowerCase().includes('full house')) fullHouseWinsOnTicket++;
                                             else standardWinsOnTicket++;
                                         }
                                     });
-
-                                    const myWin = winners.find((w: any) => w.ticketId === claimingTicketId);
-                                    const isMyWin = !!myWin;
+                                    const isMyWin = winners.some((w: any) => w.ticketId === claimingTicketId);
                                     const dbDeniedPrizeIds = game?.winners?.['__denied']?.[claimingTicketId as string] || [];
                                     const isLocalDenied = claimingTicketId ? (deniedClaims[claimingTicketId]?.includes(prize.id) || dbDeniedPrizeIds.includes(prize.id)) : false;
-                                    const isFullHousePrize = prize.name.toLowerCase().includes('full house');
-                                    const isLimitReached = !isMyWin && (
-                                        (isFullHousePrize && fullHouseWinsOnTicket >= 1) ||
-                                        (!isFullHousePrize && standardWinsOnTicket >= 1)
-                                    );
-
-                                    let status = 'Claim';
-                                    let statusColor = 'text-white';
-                                    let bgColor = 'bg-[#b30069]';
-
-                                    if (isMyWin) {
-                                        status = 'Success';
-                                        bgColor = 'bg-stone-100';
-                                        statusColor = 'text-green-600';
-                                    } else if (isGlobalClosed) {
-                                        status = winners.length > 1 ? `${winners.length} Wins` : 'Closed';
-                                        bgColor = 'bg-stone-50';
-                                        statusColor = 'text-stone-300';
-                                    } else if (isLocalDenied) {
-                                        status = 'Denied';
-                                        bgColor = 'bg-red-50';
-                                        statusColor = 'text-red-400';
-                                    } else if (isLimitReached) {
-                                        status = 'Limited';
-                                        bgColor = 'bg-stone-100';
-                                        statusColor = 'text-stone-400';
-                                    } else if (winners.length > 0) {
-                                        status = 'Join Share';
-                                        bgColor = 'bg-orange-500';
-                                        statusColor = 'text-white';
-                                    }
-
+                                    const isLimitReached = !isMyWin && ((prize.name.toLowerCase().includes('full house') && fullHouseWinsOnTicket >= 1) || (!prize.name.toLowerCase().includes('full house') && standardWinsOnTicket >= 1));
+                                    let status = 'Claim', statusColor = 'text-white', bgColor = 'bg-[#b30069]';
+                                    if (isMyWin) { status = 'Success'; bgColor = 'bg-stone-100'; statusColor = 'text-green-600'; }
+                                    else if (isGlobalClosed) { status = winners.length > 1 ? `${winners.length} Wins` : 'Closed'; bgColor = 'bg-stone-50'; statusColor = 'text-stone-300'; }
+                                    else if (isLocalDenied) { status = 'Denied'; bgColor = 'bg-red-50'; statusColor = 'text-red-400'; }
+                                    else if (isLimitReached) { status = 'Limited'; bgColor = 'bg-stone-100'; statusColor = 'text-stone-400'; }
+                                    else if (winners.length > 0) { status = 'Join Share'; bgColor = 'bg-orange-500'; statusColor = 'text-white'; }
                                     const disableButton = isGlobalClosed || isMyWin || isLocalDenied || isLimitReached;
-
                                     return (
-                                        <TouchableOpacity
-                                            key={prize.id}
-                                            onPress={() => !disableButton && handleClaimPrize(prize.id)}
-                                            disabled={disableButton}
-                                            className={`bg-white rounded-[28px] flex-row items-center border border-stone-100 mb-2 ${isTablet ? 'p-8' : 'p-4'} ${disableButton && !isMyWin ? 'opacity-50' : ''}`}
-                                        >
+                                        <TouchableOpacity key={prize.id} onPress={() => !disableButton && openClaimConfirm(prize.id)} disabled={disableButton}
+                                            className={`bg-white rounded-[28px] flex-row items-center border border-stone-100 mb-2 ${isTablet ? 'p-8' : 'p-4'} ${disableButton && !isMyWin ? 'opacity-50' : ''}`}>
                                             <View className={`${isTablet ? 'w-20 h-20' : 'w-12 h-12'} rounded-full ${(winners.length > 0 && !isGlobalClosed && !isLimitReached) ? 'bg-orange-50' : 'bg-stone-50'} items-center justify-center mr-4`}>
                                                 <MaterialIcons name={prize.icon || 'stars'} size={isTablet ? 36 : 24} color={(winners.length > 0 && !isGlobalClosed && !isLimitReached) ? '#f97316' : '#b30069'} />
                                             </View>
                                             <View className="flex-1">
                                                 <Text className={`text-[#31302d] font-headline-bold ${isTablet ? 'text-3xl' : 'text-base'}`}>{prize.name}</Text>
                                                 <View className="flex-row items-center mt-1">
-                                                    <Text className={`text-stone-400 font-body-medium ${isTablet ? 'text-lg' : 'text-xs'}`}>
-                                                        {winners.length > 1 && !isLimitReached ? 'Split: ' : 'Value: '}
-                                                        {winners.length > 1 && !isLimitReached ? (prize.amount / winners.length).toFixed(0) : prize.amount}
-                                                    </Text>
+                                                    <Text className={`text-stone-400 font-body-medium ${isTablet ? 'text-lg' : 'text-xs'}`}>Value: {winners.length > 1 && !isLimitReached ? (prize.amount / winners.length).toFixed(0) : prize.amount}</Text>
                                                     <MandaliCoin size={isTablet ? 18 : 12} style={{ marginLeft: 4 }} />
                                                 </View>
                                             </View>
@@ -520,9 +549,32 @@ const HousieTicketScreen = () => {
                                 })}
                             </View>
                         </ScrollView>
+
+                        {claimConfirmVisible && (
+                            <View className="absolute top-0 left-0 right-0 bottom-0 bg-white/95 rounded-[40px] items-center justify-center p-8 z-50">
+                                <View className={`rounded-full bg-primary/10 items-center justify-center mb-6 ${isTablet ? 'w-24 h-24' : 'w-20 h-20'}`}>
+                                    <FontAwesome5 name="trophy" size={isTablet ? 48 : 36} color="#b30069" />
+                                </View>
+                                <Text className={`text-[#1c1c18] font-headline-bold text-center mb-2 ${isTablet ? 'text-4xl' : 'text-2xl'}`}>Confirm Claim?</Text>
+                                <Text className={`text-stone-400 font-body-medium text-center mb-8 ${isTablet ? 'text-xl' : 'text-sm'}`}>Are you sure you want to claim {game?.prizes?.find((p: any) => p.id === pendingClaimPrizeId)?.name}?</Text>
+                                <View className="w-full gap-4">
+                                    <TouchableOpacity onPress={() => pendingClaimPrizeId && handleClaimPrize(pendingClaimPrizeId)} className={`bg-primary rounded-full items-center justify-center ${isTablet ? 'h-20' : 'h-14'}`}>
+                                        <Text className={`text-white font-headline-bold ${isTablet ? 'text-3xl' : 'text-lg'}`}>Yes, Claim Now ({claimCountdown}s)</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={closeClaimConfirm} className={`bg-stone-100 rounded-full items-center justify-center ${isTablet ? 'h-20' : 'h-14'}`}>
+                                        <Text className={`text-stone-500 font-headline-bold ${isTablet ? 'text-3xl' : 'text-lg'}`}>Cancel</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        )}
                     </View>
                 </View>
             </Modal>
+
+            <HousieStartingModal visible={game?.status === 'starting'} game={game} onComplete={() => queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] })} />
+            {activeNotification && (
+                <HousieWinNotification visible={!!activeNotification} type={activeNotification.type} playerName={activeNotification.playerName} avatarUrl={activeNotification.avatarUrl} prizeName={activeNotification.prizeName} onComplete={() => setActiveNotification(null)} />
+            )}
         </SafeAreaView>
     );
 };

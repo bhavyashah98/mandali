@@ -60,7 +60,7 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
             });
         }
 
-        // 3. Create the game in not_started state
+        // 3. Create the game in waiting state directly
         const { data, error } = await supabase
             .from('housie_games')
             .insert({
@@ -68,8 +68,8 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
                 group_id: groupId,
                 host_id: userId,
                 called_numbers: [],
-                status: 'not_started',
-                ticket_price: 0,
+                status: 'waiting',
+                ticket_price: 100,
                 last_activity_at: new Date().toISOString()
             })
             .select()
@@ -82,9 +82,18 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
         if (ioInstance) {
             ioInstance.to(groupId).emit('game_created', {
                 gameCode,
-                status: 'not_started'
+                status: 'waiting'
             });
         }
+
+        // Send Push Notification advising members a game is ready to join!
+        sendGroupPushNotification(
+            groupId,
+            userId,
+            '🎟️ Housie Room Open!',
+            'A group member is hosting a new game! Jump into the waiting room to grab your tickets before it starts.',
+            { type: 'housie', gameCode: gameCode, groupId: groupId, url: `mandali://housie/${gameCode}/${groupId}` }
+        ).catch((err: any) => console.error('[Push Failed]:', err));
 
         res.json({ success: true, game: data });
     } catch (error: any) {
@@ -136,71 +145,6 @@ router.get('/active/:groupId', authMiddleware, async (req: AuthRequest, res) => 
 });
 
 /**
- * SETUP GAME (Progress not_started -> waiting)
- */
-router.patch('/:gameCode/setup', authMiddleware, async (req: AuthRequest, res) => {
-    try {
-        const gameCode = (req.params.gameCode as string).toUpperCase();
-        const { ticketPrice } = req.body;
-        const userId = req.userId!;
-
-        const { data: game, error: fetchError } = await supabase
-            .from('housie_games')
-            .select('*')
-            .eq('game_code', gameCode)
-            .single();
-
-        if (fetchError || !game) {
-            return res.status(404).json({ error: 'Game not found' });
-        }
-
-        if (game.host_id !== userId) {
-            return res.status(403).json({ error: 'Only the host can setup this game.' });
-        }
-
-        if (game.status !== 'not_started') {
-            return res.status(400).json({ error: 'Game is already setup' });
-        }
-
-        const { data: updatedGame, error: updateError } = await supabase
-            .from('housie_games')
-            .update({
-                status: 'waiting',
-                ticket_price: ticketPrice,
-                last_activity_at: new Date().toISOString()
-            })
-            .eq('game_code', gameCode)
-            .select()
-            .single();
-
-        if (updateError) throw updateError;
-
-        // Broadcast to group members about the new active waiting room
-        const ioInstance = req.app.get('io');
-        if (ioInstance) {
-            ioInstance.to(game.group_id).emit('game_created', {
-                gameCode,
-                hostName: 'Host',
-                ticketPrice
-            });
-        }
-
-        // Send Push Notification advising members a game is ready to join!
-        sendGroupPushNotification(
-            game.group_id,
-            userId,
-            '🎟️ Housie Room Open!',
-            'A group member is hosting a new game! Jump into the waiting room to grab your tickets before it starts.',
-            { type: 'housie', gameCode: gameCode, groupId: game.group_id, url: `mandali://housie/${gameCode}/${game.group_id}` }
-        ).catch((err: any) => console.error('[Push Failed]:', err));
-
-        res.json({ success: true, game: updatedGame });
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-/**
  * ACTIVATE GAME
  */
 router.patch('/:gameCode/activate', authMiddleware, async (req: AuthRequest, res) => {
@@ -222,7 +166,7 @@ router.patch('/:gameCode/activate', authMiddleware, async (req: AuthRequest, res
         const { data: updatedGame, error: updateError } = await supabase
             .from('housie_games')
             .update({
-                status: 'active',
+                status: 'starting',
                 prizes: prizes,
                 last_activity_at: new Date().toISOString()
             })
@@ -234,16 +178,40 @@ router.patch('/:gameCode/activate', authMiddleware, async (req: AuthRequest, res
 
         const io = req.app.get('io');
         if (io) {
-            // Notify players in the game
-            io.to(gameCode).emit('game_activated', {
+            // 1. Notify everyone that game is STARTING (25s countdown)
+            io.to(gameCode).emit('game_starting', {
                 gameCode,
-                status: 'active'
+                status: 'starting',
+                game: updatedGame
             });
-            // Notify group members in lobby
-            io.to(game.group_id).emit('game_activated', {
+            
+            // 2. Notify group members in lobby
+            io.to(game.group_id).emit('game_starting', {
                 gameCode,
-                status: 'active'
+                status: 'starting'
             });
+
+            // 3. Set a timeout to flip status to 'active' automatically after 15s
+            setTimeout(async () => {
+                try {
+                    const { data: finalGame } = await supabase
+                        .from('housie_games')
+                        .update({ status: 'active' })
+                        .eq('game_code', gameCode)
+                        .select()
+                        .single();
+
+                    if (finalGame) {
+                        io.to(gameCode).emit('game_activated', {
+                            gameCode,
+                            status: 'active',
+                            game: finalGame
+                        });
+                    }
+                } catch (err) {
+                    console.error('[Housie] Failed to auto-activate game after starting timer:', err);
+                }
+            }, 15000);
         }
 
         res.json(updatedGame);
@@ -433,7 +401,8 @@ router.post('/:gameCode/call', authMiddleware, async (req: AuthRequest, res) => 
             nextNumber,
             calledNumbers: updatedNumbers,
             calledCount: updatedNumbers.length,
-            remainingCount: 90 - updatedNumbers.length
+            remainingCount: 90 - updatedNumbers.length,
+            lastActivityAt: data.last_activity_at
         });
 
         res.json({ success: true, nextNumber, game: data });

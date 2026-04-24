@@ -58,12 +58,14 @@ const HousieLobbyScreen = () => {
         socket.on('game_status_changed', onGameStatusChanged);
         socket.on('game_ended', onGameEnded);
         socket.on('game_activated', onGameActivated);
+        socket.on('game_starting', onGameStatusChanged); // Invalidate on starting too
 
         return () => {
             socket.off('game_created', onGameCreated);
             socket.off('game_status_changed', onGameStatusChanged);
             socket.off('game_ended', onGameEnded);
             socket.off('game_activated', onGameActivated);
+            socket.off('game_starting', onGameStatusChanged);
         };
     }, [groupId]);
 
@@ -128,9 +130,9 @@ const HousieLobbyScreen = () => {
             try {
                 setIsLoading(true);
                 const result = await createHousieGame(groupId!);
-                navigation.navigate('HousieCreateGame', { groupId, gameCode: result.game.game_code });
+                navigation.navigate('HousieWaitingRoom', { groupId, gameCode: result.game.game_code });
             } catch (err: any) {
-                Alert.alert('Error', err?.response?.data?.error || 'Failed to initialize staging game.');
+                Alert.alert('Error', err?.response?.data?.error || 'Failed to initialize game.');
             } finally {
                 setIsLoading(false);
             }
@@ -139,7 +141,7 @@ const HousieLobbyScreen = () => {
 
         if (activeGame && activeGame.host_id === user?.id) {
             switch (activeGame.status) {
-                case 'not_started': navigation.navigate('HousieCreateGame', { groupId, gameCode: activeGame.game_code }); break;
+                case 'not_started': navigation.navigate('HousieWaitingRoom', { groupId, gameCode: activeGame.game_code }); break;
                 case 'waiting': navigation.navigate('HousieWaitingRoom', { gameCode: activeGame.game_code, groupId }); break;
                 case 'bounty': navigation.navigate('HousieDefineBounty', { gameCode: activeGame.game_code, groupId }); break;
                 case 'active': navigation.navigate('HousieGame', { gameCode: activeGame.game_code, groupId }); break;
@@ -179,6 +181,7 @@ const HousieLobbyScreen = () => {
             switch (activeGame.status) {
                 case 'not_started': return { label: 'Setting prices...', action: () => { }, icon: 'hourglass', disabled: true };
                 case 'waiting': return { label: 'Go to Waiting Room', action: () => navigation.navigate('HousieWaitingRoom', { gameCode: activeGame.game_code, groupId }), icon: 'arrow-redo', disabled: false };
+                case 'starting': return { label: 'Starting...', action: () => navigation.navigate('HousieTicket', { gameCode: activeGame.game_code, groupId }), icon: 'play', disabled: false };
                 case 'bounty': return { label: 'Resume Game', action: () => navigation.navigate('HousieTicket', { gameCode: activeGame.game_code, groupId }), icon: 'play', disabled: false };
                 case 'active': return { label: 'Resume Game', action: () => navigation.navigate('HousieTicket', { gameCode: activeGame.game_code, groupId }), icon: 'play', disabled: false };
                 default: return { label: 'Resume', action: () => navigation.navigate('HousieTicket', { gameCode: activeGame.game_code, groupId }), icon: 'play', disabled: false };
@@ -187,6 +190,7 @@ const HousieLobbyScreen = () => {
             switch (activeGame.status) {
                 case 'not_started': return { label: 'Setting prices...', action: () => { }, icon: 'hourglass', disabled: true };
                 case 'waiting': return { label: 'Join Game', action: () => navigation.navigate('HousieJoinGame', { gameCode: activeGame.game_code, groupId }), icon: 'ticket', disabled: false };
+                case 'starting': return { label: 'Watch Live', action: () => navigation.navigate('HousieSpectator', { gameCode: activeGame.game_code, groupId }), icon: 'eye', disabled: false };
                 case 'bounty': return { label: 'Watch Live', action: () => navigation.navigate('HousieSpectator', { gameCode: activeGame.game_code, groupId }), icon: 'eye', disabled: false };
                 case 'active': return { label: 'Watch Live', action: () => navigation.navigate('HousieSpectator', { gameCode: activeGame.game_code, groupId }), icon: 'eye', disabled: false };
                 default: return { label: 'Join Game', action: () => navigation.navigate('HousieJoinGame', { groupId }), icon: 'ticket', disabled: false };

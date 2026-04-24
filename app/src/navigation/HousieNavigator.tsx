@@ -3,7 +3,6 @@ import { createStackNavigator, TransitionPresets } from '@react-navigation/stack
 
 import HousieSelectGroupScreen from '../screens/housie/HousieSelectGroupScreen';
 import HousieLobbyScreen from '../screens/housie/HousieLobbyScreen';
-import HousieCreateGameScreen from '../screens/housie/HousieCreateGameScreen';
 import HousieJoinGameScreen from '../screens/housie/HousieJoinGameScreen';
 import HousieDefineBountyScreen from '../screens/housie/HousieDefineBountyScreen';
 import HousieWaitingRoomScreen from '../screens/housie/HousieWaitingRoomScreen';
@@ -25,7 +24,6 @@ export const HousieNavigator = () => {
         >
             <Stack.Screen name="HousieSelectGroup" component={HousieSelectGroupScreen} />
             <Stack.Screen name="HousieLobby" component={HousieLobbyScreen} />
-            <Stack.Screen name="HousieCreateGame" component={HousieCreateGameScreen} />
             <Stack.Screen name="HousieJoinGame" component={HousieJoinGameScreen} />
             <Stack.Screen name="HousieDefineBounty" component={HousieDefineBountyScreen} />
             <Stack.Screen name="HousieWaitingRoom" component={HousieWaitingRoomScreen} />

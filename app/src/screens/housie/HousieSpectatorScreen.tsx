@@ -11,6 +11,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import MandaliCoin from '../../components/MandaliCoin';
 import { fetchHousieGame, API_URL, fetchGroupDetail } from '../../lib/api';
 import { getSocket } from '../../lib/socketService';
+import HousieStartingModal from '../../components/housie/HousieStartingModal';
+import HousieWinNotification from '../../components/housie/HousieWinNotification';
+import HousieClaimCheckingIndicator from '../../components/housie/HousieClaimCheckingIndicator';
 
 const HousieSpectatorScreen = () => {
     const { width } = useWindowDimensions();
@@ -19,6 +22,14 @@ const HousieSpectatorScreen = () => {
     const route = useRoute();
     const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};
     const queryClient = useQueryClient();
+
+    const [isPlayerClaiming, setIsPlayerClaiming] = React.useState(false);
+    const [activeNotification, setActiveNotification] = React.useState<{
+        type: 'win' | 'boggy';
+        playerName: string;
+        avatarUrl?: string;
+        prizeName: string;
+    } | null>(null);
 
     // Fetch group data for branding
     const { data: groupData } = useQuery({
@@ -47,27 +58,55 @@ const HousieSpectatorScreen = () => {
                 called_numbers: data.calledNumbers,
                 calledCount: data.calledCount,
                 remainingCount: data.remainingCount,
+                last_activity_at: data.lastActivityAt
             }));
         };
 
-        const onClaimResult = () => {
+        const onClaimResult = (data: any) => {
+            const { prizeId, status, playerName, avatarUrl, prizeName } = data;
             queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
+            
+            if (status === 'accepted') {
+                setActiveNotification({ type: 'win', playerName, avatarUrl, prizeName });
+            } else if (status === 'denied' && data.message !== 'Prize already claimed') {
+                setActiveNotification({ type: 'boggy', playerName, avatarUrl, prizeName });
+            }
         };
 
         const onGameEnded = () => {
             const state = navigation.getState();
             if (state?.routes[state?.index]?.name === 'HousieResults') return;
+            setIsPlayerClaiming(false); // Reset indicator
             navigation.replace('HousieResults', { gameCode, groupId });
         };
+
+        const onGameStarting = () => {
+            queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
+        };
+
+        const onGameActivated = () => {
+            queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
+        };
+
+        const onPlayerClaimingOpen = () => setIsPlayerClaiming(true);
+        const onPlayerClaimingClosed = () => setIsPlayerClaiming(false);
 
         socket.on('number_called', onNumberCalled);
         socket.on('claim_result', onClaimResult);
         socket.on('game_ended', onGameEnded);
+        socket.on('game_starting', onGameStarting);
+        socket.on('game_activated', onGameActivated);
+        socket.on('player_claiming_open', onPlayerClaimingOpen);
+        socket.on('player_claiming_closed', onPlayerClaimingClosed);
 
         return () => {
             socket.off('number_called', onNumberCalled);
             socket.off('claim_result', onClaimResult);
             socket.off('game_ended', onGameEnded);
+            socket.off('game_starting', onGameStarting);
+            socket.off('game_activated', onGameActivated);
+            socket.off('player_claiming_open', onPlayerClaimingOpen);
+            socket.off('player_claiming_closed', onPlayerClaimingClosed);
         };
     }, [gameCode]);
 
@@ -172,19 +211,46 @@ const HousieSpectatorScreen = () => {
                 {/* Drawing Indicator */}
                 <View className={`items-center ${isTablet ? 'mb-12 mt-10' : 'mb-8 mt-4'}`}>
                     <Text className={`text-stone-400 font-body-bold uppercase tracking-[4px] mb-6 ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>NOW CALLING</Text>
-                    <View
-                        style={{ 
-                            width: isTablet ? 280 : 160, 
-                            height: isTablet ? 280 : 160, 
-                            borderRadius: isTablet ? 140 : 80, 
-                            elevation: 20 
-                        }}
-                        className="bg-[#b30069] items-center justify-center shadow-2xl shadow-[#b30069]/40 border-[10px] border-white"
-                    >
-                        <Text className={`text-white font-headline-bold ${isTablet ? 'text-[120px]' : 'text-[64px]'}`}>
-                            {latestNumber || "—"}
-                        </Text>
+                    <View className="w-full items-center justify-center">
+                        <View className="flex-row items-center justify-center gap-x-5 px-4">
+                            {/* Ball p-2 */}
+                            <View className="items-center">
+                                <View 
+                                    style={{ width: isTablet ? 90 : 58, height: isTablet ? 90 : 58, borderRadius: 45 }}
+                                    className="bg-[#b30069]/10 border border-[#b30069]/20 items-center justify-center"
+                                >
+                                    <Text className={`text-[#594048] font-headline-bold text-center ${isTablet ? 'text-3xl' : 'text-lg'}`}>
+                                        {calledNumbers[calledNumbers.length - 3] || '--'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Ball p-1 */}
+                            <View className="items-center">
+                                <View 
+                                    style={{ width: isTablet ? 110 : 72, height: isTablet ? 110 : 72, borderRadius: 55 }}
+                                    className="bg-[#b30069]/20 border border-[#b30069]/30 items-center justify-center"
+                                >
+                                    <Text className={`text-[#594048] font-headline-bold text-center ${isTablet ? 'text-4xl' : 'text-2xl'}`}>
+                                        {calledNumbers[calledNumbers.length - 2] || '--'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* CURRENT BALL */}
+                            <View className="items-center">
+                                <View 
+                                    style={{ width: isTablet ? 180 : 110, height: isTablet ? 180 : 110, borderRadius: 90, elevation: 12 }}
+                                    className="bg-[#b30069] items-center justify-center shadow-2xl shadow-[#b30069]/30 border-[5px] border-white"
+                                >
+                                    <Text className={`text-white font-headline-bold text-center ${isTablet ? 'text-[84px]' : 'text-[54px]'}`}>
+                                        {latestNumber || "—"}
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
                     </View>
+                    <HousieClaimCheckingIndicator visible={isPlayerClaiming} />
                     <Text className={`text-stone-400 font-body-medium mt-6 ${isTablet ? 'text-2xl' : 'text-xs'}`}>
                         {calledNumbers.length} of 90 numbers called
                     </Text>
@@ -283,6 +349,23 @@ const HousieSpectatorScreen = () => {
                     </Text>
                 </View>
             </ScrollView>
+
+            <HousieStartingModal 
+                visible={game?.status === 'starting'} 
+                game={game} 
+                onComplete={() => queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] })}
+            />
+
+            {activeNotification && (
+                <HousieWinNotification
+                    visible={!!activeNotification}
+                    type={activeNotification.type}
+                    playerName={activeNotification.playerName}
+                    avatarUrl={activeNotification.avatarUrl}
+                    prizeName={activeNotification.prizeName}
+                    onComplete={() => setActiveNotification(null)}
+                />
+            )}
         </SafeAreaView>
     );
 };
