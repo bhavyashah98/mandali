@@ -65,27 +65,56 @@ import { registerHousieHandlers } from './sockets/housieHandlers';
 // --- Real-time Presence Cache ---
 const onlineUsers = new Map<string, string>(); // userId -> socketId
 
-// Socket.io Connection Logic
-// io.use(socketAuthMiddleware); // Bypass for now to fix websocket errors during transition
+// Memory Monitor
+setInterval(() => {
+    const used = process.memoryUsage();
+    console.log(`[SYS]
+    RSS=${Math.round(used.rss / 1024 / 1024)}MB
+    HeapUsed=${Math.round(used.heapUsed / 1024 / 1024)}MB
+    HeapTotal=${Math.round(used.heapTotal / 1024 / 1024)}MB
+    External=${Math.round(used.external / 1024 / 1024)}MB
+    Online=${onlineUsers.size}`);
+}, 10000);
 
+// Socket.io Connection Logic
 io.on('connection', async (socket) => {
-    const userId = (socket as any).userId;
+    // Manually verify token from handshake
+    const token = socket.handshake.auth?.token;
+    let userId: string | undefined = undefined;
+
+    if (token) {
+        try {
+            const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET!) as { userId: string };
+            userId = decoded.userId;
+            (socket as any).userId = userId;
+        } catch (err) { }
+    }
+
+    if (!userId) {
+        console.log(`[Socket] Guest attached: ${socket.id}`);
+        registerChatHandlers(io, socket, onlineUsers);
+        registerHousieHandlers(io, socket);
+        return;
+    }
+
     console.log(`[Socket] Authenticated: ${userId} (${socket.id})`);
 
     // 1. Presence Setup
-    if (userId) {
-        onlineUsers.set(userId, socket.id);
-        await supabase.from('users').update({ online_status: true, last_seen: new Date().toISOString() }).eq('id', userId);
-        io.emit('online_status', { userId, status: true });
-    }
+    onlineUsers.set(userId, socket.id);
+
+    // Non-blocking update
+    supabase.from('users').update({
+        online_status: true,
+        last_seen: new Date().toISOString()
+    }).eq('id', userId).then(({ error }) => {
+        if (!error) io.emit('online_status', { userId, status: true });
+    });
 
     // 2. Room Joins
-    if (userId) {
-        // Auto-join group rooms the user is a member of
-        const { data: memberships } = await supabase.from('group_members').select('group_id').eq('user_id', userId);
-        if (memberships) {
-            memberships.forEach(m => socket.join(m.group_id));
-        }
+    // Auto-join group rooms the user is a member of
+    const { data: memberships } = await supabase.from('group_members').select('group_id').eq('user_id', userId);
+    if (memberships) {
+        memberships.forEach(m => socket.join(m.group_id));
     }
 
     // 3. Delegate Feature Handlers
@@ -93,12 +122,20 @@ io.on('connection', async (socket) => {
     registerHousieHandlers(io, socket);
 
     // 4. Lifecyle Handlers
-    socket.on('disconnect', async () => {
-        console.log(`[Socket] User disconnected: ${socket.id}`);
+    socket.on('disconnect', (reason) => {
+        console.log(`[Socket] Disconnected: ${socket.id} (${userId || 'Guest'}) Reason: ${reason}`);
         if (userId) {
-            onlineUsers.delete(userId);
-            await supabase.from('users').update({ online_status: false, last_seen: new Date().toISOString() }).eq('id', userId);
-            io.emit('online_status', { userId, status: false });
+            // Only delete if the current socket is the one mapped to this user
+            if (onlineUsers.get(userId) === socket.id) {
+                onlineUsers.delete(userId);
+            }
+
+            supabase.from('users').update({
+                online_status: false,
+                last_seen: new Date().toISOString()
+            }).eq('id', userId).then(({ error }) => {
+                if (!error) io.emit('online_status', { userId, status: false });
+            });
         }
     });
 
