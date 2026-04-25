@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { io } from '../index';
-import { generateHousieTicket } from '../utils/housie';
+//@ts-ignore
+import tambola from 'tambola';
 import { sendGroupPushNotification } from '../lib/push';
 
 const router = Router();
@@ -60,7 +61,10 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
             });
         }
 
-        // 3. Create the game in waiting state directly
+        // 3. Pre-generate the full draw sequence for this game (fair, no repeats)
+        const drawSequence: number[] = tambola.getDrawSequence();
+
+        // 4. Create the game in waiting state directly
         const { data, error } = await supabase
             .from('housie_games')
             .insert({
@@ -68,6 +72,7 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
                 group_id: groupId,
                 host_id: userId,
                 called_numbers: [],
+                draw_sequence: drawSequence,
                 status: 'waiting',
                 ticket_price: 100,
                 last_activity_at: new Date().toISOString()
@@ -184,7 +189,7 @@ router.patch('/:gameCode/activate', authMiddleware, async (req: AuthRequest, res
                 status: 'starting',
                 game: updatedGame
             });
-            
+
             // 2. Notify group members in lobby
             io.to(game.group_id).emit('game_starting', {
                 gameCode,
@@ -384,10 +389,10 @@ router.post('/:gameCode/call', authMiddleware, async (req: AuthRequest, res) => 
         const calledNumbers = game.called_numbers || [];
         if (calledNumbers.length >= 90) return res.status(400).json({ error: 'All numbers called' });
 
-        const allNumbers = Array.from({ length: 90 }, (_, i) => i + 1);
-        const remaining = allNumbers.filter(n => !calledNumbers.includes(n));
+        // Use the pre-generated draw sequence stored at game creation
+        const drawSequence: number[] = game.draw_sequence || [];
 
-        const nextNumber = remaining[Math.floor(Math.random() * remaining.length)];
+        const nextNumber = drawSequence[calledNumbers.length];
         const updatedNumbers = [...calledNumbers, nextNumber];
 
         const { data, error: updateError } = await supabase
@@ -540,7 +545,7 @@ router.post('/:gameCode/join', authMiddleware, async (req: AuthRequest, res) => 
             ticketsToCreate.push({
                 game_id: game.id,
                 user_id: userId,
-                ticket_data: generateHousieTicket()
+                ticket_data: tambola.generateTicket()
             });
         }
 

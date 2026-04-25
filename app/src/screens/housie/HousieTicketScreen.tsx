@@ -48,7 +48,7 @@ const HousieTicketScreen = () => {
     } | null>(null);
 
     // 1. Fetch Game State — staleTime 30s as socket fallback
-    const { data: game } = useQuery({
+    const { data: game, refetch: refetchGame } = useQuery({
         queryKey: ['housieGame', gameCode],
         queryFn: () => fetchHousieGame(gameCode),
         enabled: !!gameCode && gameCode.length >= 6,
@@ -63,12 +63,12 @@ const HousieTicketScreen = () => {
     };
 
 
-    // 2. Fetch User's Tickets
+    // 2. Fetch User's Tickets — staleTime 5s to avoid resetting marks on every refetch
     const { data: ticketData, isLoading: isLoadingTickets } = useQuery({
         queryKey: ['housieTickets', gameCode],
         queryFn: () => fetchHousieTickets(gameCode),
         enabled: !!gameCode && gameCode.length >= 6,
-        staleTime: 0
+        staleTime: 5_000
     });
 
     // 3. Purchase Tickets Mutation
@@ -86,14 +86,20 @@ const HousieTicketScreen = () => {
     const [markedTickets, setMarkedTickets] = useState<Record<string, number[]>>({});
     const [deniedClaims, setDeniedClaims] = useState<Record<string, string[]>>({});
 
-    // Initialize marks from server data
+    // Initialize marks from server data — only seed IDs we haven't tracked yet
+    // This prevents resuming a game from resetting locally-tapped marks
     useEffect(() => {
         if (ticketData?.tickets) {
-            const initialMarks: Record<string, number[]> = {};
-            ticketData.tickets.forEach((t: any) => {
-                initialMarks[t.id] = t.marked_numbers || [];
+            setMarkedTickets(prev => {
+                const next = { ...prev };
+                ticketData.tickets.forEach((t: any) => {
+                    // Only initialise if we have no local state for this ticket yet
+                    if (!(t.id in next)) {
+                        next[t.id] = t.marked_numbers || [];
+                    }
+                });
+                return next;
             });
-            setMarkedTickets(initialMarks);
         }
     }, [ticketData?.tickets]);
 
@@ -228,10 +234,12 @@ const HousieTicketScreen = () => {
         const onGameEnded = () => {
             const state = navigation.getState();
             if (state?.routes[state?.index]?.name === 'HousieResults') return;
+            // Purge tickets cache so old ticket data doesn't bleed into the next game
+            queryClient.removeQueries({ queryKey: ['housieTickets', gameCode] });
             setIsGameEnded(true);
             setPrizesModalVisible(false);
             setClaimingTicketId(null);
-            setIsPlayerClaiming(false); // Reset indicator on game end
+            setIsPlayerClaiming(false);
             setTimeout(() => {
                 navigation.replace('HousieResults', { gameCode, groupId });
             }, 100);
@@ -346,6 +354,8 @@ const HousieTicketScreen = () => {
                             setClaimingTicketId(ticket.id);
                             setClaimCountdown(10);
                             setPrizesModalVisible(true);
+                            // Force-refresh game so prizes are always current (not 30s stale)
+                            refetchGame();
                             if (getSocket()) getSocket().emit('claiming_open', { gameCode });
                         }}
                         disabled={isBoggy || isFullHouseWin}
