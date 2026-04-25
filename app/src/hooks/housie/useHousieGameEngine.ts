@@ -5,6 +5,10 @@ import { useNavigation } from '@react-navigation/native';
 import { fetchHousieGame, updateHousieStatus, callHousieNumber } from '../../lib/api';
 import { getSocket } from '../../lib/socketService';
 
+import * as Speech from 'expo-speech';
+
+import { announceHousieNumber } from '../../utils/housieVoice';
+
 export const useHousieGameEngine = (gameCode: string, groupId: string) => {
     const queryClient = useQueryClient();
     const navigation = useNavigation<any>();
@@ -32,7 +36,7 @@ export const useHousieGameEngine = (gameCode: string, groupId: string) => {
             Alert.alert('Error', err.response?.data?.error || 'Failed to call number');
         }
     });
-
+    
     // 3. End Game Mutation
     const endGameMutation = useMutation({
         mutationFn: () => updateHousieStatus(gameCode, 'ended'),
@@ -68,6 +72,13 @@ export const useHousieGameEngine = (gameCode: string, groupId: string) => {
         const socket = getSocket();
 
         const onNumberCalled = (data: any) => {
+            const numbers = data.calledNumbers || [];
+            const latest = numbers[numbers.length - 1];
+
+            if (latest) {
+                announceHousieNumber(latest);
+            }
+
             queryClient.setQueryData(['housieGame', gameCode], (old: any) => {
                 if (!old) return old;
                 return {

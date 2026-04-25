@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { Ticket } from './Ticket';
 
 interface ClaimVerificationModalProps {
     visible: boolean;
@@ -48,45 +49,14 @@ export const ClaimVerificationModal: React.FC<ClaimVerificationModalProps> = ({
                             </Text>
                         </View>
 
-                        <View style={{ width: isTablet ? '80%' : '100%', alignSelf: 'center' }} className="bg-white rounded-[32px] p-4 shadow-lg shadow-black/5 border border-black/5 mb-10">
-                            {verifyingTicket?.ticket_data?.map((row: any[], ridx: number) => (
-                                <View key={ridx} className="flex-row">
-                                    {row.map((num, cidx) => {
-                                        const isMarked = num && activeClaim?.markedNumbers?.includes(num);
-                                        const isCalled = num && calledNumbers.includes(num);
-                                        let cellBg = 'bg-stone-50';
-                                        let borderColor = 'border-stone-100';
-                                        let textColor = 'text-[#594048]';
-
-                                        if (num && isMarked) {
-                                            if (isCalled) {
-                                                cellBg = 'bg-[#b30069]';
-                                                borderColor = 'border-[#b30069]';
-                                                textColor = 'text-white';
-                                            } else {
-                                                cellBg = 'bg-red-500';
-                                                borderColor = 'border-red-500';
-                                                textColor = 'text-white';
-                                            }
-                                        }
-
-                                        return (
-                                            <View key={cidx} className="flex-1 aspect-square p-1">
-                                                {num ? (
-                                                    <View className={`w-full h-full rounded-xl items-center justify-center border ${cellBg} ${borderColor}`}>
-                                                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.3} className={`font-headline-bold text-center ${isTablet ? 'text-2xl' : 'text-[10px]'} ${textColor}`}>
-                                                            {num}
-                                                        </Text>
-                                                    </View>
-                                                ) : (
-                                                    <View className="w-full h-full rounded-xl bg-stone-50/10" />
-                                                )}
-                                            </View>
-                                        );
-                                    })}
-                                </View>
-                            ))}
-                        </View>
+                        <Ticket
+                            ticketData={verifyingTicket?.ticket_data || []}
+                            markedNumbers={activeClaim?.markedNumbers || []}
+                            calledNumbers={calledNumbers}
+                            showVerificationColors={true}
+                            isTablet={isTablet}
+                            containerStyle={{ width: isTablet ? '80%' : '100%', alignSelf: 'center', marginBottom: 40 }}
+                        />
 
                         <View className="mb-4">
                             <Text className={`text-center text-stone-400 font-body-bold uppercase tracking-[3px] mb-4 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Master Board Reference</Text>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import * as Speech from 'expo-speech';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, useWindowDimensions, FlatList, Alert, Modal, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,6 +14,8 @@ import { getSocket } from '../../lib/socketService';
 import HousieWinNotification from '../../components/housie/HousieWinNotification';
 import HousieClaimCheckingIndicator from '../../components/housie/HousieClaimCheckingIndicator';
 import { canClaimPrize, registerSessionClaim, resetSessionClaims } from '../../utils/housieValidator';
+import { announceHousieNumber } from '../../utils/housieVoice';
+import { Ticket } from '../../components/housie/Ticket';
 
 const HousieTicketScreen = () => {
     const { width } = useWindowDimensions();
@@ -32,6 +35,7 @@ const HousieTicketScreen = () => {
     const [prizesModalVisible, setPrizesModalVisible] = useState(false);
     const [claimingTicketId, setClaimingTicketId] = useState<string | null>(null);
     const [isGameEnded, setIsGameEnded] = useState(false);
+    const [isClaimLoading, setIsClaimLoading] = useState(false); // awaiting fresh game data
 
     // Claim confirmation modal state
     const [claimConfirmVisible, setClaimConfirmVisible] = useState(false);
@@ -168,7 +172,7 @@ const HousieTicketScreen = () => {
             if (claimCountdownRef.current) clearInterval(claimCountdownRef.current);
             return;
         }
-        
+
         setClaimCountdown(10);
         claimCountdownRef.current = setInterval(() => {
             setClaimCountdown(prev => {
@@ -200,6 +204,13 @@ const HousieTicketScreen = () => {
         socket.emit('join_game', gameCode);
 
         const onNumberCalled = (data: any) => {
+            const numbers = data.calledNumbers || [];
+            const latest = numbers[numbers.length - 1];
+
+            if (latest) {
+                announceHousieNumber(latest);
+            }
+
             queryClient.setQueryData(['housieGame', gameCode], (old: any) => ({
                 ...old,
                 called_numbers: data.calledNumbers,
@@ -217,7 +228,7 @@ const HousieTicketScreen = () => {
                 setActiveNotification({ type: 'win', playerName, avatarUrl, prizeName });
             } else if (status === 'denied' && data.message !== 'Prize already claimed') {
                 setActiveNotification({ type: 'boggy', playerName, avatarUrl, prizeName });
-                
+
                 if (userId === user?.id) {
                     setDeniedClaims(prev => ({
                         ...prev,
@@ -340,77 +351,58 @@ const HousieTicketScreen = () => {
         return (
             <View className={`mb-12 w-full ${isBoggy ? 'opacity-90' : ''} ${isTablet ? 'px-12' : ''}`}>
                 <View className="flex-row items-center justify-between mb-4 px-2">
-                    <View className="flex-row items-center">
+                    <View className="flex-1">
                         <Text className={`text-stone-400 font-body-bold uppercase tracking-[3px] ${isTablet ? 'text-xl' : 'text-[10px]'}`}>TICKET #{ticket.id.slice(-4).toUpperCase()}</Text>
-                        {ticketWins.map((win, idx) => (
-                            <View key={idx} className="bg-green-100 px-3 py-1 rounded-full ml-3 border border-green-200">
-                                <Text className={`text-green-700 font-headline-bold uppercase tracking-tight ${isTablet ? 'text-lg' : 'text-[9px]'}`}>Won {win}</Text>
-                            </View>
-                        ))}
-                    </View>
-
-                    <TouchableOpacity
-                        onPress={() => {
-                            setClaimingTicketId(ticket.id);
-                            setClaimCountdown(10);
-                            setPrizesModalVisible(true);
-                            // Force-refresh game so prizes are always current (not 30s stale)
-                            refetchGame();
-                            if (getSocket()) getSocket().emit('claiming_open', { gameCode });
-                        }}
-                        disabled={isBoggy || isFullHouseWin}
-                        style={{ height: isTablet ? 60 : 36 }}
-                        className={`flex-row items-center ${isTablet ? 'px-8' : 'px-4'} rounded-full ${isBoggy ? 'bg-stone-200' : isFullHouseWin ? 'bg-green-50' : 'bg-white border border-stone-100'}`}
-                    >
-                        <FontAwesome5 name="trophy" size={isTablet ? 18 : 12} color={isBoggy ? '#a8a29e' : isFullHouseWin ? '#16a34a' : '#b30069'} />
-                        <Text className={`font-headline-bold ml-3 uppercase tracking-tight ${isBoggy ? 'text-stone-400' : isFullHouseWin ? 'text-green-600' : 'text-primary'} ${isTablet ? 'text-xl' : 'text-[11px]'}`}>
-                            {isBoggy ? 'Disqualified' : isFullHouseWin ? 'Winner!' : 'Claim Reward'}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
-                <View className={`relative bg-white rounded-[32px] shadow-lg shadow-black/5 border border-black/5 overflow-hidden ${isTablet ? 'p-6' : 'p-3'}`}>
-                    {isBoggy && (
-                        <View className="absolute z-10 bottom-0 top-0 left-0 right-0 bg-[#594048]/60 items-center justify-center rounded-[32px]" style={{ elevation: 5 }}>
-                            <View className="bg-primary px-10 py-4 rounded-[32px] border-[4px] border-white shadow-2xl opacity-95" style={{ transform: [{ rotate: '-8deg' }] }}>
-                                <Text className={`text-white font-headline-bold tracking-widest ${isTablet ? 'text-6xl' : 'text-3xl'}`}>OOPS BOGGY</Text>
-                            </View>
-                        </View>
-                    )}
-
-                    {isFullHouseWin && (
-                        <View className="absolute z-10 bottom-0 top-0 left-0 right-0 bg-green-900/40 items-center justify-center rounded-[32px]" style={{ elevation: 5 }}>
-                            <View className="bg-[#16a34a] px-10 py-4 rounded-[32px] border-[4px] border-white shadow-2xl opacity-95">
-                                <Text className={`text-white font-headline-bold tracking-widest ${isTablet ? 'text-6xl' : 'text-3xl'}`}>FULL HOUSE</Text>
-                            </View>
-                        </View>
-                    )}
-
-                    <View className={(isBoggy || isFullHouseWin) ? 'opacity-50' : ''}>
-                        {ticket.ticket_data.map((row: any[], rIdx: number) => (
-                            <View key={rIdx} className="flex-row">
-                                {row.map((num: number | null, cIdx: number) => (
-                                    <View key={cIdx} className="flex-1 aspect-square p-1">
-                                        {num ? (
-                                            <TouchableOpacity
-                                                onPress={() => toggleMark(ticket.id, num)}
-                                                activeOpacity={1}
-                                                disabled={isBoggy || isFullHouseWin}
-                                                className={`w-full h-full rounded-xl items-center justify-center border ${(markedTickets[ticket.id] || []).includes(num) ? 'bg-[#b30069] border-[#b30069]' : 'bg-stone-50 border-stone-100'}`}
-                                            >
-                                                <Text className={`font-headline-bold ${(markedTickets[ticket.id] || []).includes(num) ? 'text-white' : 'text-[#1c1c18]'} ${isTablet ? 'text-3xl' : 'text-sm'}`}>
-                                                    {num}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        ) : (
-                                            <View className="w-full h-full rounded-xl bg-stone-50/10" />
-                                        )}
+                        {ticketWins.length > 0 && (
+                            <View className="flex-row flex-wrap mt-2">
+                                {ticketWins.map((win, idx) => (
+                                    <View key={idx} className="bg-green-100 px-3 py-1 rounded-full border border-green-200 mr-2 mb-1">
+                                        <Text className={`text-green-700 font-headline-bold uppercase tracking-tight ${isTablet ? 'text-lg' : 'text-[9px]'}`}>Won {win}</Text>
                                     </View>
                                 ))}
                             </View>
-                        ))}
+                        )}
                     </View>
+
+                    <TouchableOpacity
+                        onPress={async () => {
+                            setClaimingTicketId(ticket.id);
+                            setClaimCountdown(10);
+                            if (getSocket()) getSocket().emit('claiming_open', { gameCode });
+                            // Await fresh game data BEFORE opening modal — prizes may be stale
+                            try {
+                                setIsClaimLoading(true);
+                                await refetchGame();
+                            } finally {
+                                setIsClaimLoading(false);
+                            }
+                            setPrizesModalVisible(true);
+                        }}
+                        disabled={isBoggy || isFullHouseWin || isClaimLoading}
+                        style={{ height: isTablet ? 60 : 36 }}
+                        className={`flex-row items-center ${isTablet ? 'px-8' : 'px-4'} rounded-full ${isBoggy ? 'bg-stone-200' : isFullHouseWin ? 'bg-green-50' : 'bg-white border border-stone-100'}`}
+                    >
+                        {isClaimLoading ? (
+                            <ActivityIndicator size="small" color="#b30069" />
+                        ) : (
+                            <>
+                                <FontAwesome5 name="trophy" size={isTablet ? 18 : 12} color={isBoggy ? '#a8a29e' : isFullHouseWin ? '#16a34a' : '#b30069'} />
+                                <Text className={`font-headline-bold ml-3 uppercase tracking-tight ${isBoggy ? 'text-stone-400' : isFullHouseWin ? 'text-green-600' : 'text-primary'} ${isTablet ? 'text-xl' : 'text-[11px]'}`}>
+                                    {isBoggy ? 'Disqualified' : isFullHouseWin ? 'Winner!' : 'Claim Reward'}
+                                </Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
                 </View>
+
+                <Ticket
+                    ticketData={ticket.ticket_data}
+                    markedNumbers={markedTickets[ticket.id] || []}
+                    onNumberPress={(num) => toggleMark(ticket.id, num)}
+                    isTablet={isTablet}
+                    isBoggy={isBoggy}
+                    isFullHouseWin={isFullHouseWin}
+                />
             </View>
         );
     };
@@ -433,24 +425,30 @@ const HousieTicketScreen = () => {
                 <View style={{ width: isTablet ? 64 : 40 }} />
             </View>
 
+            <View className={`items-center px-6 pb-4 bg-[#FDF9F3] z-10 border-b border-stone-100`}>
+                <Text className={`text-stone-400 font-body-bold uppercase tracking-[4px] mb-3 ${isTablet ? 'text-lg' : 'text-[9px]'}`}>Now Calling</Text>
+                <View
+                    style={{ width: isTablet ? 360 : 140, height: isTablet ? 360 : 140, borderRadius: isTablet ? 180 : 70 }}
+                    className="bg-primary items-center justify-center shadow-lg shadow-primary/20 border-8 border-white"
+                >
+                    <Text className={`text-white font-headline-bold ${isTablet ? 'text-[90px]' : 'text-[60px]'}`}>{latestNumber || "--"}</Text>
+                </View>
+                <View className="flex-row items-center mt-3">
+                    <Text className={`text-stone-400 font-body-medium ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>
+                        {calledNumbers.length} of 90 numbers called
+                    </Text>
+                    <View className="ml-3">
+                        <HousieClaimCheckingIndicator visible={isPlayerClaiming} />
+                    </View>
+                </View>
+            </View>
+
             <FlatList
                 data={tickets}
                 renderItem={renderTicket}
                 keyExtractor={(item) => item.id}
-                contentContainerStyle={{ paddingHorizontal: isTablet ? 40 : 20, paddingBottom: 60 }}
-                ListHeaderComponent={() => (
-                    <View className={`mb-12 mt-6 items-center ${isTablet ? 'py-12' : ''}`}>
-                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[4px] mb-8 ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>NOW CALLING</Text>
-                        <View className="items-center justify-center">
-                            <View style={{ width: isTablet ? 280 : 160, height: isTablet ? 280 : 160, borderRadius: isTablet ? 140 : 80, elevation: 20 }}
-                                className="bg-[#b30069] items-center justify-center shadow-2xl shadow-[#b30069]/40 border-[10px] border-white">
-                                <Text className={`text-white font-headline-bold text-center ${isTablet ? 'text-[120px]' : 'text-[64px]'}`}>{latestNumber || "--"}</Text>
-                            </View>
-                        </View>
-                        <HousieClaimCheckingIndicator visible={isPlayerClaiming} />
-                        <Text className={`text-stone-400 font-body-medium mt-8 ${isTablet ? 'text-2xl' : 'text-xs'}`}>{calledNumbers.length} of 90 numbers called</Text>
-                    </View>
-                )}
+                contentContainerStyle={{ paddingHorizontal: isTablet ? 40 : 20, paddingTop: 20, paddingBottom: 60 }}
+                ListHeaderComponent={() => null}
                 ListFooterComponent={() => (
                     <View className={`mt-8 pt-12 border-t border-stone-100 ${isTablet ? 'px-12' : ''}`}>
                         <Text className={`text-stone-400 font-body-bold uppercase tracking-[4px] mb-8 text-center ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Reward Pool Tracker</Text>
