@@ -7,6 +7,7 @@ import HousieJoinGameScreen from '../screens/housie/HousieJoinGameScreen';
 import HousieDefineBountyScreen from '../screens/housie/HousieDefineBountyScreen';
 import HousieWaitingRoomScreen from '../screens/housie/HousieWaitingRoomScreen';
 import HousieGameScreen from '../screens/housie/HousieGameScreen';
+import HousieStartingScreen from '../screens/housie/HousieStartingScreen';
 import HousieTicketScreen from '../screens/housie/HousieTicketScreen';
 import HousieResultsScreen from '../screens/housie/HousieResultsScreen';
 import HousieLeaderboardScreen from '../screens/housie/HousieLeaderboardScreen';
@@ -27,6 +28,7 @@ export const HousieNavigator = () => {
             <Stack.Screen name="HousieJoinGame" component={HousieJoinGameScreen} />
             <Stack.Screen name="HousieDefineBounty" component={HousieDefineBountyScreen} />
             <Stack.Screen name="HousieWaitingRoom" component={HousieWaitingRoomScreen} />
+            <Stack.Screen name="HousieStarting" component={HousieStartingScreen} />
             <Stack.Screen name="HousieGame" component={HousieGameScreen} />
             <Stack.Screen name="HousieTicket" component={HousieTicketScreen} />
             <Stack.Screen name="HousieResults" component={HousieResultsScreen} />

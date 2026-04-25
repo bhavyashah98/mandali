@@ -1,17 +1,14 @@
 import React, { useState } from 'react';
-import { useIsTablet } from '../../hooks/useIsTablet';
-import {
-    View, Text, TouchableOpacity, Image,
-    ScrollView, ActivityIndicator, useWindowDimensions
-} from 'react-native';
-import { SafeAreaView as SafeAreaViewContext } from 'react-native-safe-area-context';
+import { View, Text, TouchableOpacity, Image, ScrollView, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { SafeAreaView as SafeAreaViewContext, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
+import { useIsTablet } from '../../hooks/useIsTablet';
+import { useAuthStore } from '../../stores/authStore';
 import MandaliCoin from '../../components/MandaliCoin';
 import { API_URL, getAuthHeaders } from '../../lib/api';
 import axios from 'axios';
-import { useAuthStore } from '../../stores/authStore';
 
 type Period = 'all_time' | 'this_month' | 'this_year';
 
@@ -29,6 +26,7 @@ const TOP_BG = [
 ];
 
 const HousieLeaderboardScreen = () => {
+    const insets = useSafeAreaInsets();
     const navigation = useNavigation<any>();
     const route = useRoute();
     const { width } = useWindowDimensions();
@@ -54,7 +52,7 @@ const HousieLeaderboardScreen = () => {
     const leaderboard: any[] = data?.leaderboard || [];
 
     return (
-        <SafeAreaViewContext className="flex-1 bg-[#fdf9f3]" edges={['top']}>
+        <SafeAreaViewContext className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
             {/* Header */}
             <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                 <TouchableOpacity
@@ -246,6 +244,26 @@ const HousieLeaderboardScreen = () => {
                     </View>
                 )}
             </ScrollView>
+
+            {/* Bottom Done Button */}
+            <View 
+                className={`px-8 pt-4 ${isTablet ? 'px-20' : ''}`}
+                style={{ 
+                    paddingBottom: Math.max(insets.bottom, isTablet ? 40 : 20),
+                    backgroundColor: '#fdf9f3'
+                }}
+            >
+                <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    style={{ height: isTablet ? 110 : 64 }}
+                    className="bg-[#b30069] rounded-[32px] items-center justify-center shadow-xl shadow-primary/20"
+                >
+                    <Text 
+                        className="text-white font-headline-bold"
+                        style={{ fontSize: isTablet ? 32 : 18 }}
+                    >Done</Text>
+                </TouchableOpacity>
+            </View>
         </SafeAreaViewContext>
     );
 };

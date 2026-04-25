@@ -1,18 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import { useIsTablet } from '../../hooks/useIsTablet';
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Alert, Image, useWindowDimensions } from 'react-native';
+//lib
+import React, { useEffect } from 'react';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Alert, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+
+//hooks
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchHousieGame, joinHousieGame, API_URL, getAuthHeaders, updateHousieStatus, fetchGroupDetail } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
+import { useHousieWaitingRoomSync } from '../../hooks/housie/useHousieWaitingRoomSync';
+
+//api
+import { fetchHousieGame, updateHousieStatus, fetchGroupDetail, fetchHousieParticipants } from '../../lib/api';
 import { getSocket } from '../../lib/socketService';
-import axios from 'axios';
-import MandaliCoin from '../../components/MandaliCoin';
 
 const HousieWaitingRoomScreen = () => {
-    const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
     const insets = useSafeAreaInsets();
     const navigation = useNavigation<any>();
@@ -21,40 +24,39 @@ const HousieWaitingRoomScreen = () => {
     const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};
     const { user } = useAuthStore();
 
-
-    // Fetch once on mount — socket handles all subsequent state changes
+    // 1. Fetch Game Status
     const { data: game } = useQuery({
         queryKey: ['housieGame', gameCode],
         queryFn: () => fetchHousieGame(gameCode!),
-        staleTime: Infinity,        // Never silently refetch — socket is the source of truth
-        refetchOnWindowFocus: false // Don't refetch when user switches apps/tabs
+        staleTime: 5000,
+        refetchOnWindowFocus: true
     });
 
-    // Fetch Group Detail for Header Branding
+    // 2. Fetch Group Detail for Header Branding
     const { data: groupData } = useQuery({
         queryKey: ['groupDetail', groupId],
         queryFn: () => fetchGroupDetail(groupId!),
         enabled: !!groupId,
     });
 
-    const fetchParticipants = async () => {
-        const headers = await getAuthHeaders();
-        const response = await axios.get(`${API_URL}/housie/${gameCode}/participants`, { headers });
-        return response.data;
-    };
-
+    // 3. Fetch Participants & Stats
     const { data: stats } = useQuery({
         queryKey: ['housieParticipants', gameCode],
-        queryFn: fetchParticipants,
-        staleTime: 30_000,          // Cache for 30s — socket invalidates on new ticket buys
-        refetchOnWindowFocus: false
+        queryFn: () => fetchHousieParticipants(gameCode!),
+        staleTime: 5000,
+        refetchOnWindowFocus: true
     });
 
     const isHost = game?.host_id === user?.id;
 
-    // Ref so the socket callback always reads the latest isHost without stale closure
-    const isHostRef = React.useRef(false);
-    isHostRef.current = isHost;
+    useHousieWaitingRoomSync({
+        game,
+        stats,
+        user,
+        gameCode,
+        groupId,
+        isHost
+    });
 
     useEffect(() => {
         const socket = getSocket();
@@ -64,39 +66,31 @@ const HousieWaitingRoomScreen = () => {
             queryClient.invalidateQueries({ queryKey: ['housieParticipants', gameCode] });
         };
 
-        const onGameActivated = () => {
-            if (isHostRef.current) return;
-            navigation.replace('HousieTicket', { gameCode, groupId });
-        };
-
         const onGameStarting = () => {
-            if (isHostRef.current) return;
-            navigation.replace('HousieTicket', { gameCode, groupId });
+            navigation.replace('HousieStarting', { gameCode, groupId });
         };
 
         const onGameEnded = () => {
-            if (isHostRef.current) return; // Host handles their own navigation
-            Alert.alert('Game Ended', 'The game has ended.');
-            navigation.navigate('HousieLobby', { groupId });
-        };
+            navigation.reset({
+                index: 0,
+                routes: [{ name: 'HousieLobby', params: { groupId } }],
+            });
+        }
 
         socket.on('tickets_bought', onTicketsBought);
-        socket.on('game_activated', onGameActivated);
         socket.on('game_starting', onGameStarting);
         socket.on('game_ended', onGameEnded);
 
         return () => {
             socket.off('tickets_bought', onTicketsBought);
-            socket.off('game_activated', onGameActivated);
             socket.off('game_starting', onGameStarting);
             socket.off('game_ended', onGameEnded);
         };
-    }, [gameCode]);
+    }, [gameCode, queryClient, navigation, groupId]);
 
     const handleStartGame = async () => {
-        navigation.navigate('HousieDefineBounty', { gameCode, groupId });
+        navigation.replace('HousieDefineBounty', { gameCode, groupId });
     };
-
 
     if (!user) {
         return (
@@ -127,7 +121,10 @@ const HousieWaitingRoomScreen = () => {
             {/* Header */}
             <View className={`px-6 flex-row items-center justify-between ${isTablet ? 'py-8 px-12' : 'py-4 px-6'}`}>
                 <View style={{ width: isTablet ? 64 : 44 }}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}>
+                    <TouchableOpacity
+                        onPress={() => navigation.replace('HousieLobby', { groupId })}
+                        className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                    >
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 18} color="#594048" style={{ marginLeft: isTablet ? 8 : 5 }} />
                     </TouchableOpacity>
                 </View>
@@ -154,7 +151,10 @@ const HousieWaitingRoomScreen = () => {
                                         try {
                                             await updateHousieStatus(gameCode, 'ended');
                                             await queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
-                                            navigation.goBack();
+                                            navigation.reset({
+                                                index: 0,
+                                                routes: [{ name: 'HousieLobby', params: { groupId } }],
+                                            });
                                         } catch (err) {
                                             Alert.alert('Error', 'Failed to cancel game');
                                         }

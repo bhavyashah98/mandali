@@ -20,39 +20,52 @@ const upload = multer({
 
 router.use(authMiddleware);
 
-// POST /upload/image — Supports both multipart (FormData) and base64
+// POST /upload/image — Supports multipart (FormData)
 router.post('/image', upload.single('image'), async (req: AuthRequest, res) => {
     try {
         const groupId = req.query.groupId as string;
-        console.log(`[Upload] Incoming request: size=${req.file?.size} bytes, content-length=${req.headers['content-length']}`);
-
+        
         if (!groupId) {
             return res.status(400).json({ error: 'groupId is required' });
         }
 
-        let imageData: string | null = null;
+        let result: any;
 
         if (req.file) {
-            const base64 = req.file.buffer.toString('base64');
-            imageData = `data:${req.file.mimetype};base64,${base64}`;
+            // New fast path: Use stream upload for better performance and memory efficiency
+            const streamUpload = (buffer: Buffer) => {
+                return new Promise((resolve, reject) => {
+                    const stream = cloudinary.uploader.upload_stream(
+                        {
+                            upload_preset: 'mandali_photos',
+                            folder: `mandali/${groupId}/photos`,
+                            resource_type: 'auto',
+                            transformation: [{ quality: 'auto', fetch_format: 'auto' }],
+                        },
+                        (error, result) => {
+                            if (result) resolve(result);
+                            else reject(error);
+                        }
+                    );
+                    stream.end(buffer);
+                });
+            };
+            result = await streamUpload(req.file.buffer);
         } else if (req.body.image) {
-            imageData = req.body.image;
-        }
-
-        if (!imageData) {
+            // Fallback for older deployed frontends that might send base64 directly
+            result = await cloudinary.uploader.upload(req.body.image, {
+                upload_preset: 'mandali_photos',
+                folder: `mandali/${groupId}/photos`,
+                resource_type: 'auto',
+                transformation: [{ quality: 'auto', fetch_format: 'auto' }],
+            });
+        } else {
             return res.status(400).json({ error: 'No image provided' });
         }
 
-        const uploadResponse = await cloudinary.uploader.upload(imageData, {
-            upload_preset: 'mandali_photos',
-            folder: `mandali/${groupId}/photos`,
-            resource_type: 'auto',
-            transformation: [{ quality: 'auto', fetch_format: 'auto' }],
-        });
-
         res.json({
-            url: uploadResponse.secure_url,
-            publicId: uploadResponse.public_id,
+            url: result.secure_url,
+            publicId: result.public_id,
         });
 
     } catch (err: any) {
@@ -74,20 +87,30 @@ router.post('/profile', upload.single('image'), async (req: AuthRequest, res) =>
             return res.status(400).json({ error: 'No image provided' });
         }
 
-        const base64 = req.file.buffer.toString('base64');
-        const imageData = `data:${req.file.mimetype};base64,${base64}`;
+        const streamUpload = (buffer: Buffer) => {
+            return new Promise((resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    {
+                        upload_preset: 'mandali_photos',
+                        folder: 'mandali/profiles',
+                        public_id: `user_${userId}`,
+                        overwrite: true,
+                        transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'auto' }],
+                    },
+                    (error, result) => {
+                        if (result) resolve(result);
+                        else reject(error);
+                    }
+                );
+                stream.end(buffer);
+            });
+        };
 
-        const uploadResponse = await cloudinary.uploader.upload(imageData, {
-            upload_preset: 'mandali_photos',
-            folder: 'mandali/profiles',
-            public_id: `user_${userId}`,   // overwrites previous profile photo
-            overwrite: true,
-            transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'auto' }],
-        });
+        const result: any = await streamUpload(req.file.buffer);
 
         res.json({
-            url: uploadResponse.secure_url,
-            publicId: uploadResponse.public_id,
+            url: result.secure_url,
+            publicId: result.public_id,
         });
 
     } catch (err: any) {

@@ -374,6 +374,13 @@ router.post('/:gameCode/call', authMiddleware, async (req: AuthRequest, res) => 
             return res.status(403).json({ error: 'Only the host can call numbers' });
         }
 
+        // Prevent calling if there are pending claims
+        const winners = game.winners || {};
+        const pending = winners['__pending'] || [];
+        if (pending.length > 0) {
+            return res.status(400).json({ error: 'Please resolve pending claims before calling the next number' });
+        }
+
         const calledNumbers = game.called_numbers || [];
         if (calledNumbers.length >= 90) return res.status(400).json({ error: 'All numbers called' });
 

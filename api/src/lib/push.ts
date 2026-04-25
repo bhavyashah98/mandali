@@ -29,22 +29,39 @@ export const sendGroupPushNotification = async (
         console.log(`[Push] Found ${members?.length || 0} potential recipients for group ${groupId}`);
         if (!members || members.length === 0) return;
 
-        // 2. Extract tokens and ensure uniqueness
+        // 2. Fetch sender's token to explicitly exclude it as well (safety measure)
+        const { data: sender } = await supabase
+            .from('users')
+            .select('expo_push_token')
+            .eq('id', senderUserId)
+            .single();
+        
+        const senderToken = sender?.expo_push_token;
+
+        // 3. Extract tokens and ensure uniqueness
         const tokenSet = new Set<string>();
         members.forEach((member: any) => {
-            // Strict equality check (handles string vs uuid object if necessary)
-            if (String(member.user_id) === String(senderUserId)) {
+            // Strict case-insensitive equality check for IDs
+            if (String(member.user_id).toLowerCase() === String(senderUserId).toLowerCase()) {
                 return;
             }
 
             const token = member.users?.expo_push_token;
-            if (token && typeof token === 'string' && token.startsWith('ExponentPushToken')) {
-                tokenSet.add(token);
+            
+            // Exclude if no token, or if it's the sender's token
+            if (!token || typeof token !== 'string' || !token.startsWith('ExponentPushToken')) {
+                return;
             }
+
+            if (senderToken && token === senderToken) {
+                return;
+            }
+
+            tokenSet.add(token);
         });
 
         const tokens = Array.from(tokenSet);
-        console.log(`[Push] Prepared ${tokens.length} unique tokens for broadcast (Sender: ${senderUserId})`);
+        console.log(`[Push] Prepared ${tokens.length} unique tokens for broadcast (Sender: ${senderUserId}, SenderToken: ${senderToken || 'none'})`);
 
         if (tokens.length === 0) {
             return;

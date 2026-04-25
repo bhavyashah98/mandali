@@ -1,6 +1,5 @@
+//lib
 import React, { useState, useEffect } from 'react';
-import MandaliCoin from '../../components/MandaliCoin';
-import { useIsTablet } from '../../hooks/useIsTablet';
 import {
     View,
     Text,
@@ -11,15 +10,23 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
-    useWindowDimensions,
     Modal
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+
+//components
+import MandaliCoin from '../../components/MandaliCoin';
+
+//hooks
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { useQuery } from '@tanstack/react-query';
-import { API_URL, getAuthHeaders, activateHousieGame, fetchGroupDetail } from '../../lib/api';
+
+//api
+import { API_URL, getAuthHeaders, activateHousieGame } from '../../lib/api';
 import axios from 'axios';
+import { getSocket } from '../../lib/socketService';
 
 const HousieDefineBountyScreen = () => {
     const navigation = useNavigation<any>();
@@ -28,15 +35,7 @@ const HousieDefineBountyScreen = () => {
     const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};
 
     const [isStarting, setIsStarting] = useState(false);
-    const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
-
-    // Fetch Group Detail for Header
-    const { data: groupData } = useQuery({
-        queryKey: ['groupDetail', groupId],
-        queryFn: () => fetchGroupDetail(groupId!),
-        enabled: !!groupId,
-    });
 
     // Standard Prizes
     const [prizes, setPrizes] = useState([
@@ -55,16 +54,32 @@ const HousieDefineBountyScreen = () => {
     const [customPrizeAmount, setCustomPrizeAmount] = useState('');
 
     // Fetch Stats for Pool calculation
-    const { data: stats } = useQuery({
+    const { data: stats, refetch: refetchStats } = useQuery({
         queryKey: ['housieParticipants', gameCode],
         queryFn: async () => {
             const headers = await getAuthHeaders();
             const response = await axios.get(`${API_URL}/housie/${gameCode}/participants`, { headers });
             return response.data;
         },
-        staleTime: Infinity, // Keep stats stable while defining bounties
-        refetchOnWindowFocus: false,
+        staleTime: 5000, 
+        refetchOnMount: 'always',
+        refetchOnWindowFocus: true,
     });
+
+    // Handle real-time ticket purchase updates
+    useEffect(() => {
+        if (!gameCode) return;
+        const socket = getSocket();
+
+        const onTicketsBought = () => {
+            refetchStats();
+        };
+
+        socket.on('tickets_bought', onTicketsBought);
+        return () => {
+            socket.off('tickets_bought', onTicketsBought);
+        };
+    }, [gameCode]);
 
     const totalPrizePool = stats?.totalPrizePool || 0;
 
@@ -109,12 +124,12 @@ const HousieDefineBountyScreen = () => {
             return;
         }
         const newId = `custom_${Date.now()}`;
-        setPrizes([...prizes, { 
-            id: newId, 
-            name: customPrizeName, 
+        setPrizes([...prizes, {
+            id: newId,
+            name: customPrizeName,
             description: customPrizeDesc,
-            amount: customPrizeAmount || '0', 
-            icon: 'stars' 
+            amount: customPrizeAmount || '0',
+            icon: 'stars'
         }]);
         setIsModalVisible(false);
         setCustomPrizeName('');
@@ -134,7 +149,7 @@ const HousieDefineBountyScreen = () => {
         try {
             setIsStarting(true);
             await activateHousieGame(gameCode, prizes);
-            navigation.navigate('HousieGame', { gameCode, groupId });
+            navigation.navigate('HousieStarting', { gameCode, groupId });
         } catch (error: any) {
             Alert.alert('Error', error.response?.data?.error || 'Failed to start game');
             setIsStarting(false);
@@ -301,9 +316,9 @@ const HousieDefineBountyScreen = () => {
                 </ScrollView>
 
                 {/* Footer Action */}
-                <View 
+                <View
                     className="bg-[#fdf9f3] border-t border-stone-100"
-                    style={{ 
+                    style={{
                         paddingHorizontal: isTablet ? 60 : 24,
                         paddingTop: isTablet ? 32 : 16,
                         paddingBottom: Math.max(insets.bottom, isTablet ? 48 : 24)

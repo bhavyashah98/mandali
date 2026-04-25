@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import {
-    View, Text, ScrollView, ActivityIndicator, FlatList, useWindowDimensions, Image
+    View, Text, ScrollView, ActivityIndicator, useWindowDimensions, Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
@@ -9,14 +9,12 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import MandaliCoin from '../../components/MandaliCoin';
-import { fetchHousieGame, API_URL, fetchGroupDetail } from '../../lib/api';
+import { fetchHousieGame, fetchGroupDetail } from '../../lib/api';
 import { getSocket } from '../../lib/socketService';
-import HousieStartingModal from '../../components/housie/HousieStartingModal';
 import HousieWinNotification from '../../components/housie/HousieWinNotification';
 import HousieClaimCheckingIndicator from '../../components/housie/HousieClaimCheckingIndicator';
 
 const HousieSpectatorScreen = () => {
-    const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
     const navigation = useNavigation<any>();
     const route = useRoute();
@@ -125,6 +123,11 @@ const HousieSpectatorScreen = () => {
                 <ActivityIndicator size="large" color="#b30069" />
             </SafeAreaView>
         );
+    }
+
+    if (game?.status === 'starting') {
+        navigation.replace('HousieStarting', { gameCode, groupId });
+        return null;
     }
 
     const renderBoard = () => {
@@ -350,11 +353,6 @@ const HousieSpectatorScreen = () => {
                 </View>
             </ScrollView>
 
-            <HousieStartingModal 
-                visible={game?.status === 'starting'} 
-                game={game} 
-                onComplete={() => queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] })}
-            />
 
             {activeNotification && (
                 <HousieWinNotification

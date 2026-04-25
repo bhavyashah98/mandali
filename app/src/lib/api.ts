@@ -142,9 +142,21 @@ export const fetchHousieTickets = async (gameCode: string): Promise<{ tickets: a
     return response.data;
 };
 
+export const fetchHousieParticipants = async (gameCode: string): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/housie/${gameCode}/participants`, { headers });
+    return response.data;
+};
+
 export const updateHousieStatus = async (gameCode: string, status: string): Promise<any> => {
     const headers = await getAuthHeaders();
     const response = await axios.patch(`${API_URL}/housie/${gameCode}/status`, { status }, { headers });
+    return response.data;
+};
+
+export const callHousieNumber = async (gameCode: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/housie/${gameCode}/call`, {}, { headers });
     return response.data;
 };
 

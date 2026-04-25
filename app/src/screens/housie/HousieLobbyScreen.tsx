@@ -1,12 +1,22 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useIsTablet } from '../../hooks/useIsTablet';
-import { View, Text, TouchableOpacity, Dimensions, ActivityIndicator, Alert, ScrollView, useWindowDimensions } from 'react-native';
+//lib
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+
+//hooks
+import { useIsTablet } from '../../hooks/useIsTablet';
+import { useQueryClient } from '@tanstack/react-query';
+import { useHousieLobbyData } from '../../hooks/useHousieLobbyData';
+
+//store
 import { useAuthStore } from '../../stores/authStore';
-import { fetchGroupDetail, fetchActiveHousieGame, fetchHousieTickets, createHousieGame, cancelHousieGame, API_URL } from '../../lib/api';
+
+//api
+import { createHousieGame, cancelHousieGame } from '../../lib/api';
+
+//socket
 import { getSocket } from '../../lib/socketService';
 
 const HousieLobbyScreen = () => {
@@ -15,23 +25,20 @@ const HousieLobbyScreen = () => {
     const { groupId } = (route.params as { groupId: string }) || {};
     const [isLoading, setIsLoading] = useState(false);
     const { user } = useAuthStore();
-    const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
 
-    const { data: groupData, isLoading: isGroupLoading } = useQuery({
-        queryKey: ['group', groupId],
-        queryFn: () => fetchGroupDetail(groupId!),
-        enabled: !!groupId
-    });
+    const {
+        activeGame,
+        lastGame,
+        groupName,
+        hasTickets,
+        isHostOfActiveGame,
+        showCancelCTA,
+        isGroupLoading,
+        isGameLoading
+    } = useHousieLobbyData(groupId);
 
     const queryClient = useQueryClient();
-
-    const { data: activeGameData, isFetching: isGameFetching } = useQuery({
-        queryKey: ['activeHousieGame', groupId],
-        queryFn: () => fetchActiveHousieGame(groupId!),
-        enabled: !!groupId,
-        staleTime: 0,
-    });
 
     useEffect(() => {
         if (!groupId) return;
@@ -42,11 +49,7 @@ const HousieLobbyScreen = () => {
             queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
         };
 
-        const onGameStatusChanged = () => {
-            queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
-        };
-
-        const onGameEnded = () => {
+        const onGameStarting = () => {
             queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
         };
 
@@ -54,24 +57,23 @@ const HousieLobbyScreen = () => {
             queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
         }
 
+        const onGameEnded = () => {
+            queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
+        };
+
         socket.on('game_created', onGameCreated);
-        socket.on('game_status_changed', onGameStatusChanged);
-        socket.on('game_ended', onGameEnded);
+        socket.on('game_starting', onGameStarting);
         socket.on('game_activated', onGameActivated);
-        socket.on('game_starting', onGameStatusChanged); // Invalidate on starting too
+        socket.on('game_ended', onGameEnded);
 
         return () => {
             socket.off('game_created', onGameCreated);
-            socket.off('game_status_changed', onGameStatusChanged);
-            socket.off('game_ended', onGameEnded);
+            socket.off('game_starting', onGameStarting);
             socket.off('game_activated', onGameActivated);
-            socket.off('game_starting', onGameStatusChanged);
+            socket.off('game_ended', onGameEnded)
         };
     }, [groupId]);
 
-    // Refetch game status every time the screen comes into focus
-    // This fixes stale button state (e.g. "Go to Waiting Room" vs "Resume Game")
-    // when navigating back from HousieGame/WaitingRoom screens
     useFocusEffect(
         useCallback(() => {
             if (groupId) {
@@ -80,76 +82,72 @@ const HousieLobbyScreen = () => {
         }, [groupId, queryClient])
     );
 
-    const activeGame = activeGameData?.activeGame;
-    const lastGame = activeGameData?.lastGame;
-    const groupName = groupData?.group?.name || 'Your';
+    const handleCreateGame = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            const result = await createHousieGame(groupId!);
+            console.log('handleCreateGame');
+            navigation.navigate('HousieWaitingRoom', { groupId, gameCode: result.game.game_code });
+        } catch (err: any) {
+            Alert.alert('Error', err?.response?.data?.error || 'Failed to initialize game.');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [groupId, navigation]);
 
-    // Fetch if the active user already successfully purchased tickets for the active game
-    const { data: ticketData } = useQuery({
-        queryKey: ['housieTickets', activeGame?.game_code],
-        queryFn: () => fetchHousieTickets(activeGame?.game_code!),
-        enabled: !!activeGame?.game_code,
-        staleTime: 0
-    });
+    const handleAction = useCallback(() => {
+        if (isLoading || isGameLoading) return;
 
-    const hasTickets = ticketData?.tickets && ticketData.tickets.length > 0;
-
-    // --- Stuck game escape hatch logic ---
-    const INACTIVITY_LIMITS_MINS: Record<string, number> = {
-        not_started: 10,
-        waiting: 10,
-        bounty: 5,
-        active: 15,
-    };
-
-    const getInactiveMinutes = (game: any): number => {
-        const refTime = game.status === 'active'
-            ? (game.last_number_called_at || game.last_activity_at || game.created_at)
-            : (game.last_activity_at || game.created_at);
-        return (Date.now() - new Date(refTime).getTime()) / 1000 / 60;
-    };
-
-    const isHostOfActiveGame = activeGame && activeGame.host_id === user?.id && activeGame.status !== 'ended';
-    const isStuck = activeGame &&
-        activeGame.status !== 'ended' &&
-        INACTIVITY_LIMITS_MINS[activeGame.status] !== undefined &&
-        getInactiveMinutes(activeGame) > INACTIVITY_LIMITS_MINS[activeGame.status];
-
-    const showCancelCTA = isStuck && !isHostOfActiveGame;
-
-    if (!user || isGroupLoading) {
-        return (
-            <SafeAreaView className="flex-1 bg-[#fdf9f3] items-center justify-center">
-                <ActivityIndicator size="large" color="#b30069" />
-            </SafeAreaView>
-        );
-    }
-
-    const handleStartGame = async () => {
-        if (!activeGame || activeGame.status === 'ended') {
-            try {
-                setIsLoading(true);
-                const result = await createHousieGame(groupId!);
-                navigation.navigate('HousieWaitingRoom', { groupId, gameCode: result.game.game_code });
-            } catch (err: any) {
-                Alert.alert('Error', err?.response?.data?.error || 'Failed to initialize game.');
-            } finally {
-                setIsLoading(false);
-            }
+        // ── CASE 1: No Game → Create New ──
+        if (!activeGame) {
+            handleCreateGame();
             return;
         }
 
-        if (activeGame && activeGame.host_id === user?.id) {
-            switch (activeGame.status) {
-                case 'not_started': navigation.navigate('HousieWaitingRoom', { groupId, gameCode: activeGame.game_code }); break;
-                case 'waiting': navigation.navigate('HousieWaitingRoom', { gameCode: activeGame.game_code, groupId }); break;
-                case 'bounty': navigation.navigate('HousieDefineBounty', { gameCode: activeGame.game_code, groupId }); break;
-                case 'active': navigation.navigate('HousieGame', { gameCode: activeGame.game_code, groupId }); break;
+        // ── CASE 2: Join/Resume logic ──
+        const gameCode = activeGame.game_code;
+        const status = activeGame.status;
+
+        if (isHostOfActiveGame) {
+            switch (status) {
+                case 'waiting':
+                    navigation.navigate('HousieWaitingRoom', { gameCode, groupId });
+                    break;
+                case 'starting':
+                    navigation.navigate('HousieStarting', { gameCode, groupId });
+                    break;
+                case 'active':
+                    navigation.navigate('HousieGame', { gameCode, groupId });
+                    break;
+                default:
+                    navigation.navigate('HousieWaitingRoom', { gameCode, groupId });
+            }
+        } else {
+            switch (status) {
+                case 'waiting':
+                    if (hasTickets) {
+                        navigation.navigate('HousieWaitingRoom', { gameCode, groupId });
+                    } else {
+                        navigation.navigate('HousieJoinGame', { gameCode, groupId });
+                    }
+                    break;
+                case 'starting':
+                    navigation.navigate('HousieStarting', { gameCode, groupId });
+                    break;
+                case 'active':
+                    if (hasTickets) {
+                        navigation.navigate('HousieTicket', { gameCode, groupId });
+                    } else {
+                        navigation.navigate('HousieSpectator', { gameCode, groupId });
+                    }
+                    break;
+                default:
+                    navigation.navigate('HousieJoinGame', { groupId });
             }
         }
-    };
+    }, [activeGame, isLoading, isGameLoading, isHostOfActiveGame, hasTickets, handleCreateGame, navigation, groupId]);
 
-    const handleCancelStuckGame = () => {
+    const handleCancelStuckGame = useCallback(() => {
         Alert.alert(
             'Cancel This Game?',
             'The host seems unavailable. Cancelling will end the game so anyone can host a new one.',
@@ -172,36 +170,58 @@ const HousieLobbyScreen = () => {
                 }
             ]
         );
-    };
+    }, [activeGame?.game_code, queryClient, groupId]);
 
-    const getJoinButtonConfig = () => {
-        if (!activeGame || activeGame.status === 'ended') return { label: 'Join Game', action: () => navigation.navigate('HousieJoinGame', { groupId }), icon: 'ticket', disabled: false };
+    const joinConfig = useMemo(() => {
+        // ── CASE 1: No ongoing game → Primary action is to Host ──
+        if (!activeGame) {
+            return {
+                label: 'Host a Game',
+                action: handleAction,
+                icon: 'play',
+                disabled: false,
+                isPrimary: true
+            };
+        }
 
+        // ── CASE 2: Game in progress (Host) ──
+        if (isHostOfActiveGame) {
+            switch (activeGame.status) {
+                case 'waiting': return { label: 'Manage Game', action: handleAction, icon: 'settings', disabled: false, isPrimary: true };
+                case 'starting': return { label: 'Start Game', action: handleAction, icon: 'play', disabled: false, isPrimary: true };
+                case 'active': return { label: 'Resume Hosting', action: handleAction, icon: 'play-forward', disabled: false, isPrimary: true };
+                default: return { label: 'Manage Game', action: handleAction, icon: 'settings', disabled: false, isPrimary: true };
+            }
+        }
+
+        // ── CASE 3: Member Actions ──
         if (hasTickets) {
             switch (activeGame.status) {
-                case 'not_started': return { label: 'Setting prices...', action: () => { }, icon: 'hourglass', disabled: true };
-                case 'waiting': return { label: 'Go to Waiting Room', action: () => navigation.navigate('HousieWaitingRoom', { gameCode: activeGame.game_code, groupId }), icon: 'arrow-redo', disabled: false };
-                case 'starting': return { label: 'Starting...', action: () => navigation.navigate('HousieTicket', { gameCode: activeGame.game_code, groupId }), icon: 'play', disabled: false };
-                case 'bounty': return { label: 'Resume Game', action: () => navigation.navigate('HousieTicket', { gameCode: activeGame.game_code, groupId }), icon: 'play', disabled: false };
-                case 'active': return { label: 'Resume Game', action: () => navigation.navigate('HousieTicket', { gameCode: activeGame.game_code, groupId }), icon: 'play', disabled: false };
-                default: return { label: 'Resume', action: () => navigation.navigate('HousieTicket', { gameCode: activeGame.game_code, groupId }), icon: 'play', disabled: false };
+                case 'waiting': return { label: 'View Tickets', action: handleAction, icon: 'ticket', disabled: false, isPrimary: true };
+                case 'starting': return { label: 'Start Game', action: handleAction, icon: 'play', disabled: false, isPrimary: true };
+                case 'active': return { label: 'Play Game', action: handleAction, icon: 'play', disabled: false, isPrimary: true };
+                default: return { label: 'Play Game', action: handleAction, icon: 'play', disabled: false, isPrimary: true };
             }
         } else {
             switch (activeGame.status) {
-                case 'not_started': return { label: 'Setting prices...', action: () => { }, icon: 'hourglass', disabled: true };
-                case 'waiting': return { label: 'Join Game', action: () => navigation.navigate('HousieJoinGame', { gameCode: activeGame.game_code, groupId }), icon: 'ticket', disabled: false };
-                case 'starting': return { label: 'Watch Live', action: () => navigation.navigate('HousieSpectator', { gameCode: activeGame.game_code, groupId }), icon: 'eye', disabled: false };
-                case 'bounty': return { label: 'Watch Live', action: () => navigation.navigate('HousieSpectator', { gameCode: activeGame.game_code, groupId }), icon: 'eye', disabled: false };
-                case 'active': return { label: 'Watch Live', action: () => navigation.navigate('HousieSpectator', { gameCode: activeGame.game_code, groupId }), icon: 'eye', disabled: false };
-                default: return { label: 'Join Game', action: () => navigation.navigate('HousieJoinGame', { groupId }), icon: 'ticket', disabled: false };
+                case 'waiting': return { label: 'Join Game', action: handleAction, icon: 'ticket', disabled: false, isPrimary: true };
+                case 'starting': return { label: 'Start Game', action: handleAction, icon: 'play', disabled: false, isPrimary: true };
+                case 'active': return { label: 'Watch Live', action: handleAction, icon: 'eye', disabled: false, isPrimary: false };
+                default: return { label: 'Join Game', action: handleAction, icon: 'confirmation-number', disabled: false, isPrimary: false };
             }
         }
-    };
-
-    const joinConfig = getJoinButtonConfig();
+    }, [activeGame, isHostOfActiveGame, hasTickets, handleAction]);
 
     // UI Helpers
     const hasLastGame = !!lastGame;
+
+    if (!user || isGroupLoading) {
+        return (
+            <SafeAreaView className="flex-1 bg-[#fdf9f3] items-center justify-center">
+                <ActivityIndicator size="large" color="#b30069" />
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
@@ -228,75 +248,38 @@ const HousieLobbyScreen = () => {
                         Grab your tickets and get ready for a night of numbers, laughter, and high-reward excitement.
                     </Text>
 
-                    {/* Action Buttons */}
+                    {/* Action Buttons Container */}
                     <View className="w-full gap-4">
-
-                        {/* ── CASE 1: No ongoing game → Host a Game only ── */}
-                        {(!activeGame || activeGame.status === 'ended') && (
-                            <TouchableOpacity
-                                onPress={handleStartGame}
-                                disabled={isLoading}
-                                className={`bg-[#b30069] rounded-[32px] flex-row items-center justify-center shadow-lg shadow-[#b30069]/30 ${isTablet ? 'h-28' : 'h-20'}`}
-                            >
-                                {isLoading
-                                    ? <ActivityIndicator color="white" />
-                                    : <>
-                                        <Ionicons name="play" size={isTablet ? 40 : 28} color="white" />
-                                        <Text
-                                            numberOfLines={1}
-                                            adjustsFontSizeToFit
-                                            className={`text-white font-headline-bold ml-3 ${isTablet ? 'text-3xl' : 'text-2xl'}`}
-                                        >Host a Game</Text>
-                                    </>
-                                }
-                            </TouchableOpacity>
-                        )}
-
-                        {/* ── CASE 2: Game in progress ── */}
-                        {activeGame && activeGame.status !== 'ended' && (
-                            <>
-                                {/* HOST: Resume button */}
-                                {isHostOfActiveGame && (
-                                    <TouchableOpacity
-                                        onPress={handleStartGame}
-                                        className={`bg-[#b30069] rounded-[32px] flex-row items-center justify-center shadow-lg shadow-[#b30069]/30 ${isTablet ? 'h-28' : 'h-20'}`}
+                        {/* Primary Action Button */}
+                        <TouchableOpacity
+                            onPress={handleAction}
+                            disabled={isLoading || isGameLoading || joinConfig.disabled}
+                            className={`rounded-[32px] flex-row items-center justify-center shadow-lg ${isTablet ? 'h-28' : 'h-20'} ${joinConfig.isPrimary
+                                ? 'bg-[#b30069] shadow-[#b30069]/30'
+                                : 'bg-stone-50 border border-stone-100 shadow-black/5'
+                                }`}
+                        >
+                            {isLoading || isGameLoading ? (
+                                <ActivityIndicator color={joinConfig.isPrimary ? 'white' : '#31302d'} />
+                            ) : (
+                                <>
+                                    <Ionicons
+                                        name={joinConfig.icon as any}
+                                        size={isTablet ? 40 : 28}
+                                        color={joinConfig.isPrimary ? 'white' : '#31302d'}
+                                    />
+                                    <Text
+                                        numberOfLines={1}
+                                        adjustsFontSizeToFit
+                                        className={`font-headline-bold ml-3 ${isTablet ? 'text-3xl' : 'text-2xl'} ${joinConfig.isPrimary ? 'text-white' : 'text-[#31302d]'}`}
                                     >
-                                        <Ionicons name="play-forward" size={isTablet ? 40 : 28} color="white" />
-                                        <Text
-                                            numberOfLines={1}
-                                            adjustsFontSizeToFit
-                                            className={`text-white font-headline-bold ml-3 ${isTablet ? 'text-3xl' : 'text-2xl'}`}
-                                        >Resume Hosting</Text>
-                                    </TouchableOpacity>
-                                )}
+                                        {joinConfig.label}
+                                    </Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
 
-                                {/* MEMBER: Context-aware join/status button */}
-                                {!isHostOfActiveGame && (
-                                    <TouchableOpacity
-                                        onPress={joinConfig.action}
-                                        disabled={joinConfig.disabled}
-                                        className={`rounded-[32px] flex-row items-center justify-center border ${isTablet ? 'h-28' : 'h-20'} ${joinConfig.disabled
-                                            ? 'bg-stone-100 border-stone-200'
-                                            : 'bg-stone-50 border-stone-100'
-                                            }`}
-                                    >
-                                        <Ionicons
-                                            name={joinConfig.icon as any}
-                                            size={isTablet ? 36 : 24}
-                                            color={joinConfig.disabled ? '#9ca3af' : '#31302d'}
-                                        />
-                                        <Text className={`ml-3 font-headline-bold ${joinConfig.disabled
-                                            ? `text-stone-400 ${isTablet ? 'text-2xl' : 'text-base'}`
-                                            : `${isTablet ? 'text-3xl' : 'text-2xl'} text-[#31302d]`
-                                            }`}>
-                                            {joinConfig.label}
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
-                            </>
-                        )}
-
-                        {/* ── CASE 3: Persistent Last Game Leaderboard ── */}
+                        {/* Case 3: Last Game Leaderboard */}
                         {hasLastGame && (
                             <TouchableOpacity
                                 onPress={() => navigation.navigate('HousieResults', { gameCode: lastGame.game_code, groupId })}
@@ -309,7 +292,6 @@ const HousieLobbyScreen = () => {
                                 </View>
                             </TouchableOpacity>
                         )}
-
                     </View>
                 </View>
 

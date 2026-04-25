@@ -5,13 +5,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { LinearGradient } from 'expo-linear-gradient';
-import { io, Socket } from 'socket.io-client';
+import { Socket } from 'socket.io-client';
 import { useAuthStore } from '../../stores/authStore';
 import MandaliCoin from '../../components/MandaliCoin';
 import { fetchHousieGame, joinHousieGame, fetchHousieTickets, API_URL } from '../../lib/api';
 import { getSocket } from '../../lib/socketService';
-import HousieStartingModal from '../../components/housie/HousieStartingModal';
 import HousieWinNotification from '../../components/housie/HousieWinNotification';
 import HousieClaimCheckingIndicator from '../../components/housie/HousieClaimCheckingIndicator';
 import { canClaimPrize, registerSessionClaim, resetSessionClaims } from '../../utils/housieValidator';
@@ -190,7 +188,6 @@ const HousieTicketScreen = () => {
         setSocket(socket);
 
         const onConnect = () => {
-            console.log('[Socket] Re-connected in Tickets, re-joining room:', gameCode);
             socket.emit('join_game', gameCode);
         };
 
@@ -305,6 +302,11 @@ const HousieTicketScreen = () => {
                 <ActivityIndicator size="large" color="#b30069" />
             </SafeAreaView>
         );
+    }
+
+    if (game?.status === 'starting') {
+        navigation.replace('HousieStarting', { gameCode, groupId });
+        return null; // Return null while navigating
     }
 
     const renderTicket = ({ item: ticket }: { item: any }) => {
@@ -571,7 +573,6 @@ const HousieTicketScreen = () => {
                 </View>
             </Modal>
 
-            <HousieStartingModal visible={game?.status === 'starting'} game={game} onComplete={() => queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] })} />
             {activeNotification && (
                 <HousieWinNotification visible={!!activeNotification} type={activeNotification.type} playerName={activeNotification.playerName} avatarUrl={activeNotification.avatarUrl} prizeName={activeNotification.prizeName} onComplete={() => setActiveNotification(null)} />
             )}

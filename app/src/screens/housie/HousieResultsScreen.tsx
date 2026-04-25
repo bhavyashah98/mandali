@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Image, useWindowDimensions } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { API_URL, getAuthHeaders } from '../../lib/api';
 import axios from 'axios';
-import { useWindowDimensions } from 'react-native';
 import MandaliCoin from '../../components/MandaliCoin';
 
 const HousieResultsScreen = () => {
+    const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
     const navigation = useNavigation<any>();
@@ -162,10 +162,16 @@ const HousieResultsScreen = () => {
             </ScrollView>
 
             {/* Bottom Button */}
-            <View className={`px-8 pb-10 pt-4 ${isTablet ? 'px-20' : ''}`}>
+            <View 
+                className={`px-8 pt-4 ${isTablet ? 'px-20' : ''}`}
+                style={{ 
+                    paddingBottom: Math.max(insets.bottom, isTablet ? 48 : 24),
+                    backgroundColor: '#FDF9F3'
+                }}
+            >
                 <TouchableOpacity
                     onPress={handleClose}
-                    style={{ height: isTablet ? 110 : 64 }}
+                    style={{ height: isTablet ? 110 : 70 }}
                     className="bg-[#b30069] rounded-[32px] items-center justify-center shadow-xl shadow-primary/20"
                 >
                     <Text 
