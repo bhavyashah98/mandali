@@ -42,55 +42,114 @@ export const joinGroup = async (inviteCode: string) => {
     const response = await axios.post(`${API_URL}/groups/join`, { inviteCode }, { headers });
     return response.data;
 };
+
+/**
+ * Optimizes Cloudinary retrieval URLs by injecting delivery transformations.
+ * Allows grabbing the exact size needed from the CDN (e.g. 'w_400,q_auto,f_auto' for thumbnails)
+ */
+export const getOptimizedImageUrl = (url: string, transformations: string = 'q_auto,f_auto') => {
+    if (!url || typeof url !== 'string') return url;
+    const uploadSplit = url.split('/upload/');
+    if (uploadSplit.length === 2 && url.includes('res.cloudinary.com')) {
+        return `${uploadSplit[0]}/upload/${transformations}/${uploadSplit[1]}`;
+    }
+    return url;
+};
+
 export const uploadImage = async (uri: string, groupId: string) => {
+    // 1. Fetch upload signature from backend (enforces membership checks securely)
     const headers = await getAuthHeaders();
+    const signResponse = await axios.get(`${API_URL}/upload/sign?type=memory&groupId=${groupId}`, { headers });
+    const signData = signResponse.data;
+
+    // 2. Prepare FormData for direct Cloudinary upload
     const formData = new FormData();
-    
-    // Create the file object
     const filename = uri.split('/').pop() || 'upload.jpg';
     const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : `image/jpeg`;
+    const ext = match?.[1]?.toLowerCase();
+    let type = 'image/jpeg';
+    switch (ext) {
+        case 'jpg':
+        case 'jpeg':
+            type = 'image/jpeg';
+            break;
+        case 'png':
+            type = 'image/png';
+            break;
+        case 'webp':
+            type = 'image/webp';
+            break;
+    }
+
 
     // @ts-ignore
-    formData.append('image', {
+    formData.append('file', {
         uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
         name: filename,
         type,
     });
 
-    // NOTE: Backend is mounted as /upload and route is /image -> /upload/image
-    const response = await axios.post(`${API_URL}/upload/image?groupId=${groupId}`, formData, {
-        headers: {
-            ...headers,
-            'Content-Type': 'multipart/form-data',
-        },
-    });
-    return response.data.url;
+    formData.append('api_key', signData.apiKey);
+    formData.append('timestamp', signData.timestamp);
+    formData.append('signature', signData.signature);
+    if (signData.folder) formData.append('folder', signData.folder);
+    if (signData.allowedFormats) formData.append('allowed_formats', signData.allowedFormats);
+    if (signData.maxFileSize) formData.append('max_file_size', signData.maxFileSize.toString());
+
+    // 3. Upload directly to Cloudinary CDN
+    const response = await axios.post(
+        `https://api.cloudinary.com/v1_1/${signData.cloudName}/image/upload`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+
+    if (!response.data?.secure_url) {
+        throw new Error('Upload failed');
+    }
+
+    return {
+        url: response.data.secure_url,
+        publicId: response.data.public_id,
+    };
 };
 
 export const uploadProfileImage = async (uri: string) => {
+    // 1. Fetch profile upload signature from backend
     const headers = await getAuthHeaders();
+    const signResponse = await axios.get(`${API_URL}/upload/sign?type=profile`, { headers });
+    const signData = signResponse.data;
+
+    // 2. Prepare FormData for direct Cloudinary upload
     const formData = new FormData();
-    
-    // Create the file object
     const filename = uri.split('/').pop() || 'profile.jpg';
     const match = /\.(\w+)$/.exec(filename);
     const type = match ? `image/${match[1]}` : `image/jpeg`;
 
     // @ts-ignore
-    formData.append('image', {
+    formData.append('file', {
         uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
         name: filename,
         type,
     });
 
-    const response = await axios.post(`${API_URL}/upload/profile`, formData, {
-        headers: {
-            ...headers,
-            'Content-Type': 'multipart/form-data',
-        },
-    });
-    return response.data.url;
+    formData.append('api_key', signData.apiKey);
+    formData.append('timestamp', signData.timestamp);
+    formData.append('signature', signData.signature);
+    if (signData.folder) formData.append('folder', signData.folder);
+    if (signData.publicId) formData.append('public_id', signData.publicId);
+    if (signData.overwrite) formData.append('overwrite', 'true');
+    if (signData.transformation) formData.append('transformation', signData.transformation);
+    if (signData.allowedFormats) formData.append('allowed_formats', signData.allowedFormats);
+    if (signData.maxFileSize) formData.append('max_file_size', signData.maxFileSize.toString());
+
+    // 3. Upload directly to Cloudinary CDN
+    const response = await axios.post(
+        `https://api.cloudinary.com/v1_1/${signData.cloudName}/image/upload`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+
+    return response.data.secure_url;
 };
 
 // --- HOUSIE API ---

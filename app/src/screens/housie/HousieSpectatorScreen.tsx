@@ -9,7 +9,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import MandaliCoin from '../../components/MandaliCoin';
-import { fetchHousieGame, fetchGroupDetail } from '../../lib/api';
+import { fetchHousieGame, fetchGroupDetail, getOptimizedImageUrl } from '../../lib/api';
 import { getSocket } from '../../lib/socketService';
 import HousieWinNotification from '../../components/housie/HousieWinNotification';
 import HousieClaimCheckingIndicator from '../../components/housie/HousieClaimCheckingIndicator';
@@ -270,7 +270,7 @@ const HousieSpectatorScreen = () => {
                                 <View key={participant.id} className="items-center" style={{ width: isTablet ? 100 : 70 }}>
                                     <View className={`rounded-full bg-stone-100 overflow-hidden items-center justify-center border-2 border-stone-200 mb-2 ${isTablet ? 'w-20 h-20' : 'w-12 h-12'}`}>
                                         {participant.avatarUrl ? (
-                                            <Image source={{ uri: participant.avatarUrl }} style={{ width: '100%', height: '100%' }} />
+                                            <Image source={{ uri: getOptimizedImageUrl(participant.avatarUrl, 'w_150,q_auto,f_auto') }} style={{ width: '100%', height: '100%' }} />
                                         ) : (
                                             <Text className={`text-[#b30069] font-headline-bold ${isTablet ? 'text-3xl' : 'text-base'}`}>{participant.name[0]}</Text>
                                         )}

@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { useAuthStore } from '../../stores/authStore';
 import MandaliCoin from '../../components/MandaliCoin';
-import { API_URL, getAuthHeaders } from '../../lib/api';
+import { API_URL, getAuthHeaders, getOptimizedImageUrl } from '../../lib/api';
 import axios from 'axios';
 
 type Period = 'all_time' | 'this_month' | 'this_year';
@@ -182,7 +182,7 @@ const HousieLeaderboardScreen = () => {
                                         style={{ shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 }}>
                                         {player.avatarUrl ? (
                                             <Image
-                                                source={{ uri: player.avatarUrl }}
+                                                source={{ uri: getOptimizedImageUrl(player.avatarUrl, 'w_150,q_auto,f_auto') }}
                                                 className="w-full h-full"
                                                 resizeMode="cover"
                                             />

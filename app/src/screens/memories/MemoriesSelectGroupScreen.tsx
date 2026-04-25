@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { fetchGroups } from '../../lib/api';
+import { fetchGroups, getOptimizedImageUrl } from '../../lib/api';
 
 const MemoriesSelectGroupScreen = () => {
     const navigation = useNavigation<any>();
@@ -93,7 +93,7 @@ const MemoriesSelectGroupScreen = () => {
                 <View className={`rounded-2xl overflow-hidden bg-stone-50 border border-stone-100 ${isTablet ? 'w-24 h-24' : 'w-16 h-16'}`}>
                     {item.cover_photo_url ? (
                         <Image
-                            source={{ uri: item.cover_photo_url }}
+                            source={{ uri: getOptimizedImageUrl(item.cover_photo_url, 'w_300,q_auto,f_auto') }}
                             className="w-full h-full"
                             resizeMode="cover"
                         />

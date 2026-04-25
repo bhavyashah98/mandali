@@ -70,13 +70,13 @@ const CreateMemoryScreen = () => {
 
             // 1. Upload all images to storage
             const uploadPromises = compressedImages.map(uri => uploadImage(uri, groupId!));
-            const imageUrls = await Promise.all(uploadPromises);
+            const imageResults = await Promise.all(uploadPromises);
 
             // 2. Create a SEPARATE memory record for each image
             // This ensures each photo can be deleted individually without affecting others
-            const createPromises = imageUrls.map(url => createMemory({
+            const createPromises = imageResults.map(result => createMemory({
                 groupId: groupId!,
-                imageUrls: [url], // Each record gets its own array with 1 image
+                imageUrls: [result.url], // Each record gets its own array with 1 image
                 story,
                 memoryDate
             }));

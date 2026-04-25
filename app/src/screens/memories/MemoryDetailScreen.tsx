@@ -6,7 +6,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { useAuthStore } from '../../stores/authStore';
-import { deleteMemory, reportContent } from '../../lib/api';
+import { deleteMemory, reportContent, getOptimizedImageUrl } from '../../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
@@ -153,7 +153,7 @@ const MemoryDetailScreen = () => {
                             <View className={`rounded-full border border-white/30 overflow-hidden ${isTablet ? 'w-14 h-14' : 'w-8 h-8'}`}>
                                 {item.memory.user?.avatar_url ? (
                                     <Image
-                                        source={{ uri: item.memory.user.avatar_url }}
+                                        source={{ uri: getOptimizedImageUrl(item.memory.user.avatar_url, 'w_150,q_auto,f_auto') }}
                                         style={{ width: '100%', height: '100%' }}
                                         contentFit="cover"
                                     />
@@ -169,7 +169,7 @@ const MemoryDetailScreen = () => {
                     {/* 2. Full Image View Container - Enforced Uniform Dimensions */}
                     <View className="flex-1 justify-center z-10 w-full mt-2">
                         <ImageZoom
-                            uri={item.url}
+                            uri={getOptimizedImageUrl(item.url, 'w_1200,q_auto,f_auto')}
                             style={{ width: width, height: height * 0.65 }}
                             resizeMode="contain"
                             minScale={1}

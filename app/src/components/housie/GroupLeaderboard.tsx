@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ActivityIndicator, Image, ScrollView } from 'react-native';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { API_URL, getAuthHeaders } from '../../lib/api';
+import { API_URL, getAuthHeaders, getOptimizedImageUrl } from '../../lib/api';
 import axios from 'axios';
 
 interface GroupLeaderboardProps {
@@ -97,7 +97,7 @@ const GroupLeaderboard = ({ groupId }: GroupLeaderboardProps) => {
                                 <View className="w-12 h-12 rounded-full bg-stone-100 mr-3 overflow-hidden border-2 border-white shadow-sm">
                                     {player.avatarUrl ? (
                                         <Image
-                                            source={{ uri: player.avatarUrl }}
+                                            source={{ uri: getOptimizedImageUrl(player.avatarUrl, 'w_150,q_auto,f_auto') }}
                                             className="w-full h-full"
                                             resizeMode="cover"
                                         />

@@ -3,6 +3,7 @@ import { View, Text, Animated, Image, useWindowDimensions } from 'react-native';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getOptimizedImageUrl } from '../../lib/api';
 
 interface HousieWinNotificationProps {
     visible: boolean;
@@ -114,7 +115,7 @@ const HousieWinNotification: React.FC<HousieWinNotificationProps> = ({
                                 <View className={`rounded-full p-1 ${isWin ? 'bg-white/40' : 'bg-red-500/40'}`}>
                                     <View className="rounded-full overflow-hidden border-4 border-white" style={{ width: 130, height: 130 }}>
                                         {avatarUrl ? (
-                                            <Image source={{ uri: avatarUrl }} className="w-full h-full" />
+                                            <Image source={{ uri: getOptimizedImageUrl(avatarUrl, 'w_300,q_auto,f_auto') }} className="w-full h-full" />
                                         ) : (
                                             <View className={`w-full h-full items-center justify-center ${isWin ? 'bg-amber-500' : 'bg-red-700'}`}>
                                                 <Text className="text-white font-headline-bold text-5xl">

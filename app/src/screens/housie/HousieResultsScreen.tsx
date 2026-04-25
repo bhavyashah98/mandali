@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Image, use
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { API_URL, getAuthHeaders } from '../../lib/api';
+import { API_URL, getAuthHeaders, getOptimizedImageUrl } from '../../lib/api';
 import axios from 'axios';
 import MandaliCoin from '../../components/MandaliCoin';
 
@@ -109,7 +109,7 @@ const HousieResultsScreen = () => {
                                 className={`rounded-full bg-stone-100 overflow-hidden border-4 border-white shadow-md ${isTablet ? 'w-24 h-24 mr-8' : 'w-11 h-11 mr-3'}`}
                             >
                                 {player.avatarUrl ? (
-                                    <Image source={{ uri: player.avatarUrl }} className="w-full h-full" />
+                                    <Image source={{ uri: getOptimizedImageUrl(player.avatarUrl, 'w_150,q_auto,f_auto') }} className="w-full h-full" />
                                 ) : (
                                     <View className="flex-1 items-center justify-center">
                                         <Text className={`text-stone-400 font-headline-bold ${isTablet ? 'text-3xl' : 'text-base'}`}>

@@ -12,7 +12,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useHousieWaitingRoomSync } from '../../hooks/housie/useHousieWaitingRoomSync';
 
 //api
-import { fetchHousieGame, updateHousieStatus, fetchGroupDetail, fetchHousieParticipants } from '../../lib/api';
+import { fetchHousieGame, updateHousieStatus, fetchGroupDetail, fetchHousieParticipants, getOptimizedImageUrl } from '../../lib/api';
 import { getSocket } from '../../lib/socketService';
 
 const HousieWaitingRoomScreen = () => {
@@ -104,7 +104,7 @@ const HousieWaitingRoomScreen = () => {
         <View className={`flex-row items-center bg-white border border-stone-100 shadow-sm mb-4 ${isTablet ? 'rounded-[32px] p-8' : 'rounded-[24px] p-4'}`}>
             <View className={`rounded-full bg-stone-50 items-center justify-center overflow-hidden ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}>
                 {item.avatar ? (
-                    <Image source={{ uri: item.avatar }} className="w-full h-full" />
+                    <Image source={{ uri: getOptimizedImageUrl(item.avatar, 'w_150,q_auto,f_auto') }} className="w-full h-full" />
                 ) : (
                     <Text className={`text-primary font-headline-bold ${isTablet ? 'text-5xl' : 'text-lg'}`}>{item.name[0]}</Text>
                 )}

@@ -6,7 +6,7 @@ import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Dimensions, useWindowDimensions } from 'react-native';
-import { fetchGroups } from '../../lib/api';
+import { fetchGroups, getOptimizedImageUrl } from '../../lib/api';
 import { Image } from 'expo-image';
 import { useAuthStore } from '../../stores/authStore';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -116,7 +116,7 @@ const GroupListScreen = () => {
                             <View className={`rounded-[28px] overflow-hidden bg-stone-50 border border-stone-100 ${isTablet ? 'w-28 h-28' : 'w-16 h-16'}`}>
                                 {group.cover_photo_url ? (
                                     <Image
-                                        source={{ uri: group.cover_photo_url }}
+                                        source={{ uri: getOptimizedImageUrl(group.cover_photo_url, 'w_300,q_auto,f_auto') }}
                                         style={{ width: '100%', height: '100%' }}
                                         contentFit="cover"
                                     />

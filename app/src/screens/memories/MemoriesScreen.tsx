@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { fetchMemories, fetchGroupDetail } from '../../lib/api';
+import { fetchMemories, fetchGroupDetail, getOptimizedImageUrl } from '../../lib/api';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 
@@ -210,7 +210,7 @@ const MemoriesScreen = () => {
                                         className="mr-6 rounded-[48px] overflow-hidden bg-stone-100 shadow-xl"
                                         style={{ width: isTablet ? 320 : 150, height: isTablet ? 440 : 200 }}
                                     >
-                                        <Image source={{ uri: memory.image_urls[0] }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                                        <Image source={{ uri: getOptimizedImageUrl(memory.image_urls[0], 'w_600,q_auto,f_auto') }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                                         <BlurView tint="dark" intensity={25} className={`absolute inset-x-0 bottom-0 p-6 justify-center ${isTablet ? 'h-32' : 'h-16'}`}>
                                             <Text className={`text-white font-body-bold uppercase tracking-widest text-center ${isTablet ? 'text-xl' : 'text-xs'}`}>
                                                 {today.getFullYear() - new Date(memory.memory_date || memory.created_at).getFullYear()} Years Ago
@@ -294,7 +294,7 @@ const MemoriesScreen = () => {
                                                     className="w-full h-full bg-stone-100 overflow-hidden"
                                                 >
                                                     <Image
-                                                        source={{ uri: url }}
+                                                        source={{ uri: getOptimizedImageUrl(url, 'w_400,q_auto,f_auto') }}
                                                         style={{ width: '100%', height: '100%' }}
                                                         contentFit="cover"
                                                         transition={300}
@@ -303,7 +303,7 @@ const MemoriesScreen = () => {
                                                     {/* Personal Touch: Uploader Badge */}
                                                     <View className="absolute bottom-1 right-1 w-5 h-5 rounded-full border border-white/50 bg-white/20 overflow-hidden">
                                                         {memory.user?.avatar_url && (
-                                                            <Image source={{ uri: memory.user.avatar_url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                                                            <Image source={{ uri: getOptimizedImageUrl(memory.user.avatar_url, 'w_100,q_auto,f_auto') }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                                                         )}
                                                     </View>
                                                 </TouchableOpacity>

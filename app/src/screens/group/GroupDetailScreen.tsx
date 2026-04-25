@@ -6,7 +6,7 @@ import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Dimensions, useWindowDimensions } from 'react-native';
-import { fetchGroupDetail, leaveGroup, deleteGroup, transferOwnership, fetchBlockedUsers, blockUser, unblockUser } from '../../lib/api';
+import { fetchGroupDetail, leaveGroup, deleteGroup, transferOwnership, fetchBlockedUsers, blockUser, unblockUser, getOptimizedImageUrl } from '../../lib/api';
 import * as Linking from 'expo-linking';
 import { Image } from 'expo-image';
 import { useAuthStore } from '../../stores/authStore';
@@ -218,7 +218,7 @@ const GroupDetailScreen = () => {
                     <Pressable onPress={() => setShowCoverModal(true)} style={{ width: '100%', height: '100%' }}>
                         {group.cover_photo_url ? (
                             <Image
-                                source={{ uri: group.cover_photo_url }}
+                                source={{ uri: getOptimizedImageUrl(group.cover_photo_url, 'w_800,q_auto,f_auto') }}
                                 style={{ width: '100%', height: '100%' }}
                                 contentFit="cover"
                                 contentPosition="top"
@@ -356,7 +356,7 @@ const GroupDetailScreen = () => {
                         >
                             <View className={`rounded-full overflow-hidden bg-stone-100 mr-6 border border-stone-200 ${isTablet ? 'w-20 h-20' : 'w-12 h-12'}`}>
                                 {member.users.avatar_url ? (
-                                    <Image source={{ uri: member.users.avatar_url }} style={{ width: '100%', height: '100%' }} />
+                                    <Image source={{ uri: getOptimizedImageUrl(member.users.avatar_url, 'w_150,q_auto,f_auto') }} style={{ width: '100%', height: '100%' }} />
                                 ) : (
                                     <View className="w-full h-full items-center justify-center">
                                         <Text className={`text-primary font-headline-bold ${isTablet ? 'text-3xl' : ''}`}>{member.users.name.charAt(0)}</Text>
@@ -468,7 +468,7 @@ const GroupDetailScreen = () => {
                                         style={{ width: '100%', height: '100%' }}
                                     >
                                         <Image
-                                            source={{ uri: profileTargetUser.avatar_url }}
+                                            source={{ uri: getOptimizedImageUrl(profileTargetUser.avatar_url, 'w_300,q_auto,f_auto') }}
                                             style={{ width: '100%', aspectRatio: 1 }}
                                             contentFit="cover"
                                         />
@@ -545,7 +545,7 @@ const GroupDetailScreen = () => {
                                     style={{ width: '100%', height: '100%' }}
                                 >
                                     <Image
-                                        source={{ uri: group.cover_photo_url }}
+                                        source={{ uri: getOptimizedImageUrl(group.cover_photo_url, 'w_150,q_auto,f_auto') }}
                                         style={{ width: '100%', height: undefined, aspectRatio: 1 }}
                                         contentFit="contain"
                                     />
@@ -599,7 +599,7 @@ const GroupDetailScreen = () => {
                                 >
                                     <View className="w-14 h-14 rounded-full overflow-hidden bg-stone-50 mr-4 border border-stone-100">
                                         {m.users.avatar_url ? (
-                                            <Image source={{ uri: m.users.avatar_url }} className="w-full h-full" />
+                                            <Image source={{ uri: getOptimizedImageUrl(m.users.avatar_url, 'w_150,q_auto,f_auto') }} className="w-full h-full" />
                                         ) : (
                                             <View className="w-full h-full items-center justify-center bg-primary/5">
                                                 <Text className="text-primary font-headline-bold text-lg">{m.users.name.charAt(0)}</Text>

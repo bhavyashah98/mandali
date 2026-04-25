@@ -7,7 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuthStore } from '../../stores/authStore';
 import axios from 'axios';
-import { API_URL, getAuthHeaders } from '../../lib/api';
+import { API_URL, getAuthHeaders, getOptimizedImageUrl } from '../../lib/api';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { Switch } from 'react-native';
 
@@ -70,7 +70,7 @@ const ProfileMenuScreen = () => {
                         style={{ width: isTablet ? 180 : 96, height: isTablet ? 180 : 96 }}
                     >
                         {user?.avatar_url ? (
-                            <Image source={{ uri: user.avatar_url }} className="w-full h-full" resizeMode="cover" />
+                            <Image source={{ uri: getOptimizedImageUrl(user.avatar_url, 'w_300,q_auto,f_auto') }} className="w-full h-full" resizeMode="cover" />
                         ) : (
                             <View className="w-full h-full items-center justify-center bg-primary/5">
                                 <Text className={`font-headline-bold text-primary opacity-30 ${isTablet ? 'text-7xl' : 'text-3xl'}`}>
