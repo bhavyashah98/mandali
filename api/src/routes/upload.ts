@@ -127,6 +127,7 @@ router.get('/sign', async (req: AuthRequest, res) => {
 
         const paramsToSign: any = {
             timestamp,
+            upload_preset: 'mandali_photos',
             allowed_formats: 'jpg,jpeg,png,webp',
             max_file_size: 5000000,
         };
@@ -180,6 +181,7 @@ router.get('/sign', async (req: AuthRequest, res) => {
             timestamp,
             apiKey: process.env.CLOUDINARY_API_KEY,
             cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+            uploadPreset: 'mandali_photos',
             folder: targetFolder,
             publicId: targetPublicId || undefined,
             overwrite: type === 'profile' ? true : undefined,
