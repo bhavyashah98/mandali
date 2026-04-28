@@ -48,69 +48,65 @@ export const joinGroup = async (inviteCode: string) => {
  * Allows grabbing the exact size needed from the CDN (e.g. 'w_400,q_auto,f_auto' for thumbnails)
  */
 export const getOptimizedImageUrl = (url: string, transformations: string = 'q_auto,f_auto') => {
-    if (!url || typeof url !== 'string') return url;
-    const uploadSplit = url.split('/upload/');
-    if (uploadSplit.length === 2 && url.includes('res.cloudinary.com')) {
-        return `${uploadSplit[0]}/upload/${transformations}/${uploadSplit[1]}`;
+    console.log(url);
+    if (!url || typeof url !== 'string' || !url.includes('res.cloudinary.com')) return url;
+
+    // Ensure we don't double-transform if the URL already has some
+    if (url.includes('/upload/')) {
+        const parts = url.split('/upload/');
+
+        const fPath = `${parts[0]}/upload/${transformations}/${parts[1]}`;
+        console.log(fPath);
+        return fPath;
     }
+
     return url;
 };
 
 export const uploadImage = async (uri: string, groupId: string) => {
-    // 1. Fetch upload signature from backend (enforces membership checks securely)
+    // 1. Fetch upload signature from backend
     const headers = await getAuthHeaders();
     const signResponse = await axios.get(`${API_URL}/upload/sign?type=memory&groupId=${groupId}`, { headers });
     const signData = signResponse.data;
 
-    // 2. Prepare FormData for direct Cloudinary upload
+    // 2. Prepare FormData
     const formData = new FormData();
     const filename = uri.split('/').pop() || 'upload.jpg';
-    const match = /\.(\w+)$/.exec(filename);
-    const ext = match?.[1]?.toLowerCase();
-    let type = 'image/jpeg';
-    switch (ext) {
-        case 'jpg':
-        case 'jpeg':
-            type = 'image/jpeg';
-            break;
-        case 'png':
-            type = 'image/png';
-            break;
-        case 'webp':
-            type = 'image/webp';
-            break;
-    }
-
 
     // @ts-ignore
     formData.append('file', {
         uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
         name: filename,
-        type,
+        type: 'image/jpeg',
     });
 
     formData.append('api_key', signData.apiKey);
     formData.append('timestamp', signData.timestamp);
     formData.append('signature', signData.signature);
+    if (signData.uploadPreset) formData.append('upload_preset', signData.uploadPreset);
     if (signData.folder) formData.append('folder', signData.folder);
-    if (signData.allowedFormats) formData.append('allowed_formats', signData.allowedFormats);
-    if (signData.maxFileSize) formData.append('max_file_size', signData.maxFileSize.toString());
 
-    // 3. Upload directly to Cloudinary CDN
-    const response = await axios.post(
-        `https://api.cloudinary.com/v1_1/${signData.cloudName}/image/upload`,
-        formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
-    );
+    // 3. Upload directly to Cloudinary
+    try {
+        const response = await axios.post(
+            `https://api.cloudinary.com/v1_1/${signData.cloudName}/image/upload`,
+            formData,
+            { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 }
+        );
 
-    if (!response.data?.secure_url) {
-        throw new Error('Upload failed');
+        if (!response.data?.secure_url) throw new Error('Upload failed: Missing URL');
+
+        return {
+            url: response.data.secure_url,
+            publicId: response.data.public_id,
+        };
+    } catch (error: any) {
+        if (error.response) {
+            console.error('[Cloudinary] Detail:', error.response.status, error.response.data);
+            throw new Error(error.response.data?.error?.message || 'Upload failed');
+        }
+        throw error;
     }
-
-    return {
-        url: response.data.secure_url,
-        publicId: response.data.public_id,
-    };
 };
 
 export const uploadProfileImage = async (uri: string) => {
@@ -119,37 +115,40 @@ export const uploadProfileImage = async (uri: string) => {
     const signResponse = await axios.get(`${API_URL}/upload/sign?type=profile`, { headers });
     const signData = signResponse.data;
 
-    // 2. Prepare FormData for direct Cloudinary upload
+    // 2. Prepare FormData
     const formData = new FormData();
     const filename = uri.split('/').pop() || 'profile.jpg';
-    const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : `image/jpeg`;
 
     // @ts-ignore
     formData.append('file', {
         uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
         name: filename,
-        type,
+        type: 'image/jpeg',
     });
 
     formData.append('api_key', signData.apiKey);
     formData.append('timestamp', signData.timestamp);
     formData.append('signature', signData.signature);
+    if (signData.uploadPreset) formData.append('upload_preset', signData.uploadPreset);
     if (signData.folder) formData.append('folder', signData.folder);
     if (signData.publicId) formData.append('public_id', signData.publicId);
     if (signData.overwrite) formData.append('overwrite', 'true');
     if (signData.transformation) formData.append('transformation', signData.transformation);
-    if (signData.allowedFormats) formData.append('allowed_formats', signData.allowedFormats);
-    if (signData.maxFileSize) formData.append('max_file_size', signData.maxFileSize.toString());
 
-    // 3. Upload directly to Cloudinary CDN
-    const response = await axios.post(
-        `https://api.cloudinary.com/v1_1/${signData.cloudName}/image/upload`,
-        formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
-    );
-
-    return response.data.secure_url;
+    // 3. Upload directly to Cloudinary
+    try {
+        const response = await axios.post(
+            `https://api.cloudinary.com/v1_1/${signData.cloudName}/image/upload`,
+            formData,
+            { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
+        return response.data.secure_url;
+    } catch (error: any) {
+        if (error.response) {
+            console.error('[Cloudinary Profile] Detail:', error.response.status, error.response.data);
+        }
+        throw error;
+    }
 };
 
 // --- HOUSIE API ---
@@ -250,9 +249,9 @@ export const transferOwnership = async (groupId: string, newAdminUserId: string)
 };
 
 // --- MEMORIES API ---
-export const fetchMemories = async (groupId: string) => {
+export const fetchMemories = async (groupId: string, page: number = 0, limit: number = 20) => {
     const headers = await getAuthHeaders();
-    const response = await axios.get(`${API_URL}/memories/group/${groupId}`, { headers });
+    const response = await axios.get(`${API_URL}/memories/group/${groupId}?page=${page}&limit=${limit}`, { headers });
     return response.data;
 };
 

@@ -1,13 +1,45 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
-import { View, Text, ScrollView, TouchableOpacity, useWindowDimensions, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, useWindowDimensions, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { fetchMemories, fetchGroupDetail, getOptimizedImageUrl } from '../../lib/api';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
+
+const MemoryGridItem = ({ photo, COLUMN_COUNT, openDetail }: any) => {
+    // High-res Prefetch Trigger - Now matching the 900x900 Detail View size
+    useEffect(() => {
+        if (photo.url) {
+            Image.prefetch(getOptimizedImageUrl(photo.url, 'w_900,h_900,c_limit,q_auto,f_auto'));
+        }
+    }, [photo.url]);
+
+    return (
+        <View style={{ width: `${100 / COLUMN_COUNT}%`, aspectRatio: 1, padding: 1 }}>
+            <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => openDetail(photo.url, photo.memory.id)}
+                className="w-full h-full bg-stone-50 overflow-hidden"
+            >
+                <Image
+                    source={{ uri: getOptimizedImageUrl(photo.url, 'w_300,h_300,c_fill,g_auto,f_auto,q_auto') }}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                    transition={300}
+                    cachePolicy="memory-disk"
+                />
+                <View className="absolute bottom-1.5 right-1.5 w-4 h-4 rounded-full border border-white/40 bg-white/10 overflow-hidden">
+                    {photo.memory.user?.avatar_url && (
+                        <Image source={{ uri: getOptimizedImageUrl(photo.memory.user.avatar_url, 'w_50,q_auto,f_auto') }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                    )}
+                </View>
+            </TouchableOpacity>
+        </View>
+    );
+};
 
 const MemoriesScreen = () => {
     const { width } = useWindowDimensions();
@@ -25,13 +57,19 @@ const MemoriesScreen = () => {
         enabled: !!groupId,
     });
 
-    const { data: memories, isLoading, refetch } = useQuery({
+    const {
+        data: infiniteData,
+        isLoading,
+        isFetchingNextPage,
+        hasNextPage,
+        fetchNextPage,
+        refetch
+    } = useInfiniteQuery({
         queryKey: ['memories', groupId],
-        queryFn: async () => {
-            const data = await fetchMemories(groupId!);
-            return data;
-        },
+        queryFn: ({ pageParam = 0 }) => fetchMemories(groupId!, pageParam, 30),
+        getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.page + 1 : undefined,
         enabled: !!groupId,
+        initialPageParam: 0,
     });
 
     const [refreshing, setRefreshing] = React.useState(false);
@@ -42,23 +80,26 @@ const MemoriesScreen = () => {
         setRefreshing(false);
     }, [refetch]);
 
-    // 'On This Day' Filter
+    // Consolidate all memories from all pages
+    const allMemories = useMemo(() => {
+        return infiniteData?.pages.flatMap(page => page.memories) || [];
+    }, [infiniteData]);
+
+    // 'On This Day' Filter (Only from initial payload for speed)
     const onThisDayMemories = useMemo(() => {
-        if (!memories) return [];
         const t = new Date();
-        return memories.filter(m => {
+        return allMemories.filter(m => {
             const d = new Date(m.memory_date || m.created_at);
             return d.getMonth() === t.getMonth() &&
                 d.getDate() === t.getDate() &&
                 d.getFullYear() < t.getFullYear();
-        });
-    }, [memories]);
+        }).slice(0, 5); // Keep it light
+    }, [allMemories]);
 
     // Flatten all photos for swiping
     const flattenedMemories = useMemo(() => {
-        if (!memories) return [];
         const flat: any[] = [];
-        memories.forEach((memory: any) => {
+        allMemories.forEach((memory: any) => {
             let urls: string[] = [];
             try {
                 if (memory.image_urls) {
@@ -80,13 +121,13 @@ const MemoriesScreen = () => {
             });
         });
         return flat;
-    }, [memories]);
+    }, [allMemories]);
 
+    // Grouping logic for the grid
     const groupedMemories = useMemo(() => {
-        if (!memories) return [];
         const groups: Record<string, any[]> = {};
 
-        memories.forEach((memory: any) => {
+        allMemories.forEach((memory: any) => {
             const date = new Date(memory.memory_date || memory.created_at);
             const monthYear = date.toLocaleString('default', { month: 'long', year: 'numeric' });
             if (!groups[monthYear]) groups[monthYear] = [];
@@ -95,47 +136,125 @@ const MemoriesScreen = () => {
 
         return Object.entries(groups).map(([label, items]) => {
             let photoCount = 0;
+            const flattenedItems: any[] = [];
             items.forEach(item => {
                 const urls = Array.isArray(item.image_urls) ? item.image_urls : [];
                 photoCount += urls.length;
+                urls.forEach(url => flattenedItems.push({ url, memory: item }));
             });
-            return { label, items, count: photoCount };
+            return { label, items: flattenedItems, count: photoCount };
         });
-    }, [memories]);
+    }, [allMemories]);
 
-    const openDetail = (index: number) => {
+    // Flattened data for FlatList, including section headers
+    const listData = useMemo(() => {
+        const result: any[] = [];
+        if (onThisDayMemories.length > 0) {
+            result.push({ type: 'on_this_day', data: onThisDayMemories });
+        }
+
+        groupedMemories.forEach(section => {
+            result.push({ type: 'section_header', label: section.label, count: section.count });
+
+            // Group grid photos into rows for the simple FlatList implementation
+            for (let i = 0; i < section.items.length; i += COLUMN_COUNT) {
+                result.push({
+                    type: 'grid_row',
+                    photos: section.items.slice(i, i + COLUMN_COUNT)
+                });
+            }
+        });
+        return result;
+    }, [onThisDayMemories, groupedMemories, COLUMN_COUNT]);
+
+    const openDetail = (url: string, memoryId: string) => {
+        const index = flattenedMemories.findIndex(fm => fm.url === url && fm.memory.id === memoryId);
         navigation.navigate('MemoryDetail', {
             memories: flattenedMemories,
-            initialIndex: index,
+            initialIndex: index >= 0 ? index : 0,
             groupName: group?.group?.name || 'Mandali'
         });
     };
 
-    if (isLoading) {
+    const renderItem = ({ item }: { item: any }) => {
+        if (item.type === 'on_this_day') {
+            return (
+                <View className={`mt-${isTablet ? '10' : '6'} px-5 mb-6`}>
+                    <View className="flex-row items-center mb-8">
+                        <Ionicons name="sparkles" size={isTablet ? 42 : 18} color="#b38b00" />
+                        <Text className={`ml-4 text-[#b38b00] font-headline-bold tracking-tight ${isTablet ? 'text-4xl' : 'text-lg'}`}>On This Day</Text>
+                    </View>
+                    <FlatList
+                        data={item.data}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        keyExtractor={(m) => `on-this-day-${m.id}`}
+                        renderItem={({ item: memory }) => (
+                            <TouchableOpacity
+                                onPress={() => openDetail(memory.image_urls[0], memory.id)}
+                                className="mr-6 rounded-[48px] overflow-hidden bg-stone-100 shadow-xl"
+                                style={{ width: isTablet ? 320 : 150, height: isTablet ? 440 : 200 }}
+                            >
+                                <Image
+                                    source={{ uri: getOptimizedImageUrl(memory.image_urls[0], 'w_600,q_auto,f_auto') }}
+                                    style={{ width: '100%', height: '100%' }}
+                                    contentFit="cover"
+                                />
+                                <BlurView tint="dark" intensity={25} className={`absolute inset-x-0 bottom-0 p-6 justify-center ${isTablet ? 'h-32' : 'h-16'}`}>
+                                    <Text className={`text-white font-body-bold uppercase tracking-widest text-center ${isTablet ? 'text-xl' : 'text-xs'}`}>
+                                        {today.getFullYear() - new Date(memory.memory_date || memory.created_at).getFullYear()} Years Ago
+                                    </Text>
+                                </BlurView>
+                            </TouchableOpacity>
+                        )}
+                    />
+                    <View className="h-[1px] bg-stone-100 w-full mt-10" />
+                </View>
+            );
+        }
+
+        if (item.type === 'section_header') {
+            return (
+                <View className={`px-5 pt-${isTablet ? '12' : '8'} pb-6 flex-row items-center justify-between`}>
+                    <Text className="text-[#31302d] font-headline-bold" style={{ fontSize: isTablet ? 52 : 28 }}>
+                        {item.label}
+                    </Text>
+                    <View className={`bg-stone-50 rounded-full border border-stone-100 ${isTablet ? 'px-8 py-3' : 'px-3 py-1'}`}>
+                        <Text className={`text-stone-300 font-body-bold uppercase tracking-widest ${isTablet ? 'text-xl' : 'text-[10px]'}`}>{item.count} Photos</Text>
+                    </View>
+                </View>
+            );
+        }
+
+        if (item.type === 'grid_row') {
+            return (
+                <View className="flex-row">
+                    {item.photos.map((photo: any, idx: number) => (
+                        <MemoryGridItem
+                            key={`photo-${photo.memory.id}-${idx}`}
+                            photo={photo}
+                            COLUMN_COUNT={COLUMN_COUNT}
+                            openDetail={openDetail}
+                        />
+                    ))}
+                    {/* Filler views to maintain alignment for non-full rows */}
+                    {item.photos.length < COLUMN_COUNT && (
+                        Array(COLUMN_COUNT - item.photos.length).fill(0).map((_, i) => (
+                            <View key={`filler-${i}`} style={{ width: `${100 / COLUMN_COUNT}%`, aspectRatio: 1 }} />
+                        ))
+                    )}
+                </View>
+            );
+        }
+
+        return null;
+    };
+
+    if (isLoading && !infiniteData) {
         return (
-            <View className="flex-1 bg-[#fdf9f3] items-center justify-center">
+            <View className="flex-1 bg-white items-center justify-center">
                 <ActivityIndicator size="large" color="#b30069" />
             </View>
-        );
-    }
-
-    if (!groupId) {
-        return (
-            <SafeAreaView className="flex-1 bg-white items-center justify-center px-8">
-                <View className="w-24 h-24 rounded-full bg-primary/5 items-center justify-center mb-8">
-                    <MaterialIcons name="photo-library" size={48} color="#e8c4d8" />
-                </View>
-                <Text className="text-[#594048] font-headline-bold text-2xl text-center mb-3">Select a Mandali</Text>
-                <Text className="text-stone-400 text-center font-body-medium leading-5">
-                    Your memories are shared within your specific circles. Visit a Mandali to relive those moments!
-                </Text>
-                <TouchableOpacity
-                    onPress={() => navigation.navigate('Groups')}
-                    className="mt-10 bg-[#b30069] px-10 py-4 rounded-full shadow-lg shadow-[#b30069]/20"
-                >
-                    <Text className="text-white font-headline-bold text-lg">Go to My Mandalis</Text>
-                </TouchableOpacity>
-            </SafeAreaView>
         );
     }
 
@@ -143,9 +262,7 @@ const MemoriesScreen = () => {
         <View className="flex-1 bg-white">
             <SafeAreaView edges={['top']} className="bg-white" />
 
-            {/* Header */}
             <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
-                {/* Left Action - Fixed Width for Centering Balance */}
                 <View style={{ width: isTablet ? 64 : 44 }}>
                     <TouchableOpacity
                         onPress={() => navigation.goBack()}
@@ -155,25 +272,15 @@ const MemoriesScreen = () => {
                     </TouchableOpacity>
                 </View>
 
-                {/* Centered Title Stack */}
                 <View className="flex-1 items-center">
-                    <Text
-                        className="font-headline-bold text-[#1c1c18] text-center"
-                        style={{ fontSize: isTablet ? 32 : 20 }}
-                        numberOfLines={1}
-                        adjustsFontSizeToFit
-                    >
+                    <Text className="font-headline-bold text-[#1c1c18] text-center" style={{ fontSize: isTablet ? 32 : 20 }} numberOfLines={1} adjustsFontSizeToFit>
                         {group?.group?.name || 'Mandali'}
                     </Text>
-                    <Text
-                        className="font-body-bold text-[#b30069] opacity-60 uppercase tracking-widest text-center"
-                        style={{ fontSize: isTablet ? 18 : 10, marginTop: isTablet ? 2 : 0 }}
-                    >
+                    <Text className="font-body-bold text-[#b30069] opacity-60 uppercase tracking-widest text-center" style={{ fontSize: isTablet ? 18 : 10, marginTop: isTablet ? 2 : 0 }}>
                         Memories
                     </Text>
                 </View>
 
-                {/* Right Action - Fixed Width for Centering Balance */}
                 <View style={{ width: isTablet ? 64 : 44 }} className="items-end">
                     <TouchableOpacity
                         onPress={() => navigation.navigate('CreateMemory', { groupId })}
@@ -184,47 +291,17 @@ const MemoriesScreen = () => {
                 </View>
             </View>
 
-            <ScrollView
-                className="flex-1"
+            <FlatList
+                data={listData}
+                renderItem={renderItem}
+                keyExtractor={(item, index) => `${item.type}-${item.label || index}`}
+                onEndReached={() => hasNextPage && fetchNextPage()}
+                onEndReachedThreshold={0.7}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#b30069" />
                 }
-            >
-
-                {/* ── ON THIS DAY SECTION ── */}
-                {onThisDayMemories.length > 0 && (
-                    <View className={`mt-${isTablet ? '10' : '6'} px-5`}>
-                        <View className="flex-row items-center mb-8">
-                            <Ionicons name="sparkles" size={isTablet ? 42 : 18} color="#b38b00" />
-                            <Text className={`ml-4 text-[#b38b00] font-headline-bold tracking-tight ${isTablet ? 'text-4xl' : 'text-lg'}`}>On This Day</Text>
-                        </View>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row overflow-visible">
-                            {onThisDayMemories.map((memory, index) => {
-                                // Find global index for swiping
-                                const globalIndex = flattenedMemories.findIndex(fm => fm.memory.id === memory.id);
-                                return (
-                                    <TouchableOpacity
-                                        key={index}
-                                        onPress={() => openDetail(globalIndex >= 0 ? globalIndex : 0)}
-                                        className="mr-6 rounded-[48px] overflow-hidden bg-stone-100 shadow-xl"
-                                        style={{ width: isTablet ? 320 : 150, height: isTablet ? 440 : 200 }}
-                                    >
-                                        <Image source={{ uri: getOptimizedImageUrl(memory.image_urls[0], 'w_600,q_auto,f_auto') }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-                                        <BlurView tint="dark" intensity={25} className={`absolute inset-x-0 bottom-0 p-6 justify-center ${isTablet ? 'h-32' : 'h-16'}`}>
-                                            <Text className={`text-white font-body-bold uppercase tracking-widest text-center ${isTablet ? 'text-xl' : 'text-xs'}`}>
-                                                {today.getFullYear() - new Date(memory.memory_date || memory.created_at).getFullYear()} Years Ago
-                                            </Text>
-                                        </BlurView>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </ScrollView>
-                        <View className="h-[1px] bg-stone-100 w-full mt-8" />
-                    </View>
-                )}
-
-                {groupedMemories.length === 0 ? (
+                ListEmptyComponent={
                     <View className="items-center justify-center py-40 px-12">
                         <View className={`rounded-full bg-[#fdf9f3] items-center justify-center mb-8 ${isTablet ? 'w-32 h-32' : 'w-20 h-20'}`}>
                             <Ionicons name="images-outline" size={isTablet ? 48 : 32} color="#e8c4d8" />
@@ -232,93 +309,20 @@ const MemoriesScreen = () => {
                         <Text className={`text-[#594048] font-headline-bold text-center mb-4 ${isTablet ? 'text-4xl' : 'text-xl'}`}>No moments captured yet</Text>
                         <TouchableOpacity
                             onPress={() => navigation.navigate('CreateMemory', { groupId })}
-                            style={{
-                                height: isTablet ? 110 : 54,
-                                width: isTablet ? 400 : 'auto'
-                            }}
-                            className={`mt-10 bg-[#b30069] rounded-[32px] items-center justify-center shadow-xl shadow-primary/20 ${isTablet ? 'px-16' : 'px-8'}`}
+                            className={`mt-10 bg-[#b30069] rounded-[32px] items-center justify-center shadow-xl shadow-primary/20 ${isTablet ? 'px-16 py-6' : 'px-8 py-4'}`}
                         >
-                            <Text className={`text-white font-headline-bold ${isTablet ? 'text-2xl' : 'text-lg'}`}>Preserve a Moment</Text>
+                            <Text className={`text-white font-headline-bold ${isTablet ? 'text-2xl' : 'text-base'}`}>Preserve a Moment</Text>
                         </TouchableOpacity>
                     </View>
-                ) : (
-                    groupedMemories.map((section, sidx) => (
-                        <View key={sidx} className={`mb-${isTablet ? '16' : '4'}`}>
-                            <View className={`px-5 py-${isTablet ? '12' : '6'} flex-row items-center justify-between`}>
-                                <Text
-                                    className="text-[#31302d] font-headline-bold"
-                                    style={{ fontSize: isTablet ? 52 : 28 }}
-                                >
-                                    {section.label}
-                                </Text>
-                                <View className={`bg-stone-50 rounded-full border border-stone-100 ${isTablet ? 'px-8 py-3' : 'px-3 py-1'}`}>
-                                    <Text className={`text-stone-300 font-body-bold uppercase tracking-widest ${isTablet ? 'text-xl' : 'text-[10px]'}`}>{section.count} Photos</Text>
-                                </View>
-                            </View>
-
-                            <View className="flex-row flex-wrap">
-                                {section.items.map((memory: any) => {
-                                    let urls: string[] = [];
-                                    try {
-                                        if (memory.image_urls) {
-                                            if (Array.isArray(memory.image_urls)) {
-                                                urls = memory.image_urls;
-                                            } else if (typeof memory.image_urls === 'string') {
-                                                if (memory.image_urls.startsWith('{')) {
-                                                    urls = memory.image_urls.slice(1, -1).split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                                                } else {
-                                                    urls = JSON.parse(memory.image_urls);
-                                                }
-                                            }
-                                        }
-                                    } catch (e) {
-                                        console.error('[Memories] Data parsing error:', e);
-                                    }
-
-                                    return urls.map((url: string, midx: number) => {
-                                        // Find global index for swiping
-                                        const globalIndex = flattenedMemories.findIndex(fm => fm.url === url && fm.memory.id === memory.id);
-
-                                        return (
-                                            <View
-                                                key={`${memory.id}-${midx}`}
-                                                style={{
-                                                    width: `${100 / COLUMN_COUNT}%`,
-                                                    aspectRatio: 1,
-                                                    padding: 1
-                                                }}
-                                            >
-                                                <TouchableOpacity
-                                                    activeOpacity={0.9}
-                                                    onPress={() => openDetail(globalIndex >= 0 ? globalIndex : 0)}
-                                                    className="w-full h-full bg-stone-100 overflow-hidden"
-                                                >
-                                                    <Image
-                                                        source={{ uri: getOptimizedImageUrl(url, 'w_400,q_auto,f_auto') }}
-                                                        style={{ width: '100%', height: '100%' }}
-                                                        contentFit="cover"
-                                                        transition={300}
-                                                        cachePolicy="memory-disk"
-                                                    />
-                                                    {/* Personal Touch: Uploader Badge */}
-                                                    <View className="absolute bottom-1 right-1 w-5 h-5 rounded-full border border-white/50 bg-white/20 overflow-hidden">
-                                                        {memory.user?.avatar_url && (
-                                                            <Image source={{ uri: getOptimizedImageUrl(memory.user.avatar_url, 'w_100,q_auto,f_auto') }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-                                                        )}
-                                                    </View>
-                                                </TouchableOpacity>
-                                            </View>
-                                        );
-                                    })
-                                })}
-                            </View>
+                }
+                ListFooterComponent={
+                    isFetchingNextPage ? (
+                        <View className="py-10">
+                            <ActivityIndicator color="#b30069" />
                         </View>
-                    ))
-                )}
-                <View className="h-40" />
-            </ScrollView>
-
-            <SafeAreaView edges={['bottom']} />
+                    ) : <View className="h-40" />
+                }
+            />
         </View>
     );
 };

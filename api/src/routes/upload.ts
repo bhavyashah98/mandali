@@ -125,13 +125,7 @@ router.get('/sign', async (req: AuthRequest, res) => {
         const { type, groupId } = req.query;
         const timestamp = Math.floor(Date.now() / 1000);
 
-        const paramsToSign: any = {
-            timestamp,
-            upload_preset: 'mandali_photos',
-            allowed_formats: 'jpg,jpeg,png,webp',
-            max_file_size: 5000000,
-        };
-
+        // Define target details first
         let targetFolder = '';
         let targetPublicId = '';
         let targetTransformation = '';
@@ -139,16 +133,10 @@ router.get('/sign', async (req: AuthRequest, res) => {
         if (type === 'profile') {
             targetFolder = 'mandali/profiles';
             targetPublicId = `user_${req.userId}`;
-            paramsToSign.overwrite = true;
-            // Apply Cloudinary's AI face-cropping during the direct upload
             targetTransformation = 'c_fill,g_auto,h_400,w_400';
-            paramsToSign.transformation = targetTransformation;
         } else if (type === 'memory') {
-            if (!groupId) {
-                return res.status(400).json({ error: 'groupId is required for memory uploads' });
-            }
-
-            // Security: Verify the user is actually a member of this group
+            if (!groupId) return res.status(400).json({ error: 'groupId is required' });
+            // Verify membership...
             const { data: memberData, error: memberError } = await supabase
                 .from('group_members')
                 .select('id')
@@ -156,20 +144,22 @@ router.get('/sign', async (req: AuthRequest, res) => {
                 .eq('user_id', req.userId)
                 .single();
 
-            if (memberError || !memberData) {
-                return res.status(403).json({ error: 'Unauthorized: You are not a member of this group' });
-            }
-
+            if (memberError || !memberData) return res.status(403).json({ error: 'Unauthorized' });
             targetFolder = `mandali/${groupId}/photos`;
         } else {
-            return res.status(400).json({ error: 'Invalid upload type requested' });
+            return res.status(400).json({ error: 'Invalid upload type' });
         }
 
-        // Apply derived paths
-        paramsToSign.folder = targetFolder;
-        if (targetPublicId) {
-            paramsToSign.public_id = targetPublicId;
-        }
+        // Build parameters to sign (THE ORDER DOES NOT MATTER HERE, BUT THEY MUST MATCH THE FRONTEND)
+        const paramsToSign: any = {
+            timestamp,
+            upload_preset: 'mandali_photos',
+            folder: targetFolder,
+        };
+
+        if (targetPublicId) paramsToSign.public_id = targetPublicId;
+        if (type === 'profile') paramsToSign.overwrite = 'true';
+        if (targetTransformation) paramsToSign.transformation = targetTransformation;
 
         const signature = cloudinary.utils.api_sign_request(
             paramsToSign,
@@ -186,8 +176,6 @@ router.get('/sign', async (req: AuthRequest, res) => {
             publicId: targetPublicId || undefined,
             overwrite: type === 'profile' ? true : undefined,
             transformation: targetTransformation || undefined,
-            allowedFormats: 'jpg,jpeg,png,webp',
-            maxFileSize: 5000000
         });
     } catch (err: any) {
         console.error('[Upload Sign Error]', err.message);

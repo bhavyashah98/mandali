@@ -1,6 +1,6 @@
 import React from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
-import { View, Text, ScrollView, TouchableOpacity, Alert, Share, FlatList, useWindowDimensions, Modal } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, Share, FlatList, useWindowDimensions, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -10,8 +10,9 @@ import { deleteMemory, reportContent, getOptimizedImageUrl } from '../../lib/api
 import { useQueryClient } from '@tanstack/react-query';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
+import { ResumableZoom } from 'react-native-zoom-toolkit';
 
-import { ImageZoom } from '@likashefqet/react-native-image-zoom';
+
 
 const MemoryDetailScreen = () => {
     const { width, height } = useWindowDimensions();
@@ -129,6 +130,7 @@ const MemoryDetailScreen = () => {
     const renderItem = ({ item, index }: { item: any, index: number }) => {
         const isOwner = user?.id === item.memory.user_id;
         const memoryDate = item.memory.memory_date || item.memory.created_at;
+        const startTime = Date.now();
 
         return (
             <View style={{ width, height: '100%' }}>
@@ -166,17 +168,36 @@ const MemoryDetailScreen = () => {
                         </View>
                     </View>
 
-                    {/* 2. Full Image View Container - Enforced Uniform Dimensions */}
-                    <View className="flex-1 justify-center z-10 w-full mt-2">
-                        <ImageZoom
-                            uri={getOptimizedImageUrl(item.url, 'w_1200,q_auto,f_auto')}
-                            style={{ width: width, height: height * 0.65 }}
-                            resizeMode="contain"
-                            minScale={1}
-                            maxScale={5}
-                            doubleTapScale={3}
-                            isSingleTouchPanEnabled={false}
-                        />
+                    {/* 2. Full Image View Container - Native Scroll Zoom + Perfect Navigation */}
+                    <View className="flex-1 justify-center items-center z-10 w-full" style={{ paddingVertical: 10 }}>
+                        <ScrollView
+                            maximumZoomScale={5}
+                            minimumZoomScale={1}
+                            showsHorizontalScrollIndicator={false}
+                            showsVerticalScrollIndicator={false}
+                            centerContent={true}
+                            style={{ width: width, height: width }}
+                            contentContainerStyle={{ width: width, height: width }}
+                        >
+                            <Image
+                                source={{ uri: getOptimizedImageUrl(item.url, 'w_900,h_900,c_pad,b_black,f_auto,q_auto') }}
+                                style={{ 
+                                    width: width, 
+                                    height: width,
+                                }}
+                                contentFit="contain"
+                                cachePolicy="memory-disk"
+                                transition={200}
+                                onLoadStart={() => {
+                                    console.log('START:', item.url);
+                                }}
+                                onLoad={() => {
+                                    const endTime = Date.now();
+                                    console.log('LOADED (Native Zoom):', item.url);
+                                    console.log('TIME:', endTime - startTime, 'ms');
+                                }}
+                            />
+                        </ScrollView>
                     </View>
 
                     {/* 3. Action Bar (Horizontal) & Description Stack */}
@@ -198,8 +219,8 @@ const MemoryDetailScreen = () => {
                                 </TouchableOpacity>
                             ) : (
                                 <View className="flex-row items-center justify-end flex-1">
-                                    <TouchableOpacity 
-                                        onPress={() => handleReport(item.memory.id, item.memory.group_id)} 
+                                    <TouchableOpacity
+                                        onPress={() => handleReport(item.memory.id, item.memory.group_id)}
                                         className={`flex-row items-center bg-red-500/10 border border-red-500/20 rounded-2xl px-6 ${isTablet ? 'h-16' : 'h-12'}`}
                                     >
                                         <Ionicons name="shield-outline" size={isTablet ? 22 : 18} color="#ef4444" />

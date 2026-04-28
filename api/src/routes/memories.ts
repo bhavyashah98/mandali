@@ -13,6 +13,11 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const { groupId } = req.params;
         const userId = req.userId;
+        const page = parseInt(req.query.page as string) || 0;
+        const limit = parseInt(req.query.limit as string) || 20;
+
+        const from = page * limit;
+        const to = from + limit - 1;
 
         // 1. Get blocked users
         const { data: blockedData } = await supabase
@@ -28,16 +33,17 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
             .eq('reporter_id', userId);
         const reportedContentIds = reportedData?.map(r => r.content_id) || [];
 
-        // 3. Fetch memories with filters
+        // 3. Fetch memories with filters and pagination
         let query = supabase
             .from('memories')
             .select(`
                 *,
                 user:user_id(name, avatar_url)
-            `)
+            `, { count: 'exact' })
             .eq('group_id', groupId)
-            .eq('is_hidden', false) // Community-hidden content
-            .order('memory_date', { ascending: false });
+            .eq('is_hidden', false) 
+            .order('memory_date', { ascending: false })
+            .range(from, to);
 
         if (blockedUserIds.length > 0) {
             query = query.not('user_id', 'in', `(${blockedUserIds.join(',')})`);
@@ -47,12 +53,16 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
             query = query.not('id', 'in', `(${reportedContentIds.join(',')})`);
         }
 
-        const { data, error } = await query;
+        const { data, error, count } = await query;
 
         if (error) throw error;
 
-        // Grouping logic will be handled on the frontend for flexibility
-        res.json(data);
+        res.json({
+            memories: data,
+            totalCount: count,
+            page,
+            hasMore: count ? (from + (data?.length || 0)) < count : false
+        });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

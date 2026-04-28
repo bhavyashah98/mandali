@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as Linking from 'expo-linking';
+import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthNavigator } from './AuthNavigator';
 import { TabNavigator } from './TabNavigator';
@@ -10,7 +11,6 @@ import SetupProfileScreen from '../screens/auth/SetupProfileScreen';
 import { registerForPushNotificationsAsync } from '../lib/pushNotifications';
 import { fetchCurrentUser } from '../lib/api';
 import { initializeSocket, disconnectSocket } from '../lib/socketService';
-import * as Notifications from 'expo-notifications';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 
 const Stack = createStackNavigator();

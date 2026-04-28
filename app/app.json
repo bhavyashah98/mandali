@@ -29,6 +29,10 @@
         "ITSAppUsesNonExemptEncryption": false,
         "UISupportedInterfaceOrientations": [
           "UIInterfaceOrientationPortrait"
+        ],
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
         ]
       }
     },
