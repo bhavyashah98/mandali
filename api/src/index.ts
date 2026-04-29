@@ -101,6 +101,8 @@ io.on('connection', async (socket) => {
 
     // 1. Presence Setup
     onlineUsers.set(userId, socket.id);
+    socket.join(`user_${userId}`);
+    console.log(`[Socket] User ${userId} joined their private room.`);
 
     // Non-blocking update
     supabase.from('users').update({
@@ -114,7 +116,7 @@ io.on('connection', async (socket) => {
     // Auto-join group rooms the user is a member of
     const { data: memberships } = await supabase.from('group_members').select('group_id').eq('user_id', userId);
     if (memberships) {
-        memberships.forEach(m => socket.join(m.group_id));
+        memberships.forEach(m => socket.join(`group_${m.group_id}`));
     }
 
     // 3. Delegate Feature Handlers

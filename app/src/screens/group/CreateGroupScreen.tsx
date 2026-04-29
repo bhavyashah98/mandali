@@ -78,15 +78,11 @@ const CreateGroupScreen = () => {
             if (isEdit) queryClient.invalidateQueries({ queryKey: ['group', editGroup.id] });
 
             Alert.alert('Success', isEdit ? 'Mandali updated!' : `"${data.group.name}" created!`, [
-                { 
-                    text: 'OK', 
+                {
+                    text: 'OK',
                     onPress: () => {
-                        if (navigation.canGoBack()) {
-                            navigation.goBack();
-                        } else {
-                            navigation.navigate('GroupList');
-                        }
-                    } 
+                        navigation.replace('GroupList');
+                    }
                 },
             ]);
         },
@@ -128,21 +124,17 @@ const CreateGroupScreen = () => {
             {/* Top Bar */}
             <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                 <View style={{ width: isTablet ? 64 : 40 }}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         onPress={() => {
-                            if (navigation.canGoBack()) {
-                                navigation.goBack();
-                            } else {
-                                navigation.navigate('GroupList');
-                            }
-                        }} 
+                            navigation.goBack();
+                        }}
                         className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                     >
                         <MaterialIcons name="arrow-back" size={isTablet ? 28 : 24} color="#b30069" />
                     </TouchableOpacity>
                 </View>
                 <View className="flex-1 items-center">
-                    <Text 
+                    <Text
                         className="font-headline-bold text-on-surface text-[#1c1c18]"
                         style={{ fontSize: isTablet ? 36 : 20 }}
                         numberOfLines={1}

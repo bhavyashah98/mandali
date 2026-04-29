@@ -24,7 +24,7 @@ const JoinGroupScreen = () => {
             queryClient.invalidateQueries({ queryKey: ['groups'] });
 
             Alert.alert('Success', `You have joined "${data.group.name}"!`, [
-                { text: 'Great!', onPress: () => navigation.goBack() }
+                { text: 'Great!', onPress: () => navigation.replace('GroupList') }
             ]);
         },
         onError: (err: any) => {

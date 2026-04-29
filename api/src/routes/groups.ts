@@ -2,6 +2,7 @@ import express from 'express';
 import crypto from 'crypto';
 import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { emitGroupEvent, GroupEventType } from '../sockets/groupEvents';
 
 const router = express.Router();
 
@@ -56,6 +57,9 @@ router.post('/', async (req: AuthRequest, res) => {
             await supabase.from('groups').delete().eq('id', group.id);
             return res.status(500).json({ error: 'Failed to add you as group admin' });
         }
+
+        const io = req.app.get('io');
+        emitGroupEvent(io, group.id, GroupEventType.GROUP_CREATED, group, [userId]);
 
         res.status(201).json({
             group,
@@ -235,6 +239,9 @@ router.post('/join', async (req: AuthRequest, res) => {
             return res.status(500).json({ error: 'Failed to join group' });
         }
 
+        const io = req.app.get('io');
+        emitGroupEvent(io, group.id, GroupEventType.MEMBER_JOINED, { userId }, [userId]);
+
         res.json({ group, message: 'Joined group successfully' });
     } catch (err) {
         console.error('[Groups] Unexpected error:', err);
@@ -279,6 +286,10 @@ router.patch('/:id', async (req: AuthRequest, res) => {
             console.error('[Groups] Update error:', updateError);
             return res.status(500).json({ error: 'Failed to update group' });
         }
+
+        const io = req.app.get('io');
+        console.log(`[Groups] 📢 Emitting GROUP_UPDATED for group ${id}`);
+        emitGroupEvent(io, id as string, GroupEventType.GROUP_UPDATED, group, [userId]);
 
         res.json({ group, message: 'Group updated successfully' });
     } catch (err) {
@@ -353,8 +364,8 @@ router.post('/:id/leave', async (req: AuthRequest, res) => {
                 .eq('group_id', id);
 
             if (count && count > 1) {
-                return res.status(400).json({ 
-                    error: 'Please transfer ownership to another member before leaving the group.' 
+                return res.status(400).json({
+                    error: 'Please transfer ownership to another member before leaving the group.'
                 });
             }
         }
@@ -369,6 +380,9 @@ router.post('/:id/leave', async (req: AuthRequest, res) => {
             console.error('[Groups] Leave error:', leaveError);
             return res.status(500).json({ error: 'Failed to leave group' });
         }
+
+        const io = req.app.get('io');
+        emitGroupEvent(io, id as string, GroupEventType.MEMBER_LEFT, { userId }, [userId]);
 
         res.json({ message: 'Successfully left the group' });
     } catch (err) {
@@ -423,6 +437,10 @@ router.post('/:id/transfer-ownership', async (req: AuthRequest, res) => {
             // Update group ownership record
             supabase.from('groups').update({ admin_user_id: newAdminUserId }).eq('id', id)
         ]);
+
+        const io = req.app.get('io');
+        console.log(`[Groups] 📢 Emitting MEMBERSHIP_CHANGED for group ${id}`);
+        emitGroupEvent(io, id as string, GroupEventType.MEMBERSHIP_CHANGED, { newAdminUserId }, [userId, newAdminUserId]);
 
         res.json({ message: 'Ownership transferred successfully' });
     } catch (err) {

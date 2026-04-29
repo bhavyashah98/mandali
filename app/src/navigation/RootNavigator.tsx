@@ -10,13 +10,13 @@ import { useAuthStore } from '../stores/authStore';
 import SetupProfileScreen from '../screens/auth/SetupProfileScreen';
 import { registerForPushNotificationsAsync } from '../lib/pushNotifications';
 import { fetchCurrentUser } from '../lib/api';
-import { initializeSocket, disconnectSocket } from '../lib/socketService';
+import { socketService } from '../lib/socketService';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 
 const Stack = createStackNavigator();
 
 export const RootNavigator = () => {
-    const { isAuthenticated, setAuthenticated, setUser, user } = useAuthStore();
+    const { isAuthenticated, setAuthenticated, setUser, user, setToken, setAuth } = useAuthStore();
     const [isAppReady, setIsAppReady] = useState(false);
     const navigationRef = useRef<NavigationContainerRef<any>>(null);
     const isProfileIncomplete = isAuthenticated && (!user?.name || user?.name.trim() === '');
@@ -101,29 +101,22 @@ export const RootNavigator = () => {
                         AsyncStorage.getItem('mandali_token')
                     ]);
 
-                    if (userData && token) {
-                        setUser(JSON.parse(userData));
-                        setAuthenticated(true);
-                        initializeSocket(token);
-                        registerForPushNotificationsAsync();
-                    } else if (token) {
+                    if (token) {
                         try {
-                            const profile = await fetchCurrentUser();
-                            if (profile) {
+                            const profile = userData ? JSON.parse(userData) : await fetchCurrentUser();
+                            if (profile && !userData) {
                                 await AsyncStorage.setItem('mandali_user', JSON.stringify(profile));
-                                setUser(profile);
                             }
-                            setAuthenticated(true);
-                            initializeSocket(token);
+                            setAuth(profile, token);
                         } catch (err) {
-                            setAuthenticated(true);
-                            initializeSocket(token);
+                            setAuth(null, token);
                         }
+                        registerForPushNotificationsAsync();
                     }
                 } else {
                     setAuthenticated(false);
                     setUser(null);
-                    disconnectSocket();
+                    setToken(null);
                 }
             } catch (err) {
                 console.error('[Auth Listener] Error:', err);

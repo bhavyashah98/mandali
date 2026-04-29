@@ -1,27 +1,51 @@
+// lib
 import React, { useCallback } from 'react';
-import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { useQuery } from '@tanstack/react-query';
-import { Dimensions, useWindowDimensions } from 'react-native';
-import { fetchGroups, getOptimizedImageUrl } from '../../lib/api';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { useNavigation, } from '@react-navigation/native';
 import { Image } from 'expo-image';
-import { useAuthStore } from '../../stores/authStore';
-import { LinearGradient } from 'expo-linear-gradient';
-import MandaliCoin from '../../components/MandaliCoin';
+
+//hooks
+import { useIsTablet } from '../../hooks/useIsTablet';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSocket } from '../../hooks/useSocket';
+import { useFocusEffect } from '@react-navigation/native';
+
+//api
+import { fetchGroups, getOptimizedImageUrl } from '../../lib/api';
 
 const GroupListScreen = () => {
     const navigation = useNavigation<any>();
-    const { user } = useAuthStore();
-    const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
+    const socket = useSocket();
+    const queryClient = useQueryClient();
 
     const { data: groups = [], isLoading, isRefetching, refetch } = useQuery({
         queryKey: ['groups'],
         queryFn: fetchGroups,
     });
+
+    useFocusEffect(
+        useCallback(() => {
+            refetch();
+
+            if (!socket) {
+                return;
+            }
+
+            const handleGroupUpdate = (event: any) => {
+                queryClient.invalidateQueries({ queryKey: ['groups'] });
+            };
+
+            socket.on('group_event', handleGroupUpdate);
+
+            return () => {
+                console.log('[GroupList] 🔇 Unregistering group listeners');
+                socket.off('group_event', handleGroupUpdate);
+            };
+        }, [socket, queryClient, refetch])
+    );
 
     return (
         <SafeAreaView className="flex-1 bg-[#FDF9F3]" edges={['top']}>

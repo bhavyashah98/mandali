@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
-import { useIsTablet } from '../../hooks/useIsTablet';
+//lib
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Share, Alert, Modal, Pressable, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Dimensions, useWindowDimensions } from 'react-native';
-import { fetchGroupDetail, leaveGroup, deleteGroup, transferOwnership, fetchBlockedUsers, blockUser, unblockUser, getOptimizedImageUrl } from '../../lib/api';
-import * as Linking from 'expo-linking';
-import { Image } from 'expo-image';
-import { useAuthStore } from '../../stores/authStore';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
+
+//hooks
+import { useIsTablet } from '../../hooks/useIsTablet';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchGroupDetail, leaveGroup, deleteGroup, transferOwnership, fetchBlockedUsers, blockUser, unblockUser, getOptimizedImageUrl } from '../../lib/api';
+import { useAuthStore } from '../../stores/authStore';
+import { useSocket } from '../../hooks/useSocket';
 
 const GroupDetailScreen = () => {
     const navigation = useNavigation<any>();
@@ -18,8 +21,8 @@ const GroupDetailScreen = () => {
     const queryClient = useQueryClient();
     const { groupId } = route.params as { groupId: string };
     const { user: currentUser } = useAuthStore();
-    const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
+    const socket = useSocket();
     const [showTransferModal, setShowTransferModal] = useState(false);
     const [showModMenu, setShowModMenu] = useState(false);
     const [modTargetUser, setModTargetUser] = useState<{ id: string, name: string, isBlocked: boolean } | null>(null);
@@ -36,11 +39,31 @@ const GroupDetailScreen = () => {
         queryFn: fetchBlockedUsers
     });
 
+    useFocusEffect(
+        useCallback(() => {
+            if (!socket) return;
+
+            socket.emit('join_group', groupId);
+
+            const handleGroupEvent = (event: any) => {
+                if (event.payload?.groupId === groupId) {
+                    queryClient.invalidateQueries({ queryKey: ['group', groupId] });
+                }
+            };
+
+            socket.on('group_event', handleGroupEvent);
+
+            return () => {
+                socket.off('group_event', handleGroupEvent);
+            };
+        }, [socket, groupId, queryClient])
+    );
+
     const leaveMutation = useMutation({
         mutationFn: () => leaveGroup(groupId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['groups'] });
-            navigation.navigate('GroupList');
+            navigation.replace('GroupList');
         },
         onError: (err: any) => {
             Alert.alert('Error', err?.response?.data?.error || 'Failed to leave group');
@@ -51,7 +74,7 @@ const GroupDetailScreen = () => {
         mutationFn: () => deleteGroup(groupId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['groups'] });
-            navigation.navigate('GroupList');
+            navigation.replace('GroupList');
         },
         onError: (err: any) => {
             Alert.alert('Error', err?.response?.data?.error || 'Failed to delete group');
@@ -76,12 +99,12 @@ const GroupDetailScreen = () => {
     const toggleBlock = async (memberId: string, name: string, currentlyBlocked: boolean) => {
         Alert.alert(
             currentlyBlocked ? 'Unblock User' : 'Block User',
-            currentlyBlocked 
+            currentlyBlocked
                 ? `Do you want to see photos from ${name} again?`
                 : `Are you sure you want to block ${name}? You will no longer see their photos in any shared group gallery.`,
             [
                 { text: 'Cancel', style: 'cancel' },
-                { 
+                {
                     text: currentlyBlocked ? 'Unblock' : 'Block User',
                     style: currentlyBlocked ? 'default' : 'destructive',
                     onPress: async () => {
@@ -369,13 +392,13 @@ const GroupDetailScreen = () => {
                                     {member.role === 'admin' ? 'Founder' : 'Member'}
                                 </Text>
                             </View>
-                            
+
                             {member.role === 'admin' && (
                                 <View className={`bg-primary/5 rounded-2xl ${isTablet ? 'p-5' : 'p-2'}`}>
                                     <Feather name="shield" size={isTablet ? 32 : 12} color="#b30069" />
                                 </View>
                             )}
-                            
+
                             {/* THREE DOTS MODERATION MENU */}
                             {member.user_id !== currentUser?.id && (
                                 <TouchableOpacity
@@ -406,7 +429,7 @@ const GroupDetailScreen = () => {
                     <Pressable className="flex-1 bg-black/40 justify-end" onPress={() => setShowModMenu(false)}>
                         <Pressable className="bg-white rounded-t-[40px] p-8 pb-12" onPress={e => e.stopPropagation()}>
                             <View className="w-12 h-1.5 bg-stone-100 rounded-full self-center mb-8" />
-                            
+
                             <View className="mb-8">
                                 <Text className="text-2xl font-headline-bold text-[#1c1c18]">{modTargetUser?.name}</Text>
                                 <Text className="text-stone-400 font-body-medium">Mandali Member Safety Options</Text>
@@ -422,10 +445,10 @@ const GroupDetailScreen = () => {
                                 className={`flex-row items-center p-5 rounded-3xl border border-stone-100 mb-4 ${modTargetUser?.isBlocked ? 'bg-primary/5' : 'bg-red-50'}`}
                             >
                                 <View className={`w-12 h-12 rounded-full items-center justify-center mr-4 ${modTargetUser?.isBlocked ? 'bg-primary/10' : 'bg-red-100'}`}>
-                                    <Ionicons 
-                                        name={modTargetUser?.isBlocked ? "person-add-outline" : "person-remove-outline"} 
-                                        size={24} 
-                                        color={modTargetUser?.isBlocked ? "#b30069" : "#dc2626"} 
+                                    <Ionicons
+                                        name={modTargetUser?.isBlocked ? "person-add-outline" : "person-remove-outline"}
+                                        size={24}
+                                        color={modTargetUser?.isBlocked ? "#b30069" : "#dc2626"}
                                     />
                                 </View>
                                 <View className="flex-1">
@@ -513,10 +536,10 @@ const GroupDetailScreen = () => {
                         style={{ height: isTablet ? 110 : 64 }}
                         className="bg-red-50 rounded-[32px] items-center justify-center flex-row border border-red-100"
                     >
-                        <MaterialIcons 
-                            name={isAdmin && members.length === 1 ? "delete-sweep" : "exit-to-app"} 
-                            size={isTablet ? 32 : 20} 
-                            color="#dc2626" 
+                        <MaterialIcons
+                            name={isAdmin && members.length === 1 ? "delete-sweep" : "exit-to-app"}
+                            size={isTablet ? 32 : 20}
+                            color="#dc2626"
                         />
                         <Text className={`text-red-600 font-headline-bold ml-3 ${isTablet ? 'text-2xl' : 'text-[16px]'}`}>
                             {isAdmin && members.length === 1 ? 'Permanently Delete Mandali' : 'Leave This Mandali'}
@@ -555,9 +578,9 @@ const GroupDetailScreen = () => {
                                     <Text className={`text-primary font-headline-bold ${isTablet ? 'text-[120px]' : 'text-[80px]'}`}>{group.name?.charAt(0)}</Text>
                                 </View>
                             )}
-                            
+
                             {/* Close button overlay */}
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 onPress={() => setShowCoverModal(false)}
                                 className="absolute top-16 right-8 w-12 h-12 bg-white/10 rounded-full items-center justify-center border border-white/20"
                             >
