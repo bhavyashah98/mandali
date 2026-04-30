@@ -1,10 +1,11 @@
 //lib
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Animated, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Animated, ActivityIndicator, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import Svg, { Circle } from 'react-native-svg';
 
 //hooks
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,10 +14,13 @@ import { useAuthStore } from '../../stores/authStore';
 
 //api
 import { fetchHousieGame } from '../../lib/api';
-import { getSocket } from '../../lib/socketService';
+import { useSocket } from '../../hooks/useSocket';
 
 //components
 import MandaliCoin from '../../components/MandaliCoin';
+
+const { width } = Dimensions.get('window');
+const TIMER_DURATION = 15;
 
 const HousieStartingScreen = () => {
     const isTablet = useIsTablet();
@@ -26,6 +30,14 @@ const HousieStartingScreen = () => {
     const insets = useSafeAreaInsets();
     const { user } = useAuthStore();
     const { gameCode, groupId } = route.params as { gameCode: string; groupId: string };
+    const socket = useSocket();
+
+    // Refs for safe state management
+    const hasNavigatedRef = useRef(false);
+    const intervalRef = useRef<NodeJS.Timeout | null>(null);
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+    const progressAnim = useRef(new Animated.Value(1)).current;
+    const fadeAnim = useRef(new Animated.Value(0)).current;
 
     const { data: game, isLoading } = useQuery({
         queryKey: ['housieGame', gameCode],
@@ -34,176 +46,254 @@ const HousieStartingScreen = () => {
     });
 
     const [activeTab, setActiveTab] = useState<'prizes' | 'players'>('prizes');
-    const [secondsLeft, setSecondsLeft] = useState(15);
-    const pulseAnim = React.useRef(new Animated.Value(1)).current;
+    const [secondsLeft, setSecondsLeft] = useState(TIMER_DURATION);
 
+    // ---------------------------------------------------------
+    // 1. ✅ TIMER SYNC (SERVER BASED)
+    // ---------------------------------------------------------
     useEffect(() => {
         if (!game?.last_activity_at) return;
 
+        const startTime = new Date(game.last_activity_at).getTime();
+
         const syncTimer = () => {
-            const startTime = new Date(game.last_activity_at).getTime();
             const now = Date.now();
             const elapsed = Math.floor((now - startTime) / 1000);
-            const remaining = Math.max(0, 15 - elapsed);
+            const remaining = Math.max(0, TIMER_DURATION - elapsed);
+
             setSecondsLeft(remaining);
+
+            // Smooth visual progress update
+            Animated.timing(progressAnim, {
+                toValue: remaining / TIMER_DURATION,
+                duration: 300,
+                useNativeDriver: false,
+            }).start();
+
+            // ❗ Fallback: Force refetch if timer hit 0 but status didn't flip yet
+            if (remaining === 0 && game.status === 'starting') {
+                queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
+            }
         };
 
-        syncTimer(); // Initial sync
-        const timer = setInterval(syncTimer, 1000);
+        // Run immediately on first sync
+        syncTimer();
 
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(pulseAnim, { toValue: 1.1, duration: 500, useNativeDriver: true }),
-                Animated.timing(pulseAnim, { toValue: 1.0, duration: 500, useNativeDriver: true })
-            ])
-        ).start();
+        // Clear existing interval if any
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        intervalRef.current = setInterval(syncTimer, 1000);
 
-        return () => clearInterval(timer);
-    }, [game?.last_activity_at]);
-
-    // 1. Redirection Logic Based on Role
-    const handleRedirect = React.useCallback(() => {
-        if (!game || game.status !== 'active') return;
-
-        const isHost = game.host_id === user?.id;
-        const hasBoughtTickets = game.participants?.some((p: any) => p.id === user?.id && p.ticketCount > 0);
-
-        if (isHost) {
-            navigation.replace('HousieGame', { gameCode, groupId });
-        } else if (hasBoughtTickets) {
-            navigation.replace('HousieTicket', { gameCode, groupId });
-        } else {
-            navigation.replace('HousieSpectator', { gameCode, groupId });
-        }
-    }, [game, user?.id, navigation, gameCode, groupId]);
-
-    // 2. Socket listener for activation
-    useEffect(() => {
-        const socket = getSocket();
-
-        const onGameActivated = () => {
-            queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
-        };
-
-        socket.on('game_activated', onGameActivated);
-
-        // Immediate check if status is already active
-        if (game?.status === 'active') {
-            handleRedirect();
-        }
+        // Initial fade-in when core data is ready
+        Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
 
         return () => {
-            socket.off('game_activated', onGameActivated);
+            if (intervalRef.current) clearInterval(intervalRef.current);
         };
-    }, [game?.status, handleRedirect, gameCode, queryClient]);
+    }, [game?.last_activity_at]);
 
-    // 3. Guards: Don't show numeric UI until data is hydrated to avoid flickering "0"
-    if (isLoading || !game || !game.participants) {
+    // ---------------------------------------------------------
+    // 2. ✅ OPTIMISTIC SOCKET HANDLING (INSTANT STATE FLIP)
+    // ---------------------------------------------------------
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleGameActivated = () => {
+            // ✅ Instant update (avoiding network latency of a refetch)
+            queryClient.setQueryData(['housieGame', gameCode], (old: any) => {
+                if (!old) return old;
+                return { ...old, status: 'active' };
+            });
+        };
+
+        socket.on('game_activated', handleGameActivated);
+
+        return () => {
+            socket.off('game_activated', handleGameActivated);
+        };
+    }, [socket, gameCode]);
+
+    // ---------------------------------------------------------
+    // 3. ✅ NAVIGATION TRIGGER (BASED ON STATE CHANGE)
+    // ---------------------------------------------------------
+    useEffect(() => {
+        if (!game || game.status !== 'active') return;
+        if (hasNavigatedRef.current) return;
+
+        hasNavigatedRef.current = true;
+
+        const isHost = game.host_id === user?.id;
+        const hasTickets = game.participants?.some(
+          (p: any) => p.id === user?.id && p.ticketCount > 0
+        );
+
+        if (isHost) {
+          navigation.replace('HousieGame', { gameCode, groupId });
+        } else if (hasTickets) {
+          navigation.replace('HousieTicket', { gameCode, groupId });
+        } else {
+          navigation.replace('HousieSpectator', { gameCode, groupId });
+        }
+    }, [game?.status]);
+
+
+    // Animation setup for pulse circle
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, { toValue: 1.05, duration: 600, useNativeDriver: true }),
+                Animated.timing(pulseAnim, { toValue: 1.0, duration: 600, useNativeDriver: true })
+            ])
+        ).start();
+    }, []);
+
+    // UI Constants
+    const radius = isTablet ? 60 : 45;
+    const strokeWidth = isTablet ? 10 : 6;
+    const circumference = 2 * Math.PI * radius;
+    const strokeDashoffset = progressAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [circumference, 0]
+    });
+
+    if (isLoading || !game) {
         return (
-            <View className="flex-1 bg-[#1c0012] items-center justify-center">
+            <View className="flex-1 bg-[#0a0005] items-center justify-center">
                 <LinearGradient
-                    colors={['#3d0022', '#1c0012']}
+                    colors={['#1a0010', '#0a0005']}
                     style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
                 />
                 <ActivityIndicator color="#b30069" size="large" />
-                <Text className="text-white/40 font-body-medium mt-6 tracking-widest uppercase text-[10px]">Synchronizing Match...</Text>
+                <Text className="text-white/30 font-headline-bold mt-6 tracking-[4px] uppercase text-[10px]">Preparing Room...</Text>
             </View>
         );
     }
 
     const prizes = game?.prizes || [];
     const participants = game?.participants || [];
-    const participantsCount = participants.length;
     const totalPrizePool = game?.totalPrizePool || 0;
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#1c0012' }}>
+        <Animated.View style={{ flex: 1, backgroundColor: '#0a0005', opacity: fadeAnim }}>
             <LinearGradient
-                colors={['#4d002e', '#1c0012', '#000000']}
-                style={{ flex: 1, paddingHorizontal: isTablet ? 40 : 20 }}
+                colors={['#2d001a', '#0a0005', '#000000']}
+                style={{ flex: 1 }}
             >
-                <View className="flex-1" style={{ paddingTop: Math.max(insets.top, 20) }}>
-                    {/* Compact Header Area */}
-                    <View className="items-center flex-row justify-between mb-4 mt-4">
-                        <View className="flex-1">
-                            <Text className={`text-[#b30069] font-body-bold uppercase tracking-[2px] ${isTablet ? 'text-lg' : 'text-[10px]'}`}>
-                                Match Starting In
-                            </Text>
-                            <Text className={`text-white/60 font-body-medium mt-1 ${isTablet ? 'text-xl' : 'text-xs'}`}>
-                                Locking prizes and finalizing...
-                            </Text>
-                        </View>
+                {/* Background Decor */}
+                <View style={{ position: 'absolute', top: -100, right: -50, opacity: 0.15 }}>
+                    <FontAwesome5 name="dice" size={300} color="#b30069" />
+                </View>
 
-                        <Animated.View
-                            style={{ transform: [{ scale: pulseAnim }], shadowColor: '#b30069', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 10 }}
-                            className={`items-center justify-center bg-white/5 rounded-2xl border border-white/10 ${isTablet ? 'w-24 h-24' : 'w-16 h-16'}`}
+                <View className="flex-1" style={{ paddingTop: insets.top }}>
+                    
+                    {/* Premium Countdown Header - More Compact */}
+                    <View className={`items-center ${isTablet ? 'py-4' : 'py-2'}`}>
+                        <Animated.View 
+                            style={{ 
+                                width: radius * 2 + strokeWidth * 2, 
+                                height: radius * 2 + strokeWidth * 2,
+                                transform: [{ scale: pulseAnim }]
+                            }}
+                            className="items-center justify-center"
                         >
-                            <Text className={`text-white font-headline-bold leading-none ${isTablet ? 'text-4xl' : 'text-2xl'}`}>
-                                {secondsLeft}
-                            </Text>
+                            <Svg height={radius * 2 + strokeWidth * 2} width={radius * 2 + strokeWidth * 2}>
+                                <Circle
+                                    cx={radius + strokeWidth}
+                                    cy={radius + strokeWidth}
+                                    r={radius}
+                                    stroke="rgba(255,255,255,0.05)"
+                                    strokeWidth={strokeWidth}
+                                    fill="transparent"
+                                />
+                                <AnimatedCircle
+                                    cx={radius + strokeWidth}
+                                    cy={radius + strokeWidth}
+                                    r={radius}
+                                    stroke="#b30069"
+                                    strokeWidth={strokeWidth}
+                                    fill="transparent"
+                                    strokeDasharray={circumference}
+                                    strokeDashoffset={strokeDashoffset}
+                                    strokeLinecap="round"
+                                />
+                            </Svg>
+                            <View style={{ position: 'absolute', alignItems: 'center' }}>
+                                <Text className={`text-white font-headline-bold ${isTablet ? 'text-5xl' : 'text-3xl'}`}>
+                                    {secondsLeft}
+                                </Text>
+                                <Text className="text-white/40 font-body-bold tracking-[2px] uppercase text-[8px] mt-0.5">Secs</Text>
+                            </View>
                         </Animated.View>
-                    </View>
 
-                    {/* Compact Stats Grid */}
-                    <View className="flex-row items-center justify-around bg-white/5 rounded-3xl p-4 mb-4 border border-white/5">
-                        <View className="flex-row items-center">
-                            <Ionicons name="people" size={isTablet ? 24 : 16} color="#b30069" />
-                            <Text className={`text-white/60 font-body-bold uppercase ml-2 mr-3 ${isTablet ? 'text-sm' : 'text-[10px]'}`} style={{ letterSpacing: 1 }}>Players</Text>
-                            <Text className={`text-white font-headline-bold ${isTablet ? 'text-2xl' : 'text-xl'}`}>{participantsCount}</Text>
-                        </View>
-                        <View style={{ width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.05)' }} />
-                        <View className="flex-row items-center">
-                            <MandaliCoin size={isTablet ? 24 : 16} />
-                            <Text className={`text-white/60 font-body-bold uppercase ml-2 mr-3 ${isTablet ? 'text-sm' : 'text-[10px]'}`} style={{ letterSpacing: 1 }}>Total Pool</Text>
-                            <Text className={`text-white font-headline-bold ${isTablet ? 'text-2xl' : 'text-xl'}`}>{totalPrizePool}</Text>
+                        <View className={`mt-4 items-center px-8 ${isTablet ? 'mb-4' : 'mb-2'}`}>
+                            <Text className={`text-white font-headline-bold text-center tracking-tight ${isTablet ? 'text-3xl' : 'text-xl'}`}>
+                                Match Starting Soon
+                            </Text>
+                            <Text className={`text-white/50 font-body-medium text-center mt-1 ${isTablet ? 'text-lg px-20' : 'text-[11px]'}`}>
+                                Finalizing Bounty List
+                            </Text>
                         </View>
                     </View>
 
-                    {/* Expanded Content Area with Tabs */}
-                    <View className="flex-1 bg-black/40 rounded-t-[40px] border-t border-x border-white/5 overflow-hidden">
-                        {/* Tab Bar */}
-                        <View className="flex-row border-b border-white/5">
+                    {/* Compact Highlight Stats */}
+                    <View className={`flex-row items-center justify-between px-8 ${isTablet ? 'mb-8' : 'mb-6'}`}>
+                        <View className="bg-white/5 rounded-3xl p-4 flex-1 mr-4 border border-white/5 items-center">
+                            <Text className="text-white/40 font-body-bold uppercase text-[9px] mb-1 tracking-widest">Confirmed Players</Text>
+                            <Text className="text-white font-headline-bold text-xl">{participants.length}</Text>
+                        </View>
+                        <View className="bg-white/5 rounded-3xl p-4 flex-1 border border-white/5 items-center">
+                            <Text className="text-white/40 font-body-bold uppercase text-[9px] mb-1 tracking-widest">Total Reward</Text>
+                            <View className="flex-row items-center">
+                                <Text className="text-white font-headline-bold text-xl mr-1">{totalPrizePool}</Text>
+                                <MandaliCoin size={14} />
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Shared Content Area */}
+                    <View className="flex-1 bg-black/40 rounded-t-[48px] border-t border-white/10 overflow-hidden shadow-2xl">
+                        {/* Custom Tab Switcher */}
+                        <View className="flex-row p-2 bg-white/5 mx-6 mt-6 rounded-2xl">
                             <TouchableOpacity
                                 onPress={() => setActiveTab('prizes')}
-                                className={`flex-1 py-5 items-center border-b-2 ${activeTab === 'prizes' ? 'border-[#b30069] bg-[#b30069]/5' : 'border-transparent'}`}
+                                className={`flex-1 py-3 items-center rounded-xl ${activeTab === 'prizes' ? 'bg-[#b30069] shadow-lg' : ''}`}
                             >
-                                <Text className={`font-headline-bold tracking-widest uppercase ${isTablet ? 'text-xl' : 'text-xs'} ${activeTab === 'prizes' ? 'text-white' : 'text-white/40'}`}>
-                                    Rewards
+                                <Text className={`font-headline-bold tracking-widest uppercase ${isTablet ? 'text-lg' : 'text-[10px]'} ${activeTab === 'prizes' ? 'text-white' : 'text-white/40'}`}>
+                                    Bounties
                                 </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={() => setActiveTab('players')}
-                                className={`flex-1 py-5 items-center border-b-2 ${activeTab === 'players' ? 'border-[#b30069] bg-[#b30069]/5' : 'border-transparent'}`}
+                                className={`flex-1 py-3 items-center rounded-xl ${activeTab === 'players' ? 'bg-[#b30069] shadow-lg' : ''}`}
                             >
-                                <Text className={`font-headline-bold tracking-widest uppercase ${isTablet ? 'text-xl' : 'text-xs'} ${activeTab === 'players' ? 'text-white' : 'text-white/40'}`}>
-                                    Players ({participantsCount})
+                                <Text className={`font-headline-bold tracking-widest uppercase ${isTablet ? 'text-lg' : 'text-[10px]'} ${activeTab === 'players' ? 'text-white' : 'text-white/40'}`}>
+                                    Participants
                                 </Text>
                             </TouchableOpacity>
                         </View>
 
                         <ScrollView
                             showsVerticalScrollIndicator={false}
-                            contentContainerStyle={{ paddingHorizontal: isTablet ? 32 : 20, paddingVertical: 24, paddingBottom: 100 }}
+                            contentContainerStyle={{ paddingHorizontal: isTablet ? 32 : 24, paddingVertical: 24, paddingBottom: 60 }}
                         >
                             {activeTab === 'prizes' ? (
-                                <View className="gap-3">
+                                <View className="gap-4">
                                     {prizes.map((prize: any, idx: number) => (
                                         <View
                                             key={prize.id || idx}
-                                            className={`flex-row items-center justify-between ${isTablet ? 'p-6' : 'p-5'} rounded-3xl ${prize.isHighlight ? 'bg-white/10 border border-[#b30069]/60 shadow-lg shadow-[#b30069]/20' : 'bg-white/5 border border-white/5'}`}
+                                            className="flex-row items-center justify-between p-4 rounded-3xl bg-white/5 border border-white/5"
                                         >
                                             <View className="flex-row items-center flex-1 mr-4">
-                                                <View className={`rounded-2xl items-center justify-center ${isTablet ? 'w-16 h-16 mr-6' : 'w-12 h-12 mr-4'} ${prize.isHighlight ? 'bg-[#b30069]' : 'bg-white/10'}`}>
-                                                    <MaterialIcons name={(prize.icon as any) || 'emoji-events'} size={isTablet ? 32 : 24} color="white" />
+                                                <View className="rounded-2xl items-center justify-center bg-white/10 w-12 h-12 mr-4">
+                                                    <MaterialIcons name={(prize.icon as any) || 'emoji-events'} size={24} color="#b30069" />
                                                 </View>
                                                 <View className="flex-1">
-                                                    <Text className={`text-white font-headline-bold ${isTablet ? 'text-2xl' : 'text-base'}`} numberOfLines={1}>{prize.name}</Text>
-                                                    <Text className={`text-white/40 font-body-bold mt-1 uppercase tracking-widest ${isTablet ? 'text-sm' : 'text-[9px]'}`} numberOfLines={1}>Match Milestone</Text>
+                                                    <Text className="text-white font-headline-bold text-base" numberOfLines={1}>{prize.name}</Text>
+                                                    <Text className="text-white/30 font-body-bold mt-0.5 uppercase tracking-widest text-[9px]">Winning Category</Text>
                                                 </View>
                                             </View>
-                                            <View className={`flex-row items-center ${prize.isHighlight ? 'bg-[#b30069]' : 'bg-[#b30069]/20'} rounded-2xl ${isTablet ? 'px-6 py-3' : 'px-4 py-2'} border border-[#b30069]/30`}>
-                                                <Text className={`text-white font-headline-bold mr-2 ${isTablet ? 'text-2xl' : 'text-lg'}`}>{prize.amount}</Text>
-                                                <MandaliCoin size={isTablet ? 24 : 16} />
+                                            <View className="flex-row items-center bg-[#b30069]/20 rounded-2xl px-4 py-2 border border-[#b30069]/20">
+                                                <Text className="text-white font-headline-bold mr-1.5 text-lg">{prize.amount}</Text>
+                                                <MandaliCoin size={14} />
                                             </View>
                                         </View>
                                     ))}
@@ -213,23 +303,14 @@ const HousieStartingScreen = () => {
                                     {participants.map((player: any, idx: number) => (
                                         <View
                                             key={player.id || idx}
-                                            className={`flex-row items-center justify-between ${isTablet ? 'p-6' : 'p-5'} rounded-3xl bg-white/5 border border-white/10`}
+                                            className="flex-row items-center border-b border-white/5 py-4"
                                         >
-                                            <View className="flex-row items-center flex-1 mr-4">
-                                                <View className={`rounded-2xl items-center justify-center bg-white/10 ${isTablet ? 'w-16 h-16 mr-6' : 'w-12 h-12 mr-4'}`}>
-                                                    <Ionicons name="person" size={isTablet ? 28 : 22} color="white" />
-                                                </View>
-                                                <View className="flex-1">
-                                                    <Text className={`text-white font-headline-bold ${isTablet ? 'text-2xl' : 'text-base'}`} numberOfLines={1}>{player.name}</Text>
-                                                    <Text className={`text-white/40 font-body-bold mt-1 uppercase tracking-widest ${isTablet ? 'text-sm' : 'text-[9px]'}`} numberOfLines={1}>
-                                                        {player.ticketCount > 0 ? `${player.ticketCount} Tickets Bought` : 'Watching Game'}
-                                                    </Text>
-                                                </View>
+                                            <View className="w-10 h-10 rounded-full bg-[#b30069]/20 items-center justify-center border border-[#b30069]/30">
+                                                <Text className="text-[#b30069] font-headline-bold">{player.name?.charAt(0)}</Text>
                                             </View>
-                                            <View className={`rounded-xl ${isTablet ? 'px-5 py-2.5' : 'px-3 py-1.5'} ${player.ticketCount > 0 ? 'bg-green-500/20 border border-green-500/30' : 'bg-amber-500/20 border border-amber-500/30'}`}>
-                                                <Text className={`font-headline-bold tracking-tighter ${isTablet ? 'text-base' : 'text-[10px]'} ${player.ticketCount > 0 ? 'text-green-500' : 'text-amber-500'}`}>
-                                                    {player.ticketCount > 0 ? 'PLAYER' : 'SPECTATOR'}
-                                                </Text>
+                                            <View className="flex-1 ml-4">
+                                                <Text className="text-white font-headline-bold text-[15px]">{player.name}</Text>
+                                                <Text className="text-white/40 font-body-medium text-[11px]">{player.ticketCount} Tickets • Confirmed</Text>
                                             </View>
                                         </View>
                                     ))}
@@ -238,9 +319,20 @@ const HousieStartingScreen = () => {
                         </ScrollView>
                     </View>
                 </View>
+
+                {/* Secure Status Footer */}
+                <View 
+                    style={{ paddingBottom: Math.max(insets.bottom, 20), paddingHorizontal: 32 }}
+                    className="absolute bottom-0 left-0 right-0 py-4 bg-[#0a0005e0] border-t border-white/5 items-center flex-row justify-center"
+                >
+                    <Ionicons name="shield-checkmark" size={isTablet ? 20 : 14} color="#b30069" />
+                    <Text className="text-white/40 font-body-bold uppercase tracking-[2px] text-[10px] ml-4">Server-Synchronized Engine Active</Text>
+                </View>
             </LinearGradient>
-        </View>
+        </Animated.View>
     );
 };
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 export default HousieStartingScreen;

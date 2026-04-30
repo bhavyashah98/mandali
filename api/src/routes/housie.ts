@@ -85,7 +85,7 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
         // Immediately notify group so other members' lobbies refetch and see the game
         const ioInstance = req.app.get('io');
         if (ioInstance) {
-            ioInstance.to(groupId).emit('game_created', {
+            ioInstance.to(`group_${groupId}`).emit('game_created', {
                 gameCode,
                 status: 'waiting'
             });
@@ -191,7 +191,7 @@ router.patch('/:gameCode/activate', authMiddleware, async (req: AuthRequest, res
             });
 
             // 2. Notify group members in lobby
-            io.to(game.group_id).emit('game_starting', {
+            io.to(`group_${game.group_id}`).emit('game_starting', {
                 gameCode,
                 status: 'starting'
             });
@@ -657,11 +657,10 @@ router.patch('/:gameCode/status', authMiddleware, async (req: AuthRequest, res) 
         if (status === 'ended') {
             const io = req.app.get('io');
             io.to(gameCode).emit('game_ended', {
-                message: 'The game has been ended by the host.',
-                status: updatedGame.status,
-                endedAt: new Date()
+                gameCode,
+                status: 'ended'
             });
-            io.to(game.group_id).emit('game_created', {
+            io.to(`group_${game.group_id}`).emit('game_created', {
                 gameCode,
                 status,
             });

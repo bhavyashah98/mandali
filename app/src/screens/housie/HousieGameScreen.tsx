@@ -27,24 +27,24 @@ const HousieGameScreen = () => {
     const gameCode = params?.gameCode?.trim().toUpperCase() || '';
     const groupId = params?.groupId;
 
-    const { 
-        game, 
-        isLoading, 
-        secondsSinceLastCall, 
-        isPlayerClaiming, 
-        callNumber, 
-        isCallingNumber, 
-        endGame, 
-        isEndingGame 
+    const {
+        game,
+        isLoading,
+        secondsSinceLastCall,
+        isPlayerClaiming,
+        callNumber,
+        isCallingNumber,
+        endGame,
+        isEndingGame
     } = useHousieGameEngine(gameCode, groupId);
 
-    const { 
-        claimsQueue, 
-        activeClaim, 
-        pendingCount, 
-        verifyClaim, 
-        activeNotification, 
-        clearNotification 
+    const {
+        claimsQueue,
+        activeClaim,
+        pendingCount,
+        verifyClaim,
+        activeNotification,
+        clearNotification
     } = useHousieClaimManager(gameCode, game);
 
     const [verifyingTicket, setVerifyingTicket] = useState<any>(null);
@@ -95,7 +95,7 @@ const HousieGameScreen = () => {
             {/* Header */}
             <View className={`px-6 flex-row items-center justify-between ${isTablet ? 'py-6 px-12' : 'py-3 px-6'}`}>
                 <View style={{ width: isTablet ? 120 : 80 }}>
-                    <TouchableOpacity onPress={() => navigation.navigate('HousieLobby', { groupId })} className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}>
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 18} color="#594048" style={{ marginLeft: isTablet ? 8 : 5 }} />
                     </TouchableOpacity>
                 </View>
@@ -116,7 +116,7 @@ const HousieGameScreen = () => {
             </View>
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: isTablet ? 60 : 20, paddingBottom: 60, paddingTop: 5 }}>
-                <LiveCallerCard 
+                <LiveCallerCard
                     currentNumber={currentNumber}
                     recentNumbers={recentNumbers}
                     secondsSinceLastCall={secondsSinceLastCall}
@@ -186,7 +186,7 @@ const HousieGameScreen = () => {
                 </View>
             </ScrollView>
 
-            <ClaimVerificationModal 
+            <ClaimVerificationModal
                 visible={!!activeClaim && game?.status !== 'ended'}
                 activeClaim={activeClaim}
                 verifyingTicket={verifyingTicket}

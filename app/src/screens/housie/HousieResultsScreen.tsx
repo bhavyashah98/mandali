@@ -37,7 +37,7 @@ const HousieResultsScreen = () => {
 
     const handleClose = () => {
         // Navigate back to the main lobby for this group
-        navigation.navigate('HousieLobby', { groupId });
+        navigation.goBack();
     };
 
     if (isLoading) {
@@ -52,11 +52,11 @@ const HousieResultsScreen = () => {
     return (
         <SafeAreaView className="flex-1 bg-[#FDF9F3]">
             {/* Centered Header Section */}
-            <View 
+            <View
                 className="items-center w-full"
-                style={{ 
+                style={{
                     marginTop: isTablet ? 40 : 24,
-                    marginBottom: isTablet ? 40 : 16 
+                    marginBottom: isTablet ? 40 : 16
                 }}
             >
                 <View className={`bg-primary/10 rounded-full mb-4 items-center justify-center shadow-sm ${isTablet ? 'w-40 h-40' : 'w-24 h-24'}`}>
@@ -70,9 +70,9 @@ const HousieResultsScreen = () => {
                 >
                     Game Over!
                 </Text>
-                <Text 
+                <Text
                     className="font-body-bold text-[#b30069] text-center tracking-[4px] uppercase"
-                    style={{ 
+                    style={{
                         fontSize: isTablet ? 20 : 12,
                         marginTop: isTablet ? 8 : 4
                     }}
@@ -121,8 +121,8 @@ const HousieResultsScreen = () => {
 
                             {/* Info */}
                             <View className="flex-1 min-w-0">
-                                <Text 
-                                    className={`text-[#31302d] font-headline-bold mb-1 ${isTablet ? 'text-4xl' : 'text-[15px]'}`} 
+                                <Text
+                                    className={`text-[#31302d] font-headline-bold mb-1 ${isTablet ? 'text-4xl' : 'text-[15px]'}`}
                                     numberOfLines={1}
                                     adjustsFontSizeToFit
                                     minimumFontScale={0.7}
@@ -144,7 +144,7 @@ const HousieResultsScreen = () => {
                             {/* Amount */}
                             <View className="items-end ml-2">
                                 <View className="flex-row items-center">
-                                    <Text 
+                                    <Text
                                         className={`text-[#b30069] font-headline-bold ${isTablet ? 'text-5xl' : 'text-base'}`}
                                         numberOfLines={1}
                                     >
@@ -162,9 +162,9 @@ const HousieResultsScreen = () => {
             </ScrollView>
 
             {/* Bottom Button */}
-            <View 
+            <View
                 className={`px-8 pt-4 ${isTablet ? 'px-20' : ''}`}
-                style={{ 
+                style={{
                     paddingBottom: Math.max(insets.bottom, isTablet ? 48 : 24),
                     backgroundColor: '#FDF9F3'
                 }}
@@ -174,7 +174,7 @@ const HousieResultsScreen = () => {
                     style={{ height: isTablet ? 110 : 70 }}
                     className="bg-[#b30069] rounded-[32px] items-center justify-center shadow-xl shadow-primary/20"
                 >
-                    <Text 
+                    <Text
                         className="text-white font-headline-bold"
                         style={{ fontSize: isTablet ? 32 : 20 }}
                     >Done</Text>

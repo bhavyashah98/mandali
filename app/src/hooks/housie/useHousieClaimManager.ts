@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { getSocket } from '../../lib/socketService';
+import { useSocket } from '../useSocket';
 import { fetchTicketById } from '../../lib/api';
 
 export const useHousieClaimManager = (gameCode: string, game: any) => {
     const queryClient = useQueryClient();
+    const socket = useSocket();
     const [claimsQueue, setClaimsQueue] = useState<any[]>([]);
     const initialHydrationRef = useRef(false);
     const [activeNotification, setActiveNotification] = useState<{
@@ -42,8 +43,8 @@ export const useHousieClaimManager = (gameCode: string, game: any) => {
 
     // Socket listeners for claims
     useEffect(() => {
-        if (!gameCode) return;
-        const socket = getSocket();
+        if (!gameCode || !socket) return;
+        socket.emit('join_game', gameCode);
 
         const onNewClaim = async (data: any) => {
             const ticket = await fetchTicketById(data.ticketId);
@@ -78,9 +79,7 @@ export const useHousieClaimManager = (gameCode: string, game: any) => {
 
     const verifyClaim = (status: 'accepted' | 'denied') => {
         const activeClaim = claimsQueue[0];
-        if (!activeClaim) return;
-
-        const socket = getSocket();
+        if (!activeClaim || !socket) return;
         socket.emit('verify_claim', {
             gameCode,
             prizeId: activeClaim.prizeId,

@@ -214,7 +214,7 @@ const GroupDetailScreen = () => {
                 </Text>
                 {isAdmin ? (
                     <TouchableOpacity
-                        onPress={() => navigation.navigate('CreateGroup', { group })}
+                        onPress={() => navigation.navigate('CreateGroup', { group, returnTo: { screen: 'GroupDetail' } })}
                         className={`bg-primary/10 rounded-full flex-row items-center ${isTablet ? 'px-10 py-5' : 'px-4 py-2'}`}
                     >
                         <Feather name="edit-3" size={isTablet ? 24 : 14} color="#b30069" />

@@ -26,7 +26,7 @@ import { useQuery } from '@tanstack/react-query';
 //api
 import { API_URL, getAuthHeaders, activateHousieGame } from '../../lib/api';
 import axios from 'axios';
-import { getSocket } from '../../lib/socketService';
+import { useSocket } from '../../hooks/useSocket';
 
 const HousieDefineBountyScreen = () => {
     const navigation = useNavigation<any>();
@@ -36,6 +36,7 @@ const HousieDefineBountyScreen = () => {
 
     const [isStarting, setIsStarting] = useState(false);
     const isTablet = useIsTablet();
+    const socket = useSocket();
 
     // Standard Prizes
     const [prizes, setPrizes] = useState([
@@ -61,15 +62,14 @@ const HousieDefineBountyScreen = () => {
             const response = await axios.get(`${API_URL}/housie/${gameCode}/participants`, { headers });
             return response.data;
         },
-        staleTime: 5000, 
+        staleTime: 5000,
         refetchOnMount: 'always',
         refetchOnWindowFocus: true,
     });
 
     // Handle real-time ticket purchase updates
     useEffect(() => {
-        if (!gameCode) return;
-        const socket = getSocket();
+        if (!gameCode || !socket) return;
 
         const onTicketsBought = () => {
             refetchStats();
@@ -149,7 +149,7 @@ const HousieDefineBountyScreen = () => {
         try {
             setIsStarting(true);
             await activateHousieGame(gameCode, prizes);
-            navigation.navigate('HousieStarting', { gameCode, groupId });
+            navigation.replace('HousieStarting', { gameCode, groupId });
         } catch (error: any) {
             Alert.alert('Error', error.response?.data?.error || 'Failed to start game');
             setIsStarting(false);
@@ -168,7 +168,7 @@ const HousieDefineBountyScreen = () => {
                     <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                         <View style={{ width: isTablet ? 64 : 44 }}>
                             <TouchableOpacity
-                                onPress={() => navigation.goBack()}
+                                onPress={() => navigation.replace('HousieWaitingRoom', { gameCode, groupId })}
                                 className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                             >
                                 <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />

@@ -55,7 +55,10 @@ const MemoriesSelectGroupScreen = () => {
 
             <View className="w-full gap-6">
                 <TouchableOpacity
-                    onPress={() => navigation.navigate('Groups', { screen: 'CreateGroup' })}
+                    onPress={() => navigation.navigate('Groups', { 
+                        screen: 'CreateGroup',
+                        params: { returnTo: { parent: 'Memories', screen: 'MemoriesSelectGroup' } }
+                    })}
                     style={{ height: isTablet ? 110 : 64 }}
                     className="rounded-[32px] bg-[#b30069] flex-row items-center justify-center px-8 shadow-xl shadow-primary/20"
                 >
@@ -67,7 +70,10 @@ const MemoriesSelectGroupScreen = () => {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    onPress={() => navigation.navigate('Groups', { screen: 'JoinGroup' })}
+                    onPress={() => navigation.navigate('Groups', { 
+                        screen: 'JoinGroup',
+                        params: { returnTo: { parent: 'Memories', screen: 'MemoriesSelectGroup' } }
+                    })}
                     style={{ height: isTablet ? 110 : 64 }}
                     className="rounded-[32px] bg-[#fcecf2] flex-row items-center justify-center px-8 border border-[#b30069]/10"
                 >

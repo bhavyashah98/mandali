@@ -2,13 +2,13 @@ import * as React from 'react';
 import MandaliCoin from '../../components/MandaliCoin';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { useState } from 'react';
-import { 
-    View, 
-    Text, 
-    TouchableOpacity, 
-    TextInput, 
-    ActivityIndicator, 
-    Alert, 
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    TextInput,
+    ActivityIndicator,
+    Alert,
     Keyboard,
     TouchableWithoutFeedback,
     Platform,
@@ -32,7 +32,7 @@ const HousieJoinGameScreen = () => {
     const queryClient = useQueryClient();
 
     const [gameCode, setGameCode] = useState(passedGameCode || '');
-    const [difficulty, setDifficulty] = useState<'easy'|'medium'|'hard'>('easy');
+    const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
     const [ticketCount, setTicketCount] = useState('1');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -69,7 +69,7 @@ const HousieJoinGameScreen = () => {
             const response = await joinHousieGame(gameCode.toUpperCase(), count);
             if (response.success) {
                 queryClient.invalidateQueries({ queryKey: ['housieTickets', gameCode.toUpperCase()] });
-                
+
                 navigation.replace('HousieWaitingRoom', {
                     gameCode: gameCode.toUpperCase(),
                     groupId: groupId
@@ -87,15 +87,15 @@ const HousieJoinGameScreen = () => {
             {/* Header Branding */}
             <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                 <View style={{ width: isTablet ? 64 : 44 }}>
-                    <TouchableOpacity 
-                        onPress={() => navigation.navigate('HousieLobby', { groupId })} 
+                    <TouchableOpacity
+                        onPress={() => navigation.goBack()}
                         className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                     >
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />
                     </TouchableOpacity>
                 </View>
                 <View className="flex-1 items-center">
-                    <Text 
+                    <Text
                         className={`text-[#a09a90] font-body-bold uppercase tracking-[3px] text-center ${isTablet ? 'text-xl' : 'text-[10px]'}`}
                         numberOfLines={1}
                     >
@@ -105,23 +105,23 @@ const HousieJoinGameScreen = () => {
                 <View style={{ width: isTablet ? 64 : 44 }} />
             </View>
 
-            <KeyboardAvoidingView 
+            <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={{ flex: 1 }}
             >
-                <ScrollView 
-                    className="flex-1" 
+                <ScrollView
+                    className="flex-1"
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={{ flexGrow: 1, paddingHorizontal: isTablet ? 80 : 32, paddingBottom: 40 }}
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode="on-drag"
                 >
                     <View className={`${isTablet ? 'py-12' : 'py-6'}`}>
-                        <Text 
+                        <Text
                             className="text-[#1c1c18] font-headline-bold mb-4"
                             style={{ fontSize: isTablet ? 72 : 42, lineHeight: isTablet ? 80 : 48 }}
                         >Join the{"\n"}Gathering</Text>
-                        <Text 
+                        <Text
                             className="text-[#a09d96] font-body-medium"
                             style={{ fontSize: isTablet ? 26 : 18, marginBottom: isTablet ? 60 : 40 }}
                         >Enter the code to grab your tickets. Points represent Mandali Glory and have no cash value.</Text>
@@ -183,8 +183,8 @@ const HousieJoinGameScreen = () => {
                         </View>
 
                         {/* Back Link shifted above if inside scroll for small devices */}
-                        <TouchableOpacity 
-                            onPress={() => navigation.navigate('HousieLobby', { groupId })}
+                        <TouchableOpacity
+                            onPress={() => navigation.goBack()}
                             className="mt-10 self-center"
                         >
                             <Text className={`text-stone-300 font-body-bold uppercase tracking-[4px] ${isTablet ? 'text-lg' : 'text-xs'}`}>Return to Lobby</Text>
@@ -193,9 +193,9 @@ const HousieJoinGameScreen = () => {
                 </ScrollView>
 
                 {/* Sticky Footer */}
-                <View 
+                <View
                     className="bg-[#fdf9f3] border-t border-stone-100"
-                    style={{ 
+                    style={{
                         paddingHorizontal: isTablet ? 80 : 32,
                         paddingTop: isTablet ? 32 : 16,
                         paddingBottom: Math.max(insets.bottom, isTablet ? 48 : 24)
@@ -214,7 +214,7 @@ const HousieJoinGameScreen = () => {
                                 <View className="flex-row items-center justify-center px-4 w-full">
                                     <MaterialIcons name="local-activity" size={isTablet ? 36 : 24} color="white" />
                                     <View className="flex-row items-center ml-4 flex-shrink-1">
-                                        <Text 
+                                        <Text
                                             className="text-white font-headline-bold"
                                             style={{ fontSize: isTablet ? 32 : 22 }}
                                             numberOfLines={1}

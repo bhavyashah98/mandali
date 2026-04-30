@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, RefreshControl, useWindowDimensions, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useSocket } from '../../hooks/useSocket';
+import { useQueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { fetchGroups, getOptimizedImageUrl } from '../../lib/api';
 import MandaliCoin from '../../components/MandaliCoin';
@@ -11,19 +13,40 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const HousieSelectGroupScreen = () => {
     const navigation = useNavigation<any>();
-    const { width } = useWindowDimensions();
+    const socket = useSocket();
+    const queryClient = useQueryClient();
     const isTablet = useIsTablet();
     const { data: groups, isLoading, isRefetching, refetch } = useQuery({
         queryKey: ['groups'],
         queryFn: fetchGroups
     });
 
+    useFocusEffect(
+        useCallback(() => {
+            refetch();
+
+            if (!socket) {
+                return;
+            }
+
+            const handleGroupUpdate = (event: any) => {
+                queryClient.invalidateQueries({ queryKey: ['groups'] });
+            };
+
+            socket.on('group_event', handleGroupUpdate);
+
+            return () => {
+                socket.off('group_event', handleGroupUpdate);
+            };
+        }, [socket, queryClient, refetch])
+    );
+
     const totalGlory = groups?.reduce((acc: number, g: any) => acc + (g.totalWinnings || 0), 0) || 0;
 
     const renderTotalGloryCard = () => {
         if (!groups || groups.length === 0) return <View className="h-4" />;
         return (
-            <TouchableOpacity 
+            <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={() => Alert.alert(
                     "Mandali Glory",
@@ -102,7 +125,15 @@ const HousieSelectGroupScreen = () => {
 
             <View className="w-full gap-6">
                 <TouchableOpacity
-                    onPress={() => navigation.navigate('Groups', { screen: 'CreateGroup' })}
+                    onPress={() => navigation.navigate('Groups', {
+                        screen: 'CreateGroup',
+                        params: {
+                            returnTo: {
+                                parent: 'Housie',
+                                screen: 'HousieSelectGroup',
+                            }
+                        }
+                    })}
                     style={{ height: isTablet ? 110 : 64 }}
                     className="rounded-[32px] bg-[#b30069] flex-row items-center justify-center px-8 shadow-xl shadow-primary/20"
                 >
@@ -114,7 +145,15 @@ const HousieSelectGroupScreen = () => {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    onPress={() => navigation.navigate('Groups', { screen: 'JoinGroup' })}
+                    onPress={() => navigation.navigate('Groups', {
+                        screen: 'JoinGroup',
+                        params: {
+                            returnTo: {
+                                parent: 'Housie',
+                                screen: 'HousieSelectGroup',
+                            }
+                        }
+                    })}
                     style={{ height: isTablet ? 110 : 64 }}
                     className="rounded-[32px] bg-[#fcecf2] flex-row items-center justify-center px-8 border border-[#b30069]/10"
                 >
@@ -190,18 +229,10 @@ const HousieSelectGroupScreen = () => {
 
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top']}>
-            <View className="px-6 py-4 flex-row items-center">
-                {/* Back Button */}
-                <TouchableOpacity
-                    onPress={() => navigation.navigate('Groups')}
-                    className={`items-center justify-center bg-white rounded-full shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
-                >
-                    <MaterialIcons name="arrow-back" size={isTablet ? 32 : 24} color="#31302d" />
-                </TouchableOpacity>
-
+            <View className="px-6 py-4 flex-row items-center justify-center">
                 {/* Centered Header Section */}
                 <View
-                    className="items-center flex-1 pr-10"
+                    className="items-center w-full"
                     style={{
                         marginTop: isTablet ? 30 : 12,
                         marginBottom: isTablet ? 20 : 12

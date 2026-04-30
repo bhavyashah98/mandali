@@ -10,7 +10,7 @@ import { TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import MandaliCoin from '../../components/MandaliCoin';
 import { fetchHousieGame, fetchGroupDetail, getOptimizedImageUrl } from '../../lib/api';
-import { getSocket } from '../../lib/socketService';
+import { useSocket } from '../../hooks/useSocket';
 import HousieWinNotification from '../../components/housie/HousieWinNotification';
 import HousieClaimCheckingIndicator from '../../components/housie/HousieClaimCheckingIndicator';
 
@@ -20,6 +20,7 @@ const HousieSpectatorScreen = () => {
     const route = useRoute();
     const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};
     const queryClient = useQueryClient();
+    const socket = useSocket();
 
     const [isPlayerClaiming, setIsPlayerClaiming] = React.useState(false);
     const [activeNotification, setActiveNotification] = React.useState<{
@@ -47,7 +48,7 @@ const HousieSpectatorScreen = () => {
 
     // Socket — listen for numbers and game end
     useEffect(() => {
-        const socket = getSocket();
+        if (!socket) return;
         socket.emit('join_game', gameCode);
 
         const onNumberCalled = (data: any) => {
@@ -63,7 +64,7 @@ const HousieSpectatorScreen = () => {
         const onClaimResult = (data: any) => {
             const { prizeId, status, playerName, avatarUrl, prizeName } = data;
             queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
-            
+
             if (status === 'accepted') {
                 setActiveNotification({ type: 'win', playerName, avatarUrl, prizeName });
             } else if (status === 'denied' && data.message !== 'Prize already claimed') {
@@ -72,8 +73,6 @@ const HousieSpectatorScreen = () => {
         };
 
         const onGameEnded = () => {
-            const state = navigation.getState();
-            if (state?.routes[state?.index]?.name === 'HousieResults') return;
             setIsPlayerClaiming(false); // Reset indicator
             navigation.replace('HousieResults', { gameCode, groupId });
         };
@@ -125,11 +124,6 @@ const HousieSpectatorScreen = () => {
         );
     }
 
-    if (game?.status === 'starting') {
-        navigation.replace('HousieStarting', { gameCode, groupId });
-        return null;
-    }
-
     const renderBoard = () => {
         const itemRadius = isTablet ? 12 : 6;
         const fontSize = isTablet ? 20 : 10;
@@ -144,18 +138,16 @@ const HousieSpectatorScreen = () => {
                     <View
                         key={num}
                         style={{ flex: 1, aspectRatio: 1, borderRadius: itemRadius, margin: isTablet ? 3 : 1.5 }}
-                        className={`items-center justify-center ${
-                            isCurrent ? 'bg-[#b30069]' : isCalled ? 'bg-[#f59e0b]' : 'bg-[#f0ebe6]'
-                        }`}
+                        className={`items-center justify-center ${isCurrent ? 'bg-[#b30069]' : isCalled ? 'bg-[#f59e0b]' : 'bg-[#f0ebe6]'
+                            }`}
                     >
                         <Text
                             numberOfLines={1}
                             adjustsFontSizeToFit
                             minimumFontScale={0.3}
                             style={{ fontSize }}
-                            className={`font-headline-bold text-center ${
-                                isCurrent ? 'text-white' : isCalled ? 'text-white' : 'text-[#b0a09a]'
-                            }`}
+                            className={`font-headline-bold text-center ${isCurrent ? 'text-white' : isCalled ? 'text-white' : 'text-[#b0a09a]'
+                                }`}
                         >
                             {num}
                         </Text>
@@ -180,15 +172,15 @@ const HousieSpectatorScreen = () => {
             {/* Header Branding */}
             <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                 <View style={{ width: isTablet ? 64 : 44 }}>
-                    <TouchableOpacity 
-                        onPress={() => navigation.goBack()} 
+                    <TouchableOpacity
+                        onPress={() => navigation.goBack()}
                         className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                     >
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />
                     </TouchableOpacity>
                 </View>
                 <View className="flex-1 items-center">
-                    <Text 
+                    <Text
                         className={`text-[#a09a90] font-body-bold uppercase tracking-[3px] text-center ${isTablet ? 'text-xl' : 'text-[10px]'}`}
                         numberOfLines={1}
                     >
@@ -218,7 +210,7 @@ const HousieSpectatorScreen = () => {
                         <View className="flex-row items-center justify-center gap-x-5 px-4">
                             {/* Ball p-2 */}
                             <View className="items-center">
-                                <View 
+                                <View
                                     style={{ width: isTablet ? 90 : 58, height: isTablet ? 90 : 58, borderRadius: 45 }}
                                     className="bg-[#b30069]/10 border border-[#b30069]/20 items-center justify-center"
                                 >
@@ -230,7 +222,7 @@ const HousieSpectatorScreen = () => {
 
                             {/* Ball p-1 */}
                             <View className="items-center">
-                                <View 
+                                <View
                                     style={{ width: isTablet ? 110 : 72, height: isTablet ? 110 : 72, borderRadius: 55 }}
                                     className="bg-[#b30069]/20 border border-[#b30069]/30 items-center justify-center"
                                 >
@@ -242,7 +234,7 @@ const HousieSpectatorScreen = () => {
 
                             {/* CURRENT BALL */}
                             <View className="items-center">
-                                <View 
+                                <View
                                     style={{ width: isTablet ? 180 : 110, height: isTablet ? 180 : 110, borderRadius: 90, elevation: 12 }}
                                     className="bg-[#b30069] items-center justify-center shadow-2xl shadow-[#b30069]/30 border-[5px] border-white"
                                 >

@@ -10,7 +10,7 @@ import { Socket } from 'socket.io-client';
 import { useAuthStore } from '../../stores/authStore';
 import MandaliCoin from '../../components/MandaliCoin';
 import { fetchHousieGame, joinHousieGame, fetchHousieTickets, API_URL } from '../../lib/api';
-import { getSocket } from '../../lib/socketService';
+import { useSocket } from '../../hooks/useSocket';
 import HousieWinNotification from '../../components/housie/HousieWinNotification';
 import HousieClaimCheckingIndicator from '../../components/housie/HousieClaimCheckingIndicator';
 import { canClaimPrize, registerSessionClaim, resetSessionClaims } from '../../utils/housieValidator';
@@ -31,7 +31,7 @@ const HousieTicketScreen = () => {
     const groupId = params?.groupId;
 
     const [ticketCount, setTicketCount] = useState('2');
-    const [socket, setSocket] = useState<Socket | null>(null);
+    const socket = useSocket();
     const [prizesModalVisible, setPrizesModalVisible] = useState(false);
     const [claimingTicketId, setClaimingTicketId] = useState<string | null>(null);
     const [isGameEnded, setIsGameEnded] = useState(false);
@@ -73,17 +73,6 @@ const HousieTicketScreen = () => {
         queryFn: () => fetchHousieTickets(gameCode),
         enabled: !!gameCode && gameCode.length >= 6,
         staleTime: 5_000
-    });
-
-    // 3. Purchase Tickets Mutation
-    const buyTicketsMutation = useMutation({
-        mutationFn: () => joinHousieGame(gameCode, parseInt(ticketCount)),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['housieTickets', gameCode] });
-        },
-        onError: (error: any) => {
-            Alert.alert('Error', error.response?.data?.error || 'Failed to buy tickets');
-        }
     });
 
     // 4. Marking state
@@ -151,7 +140,6 @@ const HousieTicketScreen = () => {
         setClaimConfirmVisible(false);
         setPendingClaimPrizeId(null);
         if (claimCountdownRef.current) clearInterval(claimCountdownRef.current);
-        if (socket) socket.emit('claiming_closed', { gameCode });
     };
 
     const openClaimConfirm = (prizeId: string) => {
@@ -181,7 +169,7 @@ const HousieTicketScreen = () => {
                     setPrizesModalVisible(false);
                     setClaimConfirmVisible(false);
                     setPendingClaimPrizeId(null);
-                    if (getSocket()) getSocket().emit('claiming_closed', { gameCode });
+                    if (socket) socket.emit('claiming_closed', { gameCode, userId: user?.id });
                     return 0;
                 }
                 return prev - 1;
@@ -192,10 +180,7 @@ const HousieTicketScreen = () => {
     }, [prizesModalVisible]);
 
     useEffect(() => {
-        if (!gameCode || gameCode.length < 6) return;
-
-        const socket = getSocket();
-        setSocket(socket);
+        if (!gameCode || gameCode.length < 6 || !socket) return;
 
         const onConnect = () => {
             socket.emit('join_game', gameCode);
@@ -243,9 +228,6 @@ const HousieTicketScreen = () => {
         };
 
         const onGameEnded = () => {
-            const state = navigation.getState();
-            if (state?.routes[state?.index]?.name === 'HousieResults') return;
-            // Purge tickets cache so old ticket data doesn't bleed into the next game
             queryClient.removeQueries({ queryKey: ['housieTickets', gameCode] });
             setIsGameEnded(true);
             setPrizesModalVisible(false);
@@ -301,9 +283,8 @@ const HousieTicketScreen = () => {
             : [...currentMarks, num];
 
         setMarkedTickets(prev => ({ ...prev, [ticketId]: newMarks }));
-        const currentSocket = getSocket();
-        if (currentSocket) {
-            currentSocket.emit('sync_marks', {
+        if (socket) {
+            socket.emit('sync_marks', {
                 ticketId,
                 markedNumbers: newMarks
             });
@@ -321,11 +302,6 @@ const HousieTicketScreen = () => {
                 <ActivityIndicator size="large" color="#b30069" />
             </SafeAreaView>
         );
-    }
-
-    if (game?.status === 'starting') {
-        navigation.replace('HousieStarting', { gameCode, groupId });
-        return null; // Return null while navigating
     }
 
     const renderTicket = ({ item: ticket }: { item: any }) => {
@@ -368,7 +344,7 @@ const HousieTicketScreen = () => {
                         onPress={async () => {
                             setClaimingTicketId(ticket.id);
                             setClaimCountdown(10);
-                            if (getSocket()) getSocket().emit('claiming_open', { gameCode });
+                            if (socket) socket.emit('claiming_open', { gameCode, userId: user?.id });
                             // Await fresh game data BEFORE opening modal — prizes may be stale
                             try {
                                 setIsClaimLoading(true);
@@ -411,7 +387,7 @@ const HousieTicketScreen = () => {
         <SafeAreaView className="flex-1 bg-[#FDF9F3]" edges={['top']}>
             <View className={`px-6 items-center flex-row justify-between ${isTablet ? 'py-8' : 'py-4'}`}>
                 <TouchableOpacity
-                    onPress={() => navigation.navigate('HousieLobby', { groupId })}
+                    onPress={() => navigation.goBack()}
                     className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                 >
                     <MaterialIcons name="arrow-back-ios" size={isTablet ? 24 : 18} color="#594048" style={{ marginLeft: isTablet ? 10 : 5 }} />
@@ -437,9 +413,11 @@ const HousieTicketScreen = () => {
                     <Text className={`text-stone-400 font-body-medium ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>
                         {calledNumbers.length} of 90 numbers called
                     </Text>
-                    <View className="ml-3">
-                        <HousieClaimCheckingIndicator visible={isPlayerClaiming} />
-                    </View>
+                </View>
+
+                {/* Centered Verification Indicator */}
+                <View className="mt-4 h-12 justify-center">
+                    <HousieClaimCheckingIndicator visible={isPlayerClaiming} />
                 </View>
             </View>
 
@@ -497,7 +475,7 @@ const HousieTicketScreen = () => {
                                         <MaterialIcons name="timer" size={14} color="#b30069" />
                                         <Text className="text-primary font-body-bold ml-1">{claimCountdown}s</Text>
                                     </View>
-                                    <TouchableOpacity onPress={() => { setPrizesModalVisible(false); if (getSocket()) getSocket().emit('claiming_closed', { gameCode }); }}
+                                    <TouchableOpacity onPress={() => { setPrizesModalVisible(false); if (socket) socket.emit('claiming_closed', { gameCode, userId: user?.id }); }}
                                         className={`items-center justify-center rounded-full bg-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}>
                                         <MaterialIcons name="close" size={isTablet ? 32 : 24} color="#594048" />
                                     </TouchableOpacity>

@@ -2,35 +2,35 @@ import { Server, Socket } from 'socket.io';
 import { supabase } from '../lib/supabase';
 
 export const registerHousieHandlers = (io: Server, socket: Socket) => {
-    
+
     socket.on('join_game', (gameCode) => {
         socket.join(gameCode);
     });
 
     socket.on('join_group', (groupId) => {
-        socket.join(groupId); 
+        socket.join(`group_${groupId}`);
     });
 
     // Player signals they've opened the prize selection modal (host should pause calling numbers)
-    socket.on('claiming_open', ({ gameCode }) => {
-        socket.to(gameCode).emit('player_claiming_open');
+    socket.on('claiming_open', ({ gameCode, userId }) => {
+        socket.to(gameCode).emit('player_claiming_open', { userId });
     });
 
     // Player signals they've closed/resolved the prize modal
-    socket.on('claiming_closed', ({ gameCode }) => {
-        socket.to(gameCode).emit('player_claiming_closed');
+    socket.on('claiming_closed', ({ gameCode, userId }) => {
+        socket.to(gameCode).emit('player_claiming_closed', { userId });
     });
 
     socket.on('claim_prize', async (data) => {
         const { gameCode, prizeId, userId, ticketId, markedNumbers } = data;
-        
+
         try {
             const { data: game } = await supabase
                 .from('housie_games')
                 .select('called_numbers, winners')
                 .eq('game_code', gameCode)
                 .single();
-            
+
             const currentNumberIndex = game?.called_numbers?.length || 0;
             const lastNumber = game?.called_numbers?.[currentNumberIndex - 1];
 
@@ -60,14 +60,14 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
 
     socket.on('verify_claim', async (data) => {
         const { gameCode, prizeId, userId, ticketId, status, claimedOnIndex } = data;
-        
+
         try {
             const { data: game } = await supabase
                 .from('housie_games')
                 .select('id, group_id, winners, called_numbers, prizes')
                 .eq('game_code', gameCode)
                 .single();
-            
+
             if (!game) return;
 
             const winners = game.winners || {};
@@ -78,22 +78,22 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
 
             if (status === 'accepted') {
                 const existingWinners = Array.isArray(winners[prizeId]) ? winners[prizeId] : (winners[prizeId] ? [winners[prizeId]] : []);
-                
+
                 if (existingWinners.length > 0) {
                     const firstWinnerIndex = existingWinners[0].claimedOnIndex;
                     if (firstWinnerIndex && firstWinnerIndex < (claimedOnIndex || currentCalledCount)) {
-                         io.to(gameCode).emit('claim_result', {
+                        io.to(gameCode).emit('claim_result', {
                             prizeId, userId, ticketId, status: 'denied', message: 'Prize already claimed'
                         });
                         return;
                     }
                 }
 
-                const newWinner = { 
-                    userId, 
-                    ticketId, 
+                const newWinner = {
+                    userId,
+                    ticketId,
                     claimedAt: new Date(),
-                    claimedOnIndex: claimedOnIndex || currentCalledCount 
+                    claimedOnIndex: claimedOnIndex || currentCalledCount
                 };
 
                 const updatedWinnersList = [...existingWinners, newWinner];
@@ -116,7 +116,7 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
                             prize_name: prize ? prize.name : prizeId,
                             prize_amount: splitAmount
                         }, {
-                            onConflict: 'game_id,user_id,prize_name' 
+                            onConflict: 'game_id,user_id,prize_name'
                         });
                 }
 
@@ -153,7 +153,7 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
                 supabase.from('users').select('name, avatar_url').eq('id', userId).single(),
                 supabase.from('housie_games').select('prizes').eq('game_code', gameCode).single()
             ]);
-            
+
             if (userData) {
                 playerName = userData.name;
                 avatarUrl = userData.avatar_url;
@@ -167,9 +167,9 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
         }
 
         io.to(gameCode).emit('claim_result', {
-            prizeId, 
-            userId, 
-            ticketId, 
+            prizeId,
+            userId,
+            ticketId,
             status,
             playerName,
             avatarUrl,

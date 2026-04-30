@@ -17,7 +17,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { createHousieGame, cancelHousieGame } from '../../lib/api';
 
 //socket
-import { getSocket } from '../../lib/socketService';
+import { useSocket } from '../../hooks/useSocket';
 
 const HousieLobbyScreen = () => {
     const navigation = useNavigation<any>();
@@ -26,6 +26,7 @@ const HousieLobbyScreen = () => {
     const [isLoading, setIsLoading] = useState(false);
     const { user } = useAuthStore();
     const isTablet = useIsTablet();
+    const socket = useSocket();
 
     const {
         activeGame,
@@ -41,8 +42,7 @@ const HousieLobbyScreen = () => {
     const queryClient = useQueryClient();
 
     useEffect(() => {
-        if (!groupId) return;
-        const socket = getSocket();
+        if (!groupId || !socket) return;
         socket.emit('join_group', groupId);
 
         const onGameCreated = () => {
@@ -337,7 +337,7 @@ const HousieLobbyScreen = () => {
 
             {/* Back Button */}
             <TouchableOpacity
-                onPress={() => navigation.navigate('HousieSelectGroup')}
+                onPress={() => navigation.goBack()}
                 className={`absolute left-8 items-center justify-center bg-white rounded-full shadow-md z-10 border border-stone-50 ${isTablet ? 'top-20 w-16 h-16' : 'top-16 w-12 h-12'}`}
             >
                 <MaterialIcons name="arrow-back" size={isTablet ? 36 : 28} color="#31302d" />

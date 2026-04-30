@@ -13,7 +13,7 @@ import { useHousieWaitingRoomSync } from '../../hooks/housie/useHousieWaitingRoo
 
 //api
 import { fetchHousieGame, updateHousieStatus, fetchGroupDetail, fetchHousieParticipants, getOptimizedImageUrl } from '../../lib/api';
-import { getSocket } from '../../lib/socketService';
+import { useSocket } from '../../hooks/useSocket';
 
 const HousieWaitingRoomScreen = () => {
     const isTablet = useIsTablet();
@@ -23,6 +23,7 @@ const HousieWaitingRoomScreen = () => {
     const queryClient = useQueryClient();
     const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};
     const { user } = useAuthStore();
+    const socket = useSocket();
 
     // 1. Fetch Game Status
     const { data: game } = useQuery({
@@ -59,7 +60,7 @@ const HousieWaitingRoomScreen = () => {
     });
 
     useEffect(() => {
-        const socket = getSocket();
+        if (!socket) return;
         socket.emit('join_game', gameCode);
 
         const onTicketsBought = () => {
@@ -71,10 +72,7 @@ const HousieWaitingRoomScreen = () => {
         };
 
         const onGameEnded = () => {
-            navigation.reset({
-                index: 0,
-                routes: [{ name: 'HousieLobby', params: { groupId } }],
-            });
+            navigation.goBack();
         }
 
         socket.on('tickets_bought', onTicketsBought);
@@ -122,7 +120,7 @@ const HousieWaitingRoomScreen = () => {
             <View className={`px-6 flex-row items-center justify-between ${isTablet ? 'py-8 px-12' : 'py-4 px-6'}`}>
                 <View style={{ width: isTablet ? 64 : 44 }}>
                     <TouchableOpacity
-                        onPress={() => navigation.replace('HousieLobby', { groupId })}
+                        onPress={() => navigation.goBack()}
                         className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                     >
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 18} color="#594048" style={{ marginLeft: isTablet ? 8 : 5 }} />
@@ -151,10 +149,6 @@ const HousieWaitingRoomScreen = () => {
                                         try {
                                             await updateHousieStatus(gameCode, 'ended');
                                             await queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
-                                            navigation.reset({
-                                                index: 0,
-                                                routes: [{ name: 'HousieLobby', params: { groupId } }],
-                                            });
                                         } catch (err) {
                                             Alert.alert('Error', 'Failed to cancel game');
                                         }

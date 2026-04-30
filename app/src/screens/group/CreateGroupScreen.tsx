@@ -28,8 +28,10 @@ const CreateGroupScreen = () => {
     const isTablet = useIsTablet();
 
     // Check if we are in Edit Mode
-    const editGroup = (route.params as any)?.group;
+    const params = route.params as any;
+    const editGroup = params?.group;
     const isEdit = !!editGroup;
+    const returnTo = params?.returnTo;
 
     const [groupName, setGroupName] = useState(editGroup?.name || '');
     const [description, setDescription] = useState(editGroup?.description || '');
@@ -81,7 +83,12 @@ const CreateGroupScreen = () => {
                 {
                     text: 'OK',
                     onPress: () => {
-                        navigation.replace('GroupList');
+                        const finalParams = { ...returnTo.params, groupId: data.group.id };
+                        if (returnTo.parent) {
+                            navigation.replace(returnTo.parent, { screen: returnTo.screen, params: finalParams });
+                        } else {
+                            navigation.replace(returnTo.screen, finalParams);
+                        }
                     }
                 },
             ]);

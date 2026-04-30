@@ -31,7 +31,13 @@ export const RootNavigator = () => {
             case 'join':
                 navigationRef.current.navigate('Main', {
                     screen: 'Groups',
-                    params: { screen: 'JoinGroup', params: { inviteCode: params.id } }
+                    params: { 
+                        screen: 'JoinGroup', 
+                        params: { 
+                            inviteCode: params.id,
+                            returnTo: { screen: 'GroupList' }
+                        } 
+                    }
                 });
                 break;
             case 'housie':

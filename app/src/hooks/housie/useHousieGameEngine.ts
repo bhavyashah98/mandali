@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { fetchHousieGame, updateHousieStatus, callHousieNumber } from '../../lib/api';
-import { getSocket } from '../../lib/socketService';
+import { useSocket } from '../useSocket';
 
 import * as Speech from 'expo-speech';
 
@@ -13,7 +13,8 @@ export const useHousieGameEngine = (gameCode: string, groupId: string) => {
     const queryClient = useQueryClient();
     const navigation = useNavigation<any>();
     const [secondsSinceLastCall, setSecondsSinceLastCall] = useState(0);
-    const [isPlayerClaiming, setIsPlayerClaiming] = useState(false);
+    const [claimingPlayers, setClaimingPlayers] = useState<Set<string>>(new Set());
+    const socket = useSocket();
 
     // 1. Fetch live game data
     const { data: game, isLoading } = useQuery({
@@ -68,8 +69,8 @@ export const useHousieGameEngine = (gameCode: string, groupId: string) => {
 
     // 5. Socket Listener for Global Game Events
     useEffect(() => {
-        if (!gameCode) return;
-        const socket = getSocket();
+        if (!gameCode || !socket) return;
+        socket.emit('join_game', gameCode);
 
         const onNumberCalled = (data: any) => {
             const numbers = data.calledNumbers || [];
@@ -93,25 +94,49 @@ export const useHousieGameEngine = (gameCode: string, groupId: string) => {
             navigation.replace('HousieResults', { gameCode, groupId });
         };
 
-        const onPlayerClaimingOpen = () => setIsPlayerClaiming(true);
-        const onPlayerClaimingClosed = () => setIsPlayerClaiming(false);
+        const onPlayerClaimingOpen = ({ userId }: { userId?: string }) => {
+            if (userId) {
+                setClaimingPlayers(prev => new Set(prev).add(userId));
+            }
+        };
+        const onPlayerClaimingClosed = ({ userId }: { userId?: string }) => {
+            if (userId) {
+                setClaimingPlayers(prev => {
+                    const next = new Set(prev);
+                    next.delete(userId);
+                    return next;
+                });
+            }
+        };
+
+        const onClaimResult = (data: any) => {
+            if (data?.userId) {
+                setClaimingPlayers(prev => {
+                    const next = new Set(prev);
+                    next.delete(data.userId);
+                    return next;
+                });
+            }
+        };
 
         socket.on('number_called', onNumberCalled);
         socket.on('game_ended', onGameEnded);
         socket.on('player_claiming_open', onPlayerClaimingOpen);
         socket.on('player_claiming_closed', onPlayerClaimingClosed);
+        socket.on('claim_result', onClaimResult);
 
         return () => {
             socket.off('number_called', onNumberCalled);
             socket.off('game_ended', onGameEnded);
             socket.off('player_claiming_open', onPlayerClaimingOpen);
             socket.off('player_claiming_closed', onPlayerClaimingClosed);
+            socket.off('claim_result', onClaimResult);
         };
     }, [gameCode]);
 
     // Determine if we should block calling numbers
     const hasPendingClaims = !!game?.winners?.['__pending']?.length;
-    const effectivelyClaiming = isPlayerClaiming || hasPendingClaims;
+    const effectivelyClaiming = claimingPlayers.size > 0 || hasPendingClaims;
 
     return {
         game,

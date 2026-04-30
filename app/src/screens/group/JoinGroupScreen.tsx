@@ -13,7 +13,7 @@ const JoinGroupScreen = () => {
     const queryClient = useQueryClient();
     const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
-
+    const returnTo = route.params?.returnTo;
     const [inviteCode, setInviteCode] = useState(route.params?.inviteCode || '');
 
 
@@ -24,7 +24,17 @@ const JoinGroupScreen = () => {
             queryClient.invalidateQueries({ queryKey: ['groups'] });
 
             Alert.alert('Success', `You have joined "${data.group.name}"!`, [
-                { text: 'Great!', onPress: () => navigation.replace('GroupList') }
+                {
+                    text: 'Great!',
+                    onPress: () => {
+                        const finalParams = { ...returnTo.params, groupId: data.group.id };
+                        if (returnTo.parent) {
+                            navigation.replace(returnTo.parent, { screen: returnTo.screen, params: finalParams });
+                        } else {
+                            navigation.replace(returnTo.screen, finalParams);
+                        }
+                    }
+                }
             ]);
         },
         onError: (err: any) => {

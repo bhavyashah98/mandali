@@ -175,7 +175,7 @@ const GroupListScreen = () => {
                 {/* Primary Action Section - Stacked High-Density Rows */}
                 <View className={`mt-12 gap-6`}>
                     <TouchableOpacity
-                        onPress={() => navigation.navigate('CreateGroup')}
+                        onPress={() => navigation.navigate('CreateGroup', { returnTo: { screen: 'GroupList' } })}
                         activeOpacity={0.9}
                         style={{
                             height: isTablet ? 110 : 64,
@@ -199,7 +199,7 @@ const GroupListScreen = () => {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        onPress={() => navigation.navigate('JoinGroup')}
+                        onPress={() => navigation.navigate('JoinGroup', { returnTo: { screen: 'GroupList' } })}
                         activeOpacity={0.7}
                         style={{
                             height: isTablet ? 110 : 64,
