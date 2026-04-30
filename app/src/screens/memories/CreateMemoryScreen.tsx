@@ -63,20 +63,18 @@ const CreateMemoryScreen = () => {
                 const result = await manipulateAsync(
                     uri,
                     [{ resize: { width: 1200 } }], // Downscale to 1200px (WhatsApp-style)
-                    { compress: 0.8, format: SaveFormat.JPEG } // 70% quality
+                    { compress: 0.6, format: SaveFormat.JPEG } // 60% quality
                 );
                 return result.uri;
             }));
 
-            // 1. Upload all images to storage
             const uploadPromises = compressedImages.map(uri => uploadImage(uri, groupId!));
             const imageResults = await Promise.all(uploadPromises);
 
-            // 2. Create a SEPARATE memory record for each image
-            // This ensures each photo can be deleted individually without affecting others
+
             const createPromises = imageResults.map(result => createMemory({
                 groupId: groupId!,
-                imageUrls: [result.url], // Each record gets its own array with 1 image
+                imageUrls: [result.url],
                 story,
                 memoryDate
             }));

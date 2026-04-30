@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useCallback, useEffect } from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, FlatList, TouchableOpacity, useWindowDimensions, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,38 +8,9 @@ import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { fetchMemories, fetchGroupDetail, getOptimizedImageUrl } from '../../lib/api';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
-
-const MemoryGridItem = ({ photo, COLUMN_COUNT, openDetail }: any) => {
-    // High-res Prefetch Trigger - Now matching the 900x900 Detail View size
-    useEffect(() => {
-        if (photo.url) {
-            Image.prefetch(getOptimizedImageUrl(photo.url, 'w_900,h_900,c_limit,q_auto,f_auto'));
-        }
-    }, [photo.url]);
-
-    return (
-        <View style={{ width: `${100 / COLUMN_COUNT}%`, aspectRatio: 1, padding: 1 }}>
-            <TouchableOpacity
-                activeOpacity={0.9}
-                onPress={() => openDetail(photo.url, photo.memory.id)}
-                className="w-full h-full bg-stone-50 overflow-hidden"
-            >
-                <Image
-                    source={{ uri: getOptimizedImageUrl(photo.url, 'w_300,h_300,c_fill,g_auto,f_auto,q_auto') }}
-                    style={{ width: '100%', height: '100%' }}
-                    contentFit="cover"
-                    transition={300}
-                    cachePolicy="memory-disk"
-                />
-                <View className="absolute bottom-1.5 right-1.5 w-4 h-4 rounded-full border border-white/40 bg-white/10 overflow-hidden">
-                    {photo.memory.user?.avatar_url && (
-                        <Image source={{ uri: getOptimizedImageUrl(photo.memory.user.avatar_url, 'w_50,q_auto,f_auto') }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-                    )}
-                </View>
-            </TouchableOpacity>
-        </View>
-    );
-};
+import OnThisDaySection from '../../components/memories/OnThisDaySection';
+import SectionHeader from '../../components/memories/SectionHeader';
+import GridRow from '../../components/memories/GridRow';
 
 const MemoriesScreen = () => {
     const { width } = useWindowDimensions();
@@ -49,7 +20,7 @@ const MemoriesScreen = () => {
     const route = useRoute();
     const params = route.params as { groupId: string } | undefined;
     const groupId = params?.groupId;
-    const today = new Date();
+    const today = useMemo(() => new Date(), []);
 
     const { data: group } = useQuery({
         queryKey: ['groupDetail', groupId],
@@ -167,88 +138,26 @@ const MemoriesScreen = () => {
         return result;
     }, [onThisDayMemories, groupedMemories, COLUMN_COUNT]);
 
-    const openDetail = (url: string, memoryId: string) => {
+    const openDetail = useCallback((url: string, memoryId: string) => {
         const index = flattenedMemories.findIndex(fm => fm.url === url && fm.memory.id === memoryId);
         navigation.navigate('MemoryDetail', {
             memories: flattenedMemories,
             initialIndex: index >= 0 ? index : 0,
             groupName: group?.group?.name || 'Mandali'
         });
-    };
+    }, [flattenedMemories, navigation, group?.group?.name]);
 
-    const renderItem = ({ item }: { item: any }) => {
-        if (item.type === 'on_this_day') {
-            return (
-                <View className={`mt-${isTablet ? '10' : '6'} px-5 mb-6`}>
-                    <View className="flex-row items-center mb-8">
-                        <Ionicons name="sparkles" size={isTablet ? 42 : 18} color="#b38b00" />
-                        <Text className={`ml-4 text-[#b38b00] font-headline-bold tracking-tight ${isTablet ? 'text-4xl' : 'text-lg'}`}>On This Day</Text>
-                    </View>
-                    <FlatList
-                        data={item.data}
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        keyExtractor={(m) => `on-this-day-${m.id}`}
-                        renderItem={({ item: memory }) => (
-                            <TouchableOpacity
-                                onPress={() => openDetail(memory.image_urls[0], memory.id)}
-                                className="mr-6 rounded-[48px] overflow-hidden bg-stone-100 shadow-xl"
-                                style={{ width: isTablet ? 320 : 150, height: isTablet ? 440 : 200 }}
-                            >
-                                <Image
-                                    source={{ uri: getOptimizedImageUrl(memory.image_urls[0], 'w_600,q_auto,f_auto') }}
-                                    style={{ width: '100%', height: '100%' }}
-                                    contentFit="cover"
-                                />
-                                <BlurView tint="dark" intensity={25} className={`absolute inset-x-0 bottom-0 p-6 justify-center ${isTablet ? 'h-32' : 'h-16'}`}>
-                                    <Text className={`text-white font-body-bold uppercase tracking-widest text-center ${isTablet ? 'text-xl' : 'text-xs'}`}>
-                                        {today.getFullYear() - new Date(memory.memory_date || memory.created_at).getFullYear()} Years Ago
-                                    </Text>
-                                </BlurView>
-                            </TouchableOpacity>
-                        )}
-                    />
-                    <View className="h-[1px] bg-stone-100 w-full mt-10" />
-                </View>
-            );
-        }
+    const RENDER_MAP = useMemo<Record<string, React.FC<any>>>(() => ({
+        on_this_day: OnThisDaySection,
+        section_header: SectionHeader,
+        grid_row: GridRow,
+    }), []);
 
-        if (item.type === 'section_header') {
-            return (
-                <View className={`px-5 pt-${isTablet ? '12' : '8'} pb-6 flex-row items-center justify-between`}>
-                    <Text className="text-[#31302d] font-headline-bold" style={{ fontSize: isTablet ? 52 : 28 }}>
-                        {item.label}
-                    </Text>
-                    <View className={`bg-stone-50 rounded-full border border-stone-100 ${isTablet ? 'px-8 py-3' : 'px-3 py-1'}`}>
-                        <Text className={`text-stone-300 font-body-bold uppercase tracking-widest ${isTablet ? 'text-xl' : 'text-[10px]'}`}>{item.count} Photos</Text>
-                    </View>
-                </View>
-            );
-        }
-
-        if (item.type === 'grid_row') {
-            return (
-                <View className="flex-row">
-                    {item.photos.map((photo: any, idx: number) => (
-                        <MemoryGridItem
-                            key={`photo-${photo.memory.id}-${idx}`}
-                            photo={photo}
-                            COLUMN_COUNT={COLUMN_COUNT}
-                            openDetail={openDetail}
-                        />
-                    ))}
-                    {/* Filler views to maintain alignment for non-full rows */}
-                    {item.photos.length < COLUMN_COUNT && (
-                        Array(COLUMN_COUNT - item.photos.length).fill(0).map((_, i) => (
-                            <View key={`filler-${i}`} style={{ width: `${100 / COLUMN_COUNT}%`, aspectRatio: 1 }} />
-                        ))
-                    )}
-                </View>
-            );
-        }
-
-        return null;
-    };
+    const renderItem = useCallback(({ item }: { item: any }) => {
+        const Component = RENDER_MAP[item.type];
+        if (!Component) return null;
+        return <Component item={item} isTablet={isTablet} today={today} COLUMN_COUNT={COLUMN_COUNT} openDetail={openDetail} />;
+    }, [RENDER_MAP, isTablet, today, COLUMN_COUNT, openDetail]);
 
     if (isLoading && !infiniteData) {
         return (
@@ -294,6 +203,10 @@ const MemoriesScreen = () => {
             <FlatList
                 data={listData}
                 renderItem={renderItem}
+                initialNumToRender={6}
+                maxToRenderPerBatch={6}
+                windowSize={3}
+                removeClippedSubviews
                 keyExtractor={(item, index) => `${item.type}-${item.label || index}`}
                 onEndReached={() => hasNextPage && fetchNextPage()}
                 onEndReachedThreshold={0.7}

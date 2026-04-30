@@ -48,7 +48,6 @@ export const joinGroup = async (inviteCode: string) => {
  * Allows grabbing the exact size needed from the CDN (e.g. 'w_400,q_auto,f_auto' for thumbnails)
  */
 export const getOptimizedImageUrl = (url: string, transformations: string = 'q_auto,f_auto') => {
-    console.log(url);
     if (!url || typeof url !== 'string' || !url.includes('res.cloudinary.com')) return url;
 
     // Ensure we don't double-transform if the URL already has some
@@ -56,7 +55,6 @@ export const getOptimizedImageUrl = (url: string, transformations: string = 'q_a
         const parts = url.split('/upload/');
 
         const fPath = `${parts[0]}/upload/${transformations}/${parts[1]}`;
-        console.log(fPath);
         return fPath;
     }
 

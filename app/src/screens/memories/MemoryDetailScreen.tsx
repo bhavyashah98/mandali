@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, ScrollView, TouchableOpacity, Alert, Share, FlatList, useWindowDimensions, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,8 +12,6 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import { ResumableZoom } from 'react-native-zoom-toolkit';
 
-
-
 const MemoryDetailScreen = () => {
     const { width, height } = useWindowDimensions();
     const isTablet = useIsTablet();
@@ -23,18 +21,35 @@ const MemoryDetailScreen = () => {
     const { user } = useAuthStore();
     const { memories, initialIndex, groupName } = route.params as { memories: any[], initialIndex: number, groupName: string };
 
-    const [currentIndex, setCurrentIndex] = React.useState(initialIndex);
-    const [reportModalVisible, setReportModalVisible] = React.useState(false);
-    const [reportingTarget, setReportingTarget] = React.useState<{ id: string, groupId: string } | null>(null);
+    const [currentIndex, setCurrentIndex] = useState(initialIndex);
+    const [reportModalVisible, setReportModalVisible] = useState(false);
+    const [reportingTarget, setReportingTarget] = useState<{ id: string, groupId: string } | null>(null);
+    const flatListRef = useRef<FlatList>(null);
+    const isTransitioning = useRef(false);
 
-    const reportReasons = [
+    // Prefetch previous, current, and next images for smooth swiping
+    useEffect(() => {
+        const urlsToPrefetch: string[] = [];
+
+        const baseParams = 'c_pad,w_900,h_900,b_black,f_auto,q_auto';
+
+        for (let i = currentIndex - 2; i <= currentIndex + 2; i++) {
+            if (i >= 0 && i < memories.length) {
+                urlsToPrefetch.push(getOptimizedImageUrl(memories[i].url, baseParams));
+            }
+        }
+
+        urlsToPrefetch.forEach((url) => Image.prefetch(url));
+    }, [currentIndex, memories]);
+
+    const reportReasons = useMemo(() => [
         { label: 'Spam', icon: 'mail-outline' },
         { label: 'Harassment', icon: 'hand-left-outline' },
         { label: 'Inappropriate Photo', icon: 'image-outline' },
         { label: 'Others', icon: 'ellipsis-horizontal-outline' }
-    ];
+    ], []);
 
-    const handleDelete = (memoryId: string) => {
+    const handleDelete = useCallback((memoryId: string) => {
         Alert.alert(
             'Delete Memory',
             'Are you sure you want to permanently remove this moment?',
@@ -55,9 +70,9 @@ const MemoryDetailScreen = () => {
                 }
             ]
         );
-    };
+    }, [queryClient, navigation]);
 
-    const handleShare = async (url: string) => {
+    const handleShare = useCallback(async (url: string) => {
         try {
             await Share.share({
                 message: `Check out this memory from Mandali: ${url}`,
@@ -66,9 +81,9 @@ const MemoryDetailScreen = () => {
         } catch (error) {
             console.error(error);
         }
-    };
+    }, []);
 
-    const handleDownload = async (url: string) => {
+    const handleDownload = useCallback(async (url: string) => {
         try {
             Alert.alert('Downloading...', 'Saving this memory to your device...', [], { cancelable: true });
 
@@ -95,14 +110,14 @@ const MemoryDetailScreen = () => {
             console.error('[Download Error]', error);
             Alert.alert('Error', 'We encountered an issue saving this photo.');
         }
-    };
+    }, []);
 
-    const handleReport = (memoryId: string, groupId: string) => {
+    const handleReport = useCallback((memoryId: string, groupId: string) => {
         setReportingTarget({ id: memoryId, groupId });
         setReportModalVisible(true);
-    };
+    }, []);
 
-    const submitReport = async (reason: string) => {
+    const submitReport = useCallback(async (reason: string) => {
         if (!reportingTarget) return;
 
         try {
@@ -125,11 +140,12 @@ const MemoryDetailScreen = () => {
         } catch (error) {
             Alert.alert('Error', 'Failed to submit report. Please try again.');
         }
-    };
+    }, [reportingTarget, queryClient, navigation]);
 
-    const renderItem = ({ item, index }: { item: any, index: number }) => {
+    const renderItem = useCallback(({ item, index }: { item: any, index: number }) => {
         const isOwner = user?.id === item.memory.user_id;
         const memoryDate = item.memory.memory_date || item.memory.created_at;
+        const blurUrl = getOptimizedImageUrl(item.url, 'w_50,h_50,e_blur:2000,q_10');
         const startTime = Date.now();
 
         return (
@@ -170,34 +186,36 @@ const MemoryDetailScreen = () => {
 
                     {/* 2. Full Image View Container - Native Scroll Zoom + Perfect Navigation */}
                     <View className="flex-1 justify-center items-center z-10 w-full" style={{ paddingVertical: 10 }}>
-                        <ScrollView
-                            maximumZoomScale={5}
-                            minimumZoomScale={1}
-                            showsHorizontalScrollIndicator={false}
-                            showsVerticalScrollIndicator={false}
-                            centerContent={true}
-                            style={{ width: width, height: width }}
-                            contentContainerStyle={{ width: width, height: width }}
+                        <ResumableZoom
+                            maxScale={5}
+                            minScale={1}
+                            onSwipe={(direction) => {
+                                if (isTransitioning.current) return;
+
+                                if (direction === 'left' && index < memories.length - 1) {
+                                    isTransitioning.current = true;
+                                    flatListRef.current?.scrollToIndex({ index: index + 1, animated: true });
+                                    setTimeout(() => isTransitioning.current = false, 500);
+                                } else if (direction === 'right' && index > 0) {
+                                    isTransitioning.current = true;
+                                    flatListRef.current?.scrollToIndex({ index: index - 1, animated: true });
+                                    setTimeout(() => isTransitioning.current = false, 500);
+                                }
+                            }}
                         >
                             <Image
                                 source={{ uri: getOptimizedImageUrl(item.url, 'w_900,h_900,c_pad,b_black,f_auto,q_auto') }}
-                                style={{ 
-                                    width: width, 
+                                placeholder={{ uri: blurUrl }}
+                                placeholderContentFit="cover"
+                                style={{
+                                    width: width,
                                     height: width,
                                 }}
                                 contentFit="contain"
                                 cachePolicy="memory-disk"
                                 transition={200}
-                                onLoadStart={() => {
-                                    console.log('START:', item.url);
-                                }}
-                                onLoad={() => {
-                                    const endTime = Date.now();
-                                    console.log('LOADED (Native Zoom):', item.url);
-                                    console.log('TIME:', endTime - startTime, 'ms');
-                                }}
                             />
-                        </ScrollView>
+                        </ResumableZoom>
                     </View>
 
                     {/* 3. Action Bar (Horizontal) & Description Stack */}
@@ -243,14 +261,27 @@ const MemoryDetailScreen = () => {
                         )}
 
                     </View>
-                </SafeAreaView>
-            </View>
+                </SafeAreaView >
+            </View >
         );
-    };
+    }, [user?.id, width, isTablet, navigation, handleDownload, handleShare, handleDelete, handleReport]);
+
+    const getItemLayout = useCallback((data: any, index: number) => ({
+        length: width,
+        offset: width * index,
+        index,
+    }), [width]);
+
+    const handleMomentumScrollEnd = useCallback((e: any) => {
+        const index = Math.round(e.nativeEvent.contentOffset.x / width);
+        setCurrentIndex(index);
+    }, [width]);
+
 
     return (
         <View className="flex-1 bg-black">
             <FlatList
+                ref={flatListRef}
                 data={memories}
                 renderItem={renderItem}
                 keyExtractor={(item, index) => `${item.memory.id}-${index}`}
@@ -258,15 +289,11 @@ const MemoryDetailScreen = () => {
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
                 initialScrollIndex={initialIndex}
-                getItemLayout={(data, index) => ({
-                    length: width,
-                    offset: width * index,
-                    index,
-                })}
-                onMomentumScrollEnd={(e) => {
-                    const index = Math.round(e.nativeEvent.contentOffset.x / width);
-                    setCurrentIndex(index);
-                }}
+                initialNumToRender={2}
+                maxToRenderPerBatch={2}
+                windowSize={3}
+                getItemLayout={getItemLayout}
+                onMomentumScrollEnd={handleMomentumScrollEnd}
             />
 
             {/* Premium Report Reason Modal */}
