@@ -148,35 +148,48 @@ export const initHousieEngine = () => {
     setInterval(async () => {
         try {
             const now = new Date();
+            const nowIso = now.toISOString();
 
             // 1. Process 'starting' -> 'active' transitions
-            const { data: startingGames } = await supabase
+            const { data: startingGames, error: fetchStartingError } = await supabase
                 .from('housie_games')
-                .select('game_code, activation_at')
+                .select('game_code, activation_at, settings')
                 .eq('status', 'starting')
-                .lte('activation_at', now.toISOString());
+                .lte('activation_at', nowIso);
+
+            if (fetchStartingError) {
+                console.error('[HousieEngine] Error fetching starting games:', fetchStartingError.message);
+            }
 
             if (startingGames && startingGames.length > 0) {
+                console.log(`[HousieEngine] Found ${startingGames.length} games to activate`);
                 for (const game of startingGames) {
-                    console.log(`[HousieEngine] Attempting to activate game ${game.game_code}`);
+                    console.log(`[HousieEngine] Attempting to activate game ${game.game_code} (Activation time: ${game.activation_at})`);
 
                     // Atomic update to flip status and lock the transition
                     const { data: updatedGame, error: updateError } = await supabase
                         .from('housie_games')
                         .update({
                             status: 'active',
-                            last_activity_at: now.toISOString()
+                            last_activity_at: nowIso
                         })
                         .eq('game_code', game.game_code)
                         .eq('status', 'starting')
-                        .lte('activation_at', now.toISOString())
+                        .lte('activation_at', nowIso)
                         .select()
                         .single();
 
-                    if (!updatedGame || updateError) {
-                        // Another worker already handled it or update failed
+                    if (updateError) {
+                        console.error(`[HousieEngine] Activation update failed for ${game.game_code}:`, updateError.message);
                         continue;
                     }
+
+                    if (!updatedGame) {
+                        console.log(`[HousieEngine] Game ${game.game_code} already activated by another worker`);
+                        continue;
+                    }
+
+                    console.log(`[HousieEngine] Game ${game.game_code} activated successfully`);
 
                     // Notify clients via socket
                     if (io) {
@@ -188,50 +201,72 @@ export const initHousieEngine = () => {
                     }
 
                     // Start auto host if mode is auto and not paused
-                    if (
-                        updatedGame.settings?.callingMode === 'auto' &&
-                        !updatedGame.settings?.isPaused
-                    ) {
-                        const interval = updatedGame.settings.autoCallSeconds || 7;
-                        await setNextCallTime(game.game_code, interval + 3); // Extra 3s buffer for first call
+                    const callingMode = updatedGame.settings?.callingMode || 'manual';
+                    const isPaused = updatedGame.settings?.isPaused || false;
+                    
+                    if (callingMode === 'auto' && !isPaused) {
+                        const interval = updatedGame.settings?.autoCallSeconds || 7;
+                        console.log(`[HousieEngine] Initializing auto-call for ${game.game_code} in ${interval + 3}s`);
+                        await setNextCallTime(game.game_code, interval + 3);
                     }
                 }
             }
 
             // 2. Process automatic number calls for active games
-            const { data: activeGames } = await supabase
+            const { data: activeGames, error: fetchActiveError } = await supabase
                 .from('housie_games')
                 .select('game_code, next_call_at, settings')
                 .eq('status', 'active')
                 .not('next_call_at', 'is', null)
-                .lte('next_call_at', now.toISOString());
+                .lte('next_call_at', nowIso);
+
+            if (fetchActiveError) {
+                console.error('[HousieEngine] Error fetching active games:', fetchActiveError.message);
+            }
 
             if (activeGames && activeGames.length > 0) {
+                console.log(`[HousieEngine] Found ${activeGames.length} games scheduled for call`);
                 for (const game of activeGames) {
+                    console.log(`[HousieEngine] Attempting to lock game ${game.game_code} for call (Scheduled: ${game.next_call_at})`);
+
                     // Only process if it's auto-calling mode and not paused
                     const { data: lockedGame, error: lockError } = await supabase
                         .from('housie_games')
                         .update({ next_call_at: null })
                         .eq('game_code', game.game_code)
-                        .lte('next_call_at', now.toISOString())
+                        .lte('next_call_at', nowIso)
                         .select()
                         .single();
 
-                    if (!lockedGame || lockError) {
+                    if (lockError) {
+                        console.error(`[HousieEngine] Lock update failed for ${game.game_code}:`, lockError.message);
+                        continue;
+                    }
+
+                    if (!lockedGame) {
+                        console.log(`[HousieEngine] Game ${game.game_code} already locked by another worker`);
                         continue;
                     }
 
                     // Defensive check on settings after lock
-                    if (lockedGame.settings?.callingMode !== 'auto' || lockedGame.settings?.isPaused) {
+                    const callingMode = lockedGame.settings?.callingMode || 'manual';
+                    const isPaused = lockedGame.settings?.isPaused || false;
+
+                    if (callingMode !== 'auto' || isPaused) {
+                        console.log(`[HousieEngine] Game ${game.game_code} call skipped (Mode: ${callingMode}, Paused: ${isPaused})`);
                         continue;
                     }
                     
+                    console.log(`[HousieEngine] Executing auto-call for ${game.game_code}`);
                     await executeAutoCall(lockedGame);
                 }
+            } else if (Math.random() < 0.1) {
+                // Occasional heartbeat log when idle
+                console.log(`[HousieEngine] Heartbeat: Worker is polling... (Active Games Selected: ${activeGames?.length || 0})`);
             }
 
         } catch (err) {
-            console.error('[HousieEngine] Worker error:', err);
+            console.error('[HousieEngine] Critical worker loop error:', err);
         }
     }, 1000); // Poll every second
 };
