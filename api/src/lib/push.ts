@@ -9,51 +9,51 @@ export const sendGroupPushNotification = async (
     data?: any
 ) => {
     try {
+        console.log(`[Push] Starting broadcast for group ${groupId}. Sender: ${senderUserId}`);
+        
         // 1. Fetch all members of the group excluding the sender
         const { data: members, error } = await supabase
             .from('group_members')
             .select(`
                 user_id,
                 users (
+                    id,
+                    name,
                     expo_push_token
                 )
             `)
-            .eq('group_id', groupId)
-            .neq('user_id', senderUserId);
+            .eq('group_id', groupId);
 
         if (error) {
             console.error('[Push] Failed to fetch group members:', error);
             return;
         }
 
-        console.log(`[Push] Found ${members?.length || 0} potential recipients for group ${groupId}`);
-        if (!members || members.length === 0) return;
-
-        // 2. Fetch sender's token to explicitly exclude it as well (safety measure)
-        const { data: sender } = await supabase
-            .from('users')
-            .select('expo_push_token')
-            .eq('id', senderUserId)
-            .single();
-        
-        const senderToken = sender?.expo_push_token;
+        if (!members || members.length === 0) {
+            console.log('[Push] No group members found.');
+            return;
+        }
 
         // 3. Extract tokens and ensure uniqueness
         const tokenSet = new Set<string>();
+        let skippedCount = 0;
+        let senderExcluded = false;
+
         members.forEach((member: any) => {
-            // Strict case-insensitive equality check for IDs
-            if (String(member.user_id).toLowerCase() === String(senderUserId).toLowerCase()) {
-                return;
-            }
-
+            const userId = member.user_id;
             const token = member.users?.expo_push_token;
-            
-            // Exclude if no token, or if it's the sender's token
-            if (!token || typeof token !== 'string' || !token.startsWith('ExponentPushToken')) {
+            const name = member.users?.name || 'Unknown';
+
+            // 1. Exclude sender
+            if (String(userId).toLowerCase() === String(senderUserId).toLowerCase()) {
+                senderExcluded = true;
                 return;
             }
 
-            if (senderToken && token === senderToken) {
+            // 2. Validate token
+            if (!token || typeof token !== 'string' || !token.startsWith('ExponentPushToken')) {
+                console.log(`[Push] Skipping user ${name} (${userId}): No valid Expo token found.`);
+                skippedCount++;
                 return;
             }
 
@@ -61,24 +61,28 @@ export const sendGroupPushNotification = async (
         });
 
         const tokens = Array.from(tokenSet);
-        console.log(`[Push] Prepared ${tokens.length} unique tokens for broadcast (Sender: ${senderUserId}, SenderToken: ${senderToken || 'none'})`);
+        console.log(`[Push] Broadcast Summary: 
+            - Recipients: ${tokens.length}
+            - Sender Excluded: ${senderExcluded}
+            - Users Skipped (No Token): ${skippedCount}
+        `);
 
         if (tokens.length === 0) {
+            console.log('[Push] No valid tokens to send to. Aborting.');
             return;
         }
 
-        // 3. Send via Expo HTTP API (No SDK required!)
+        // 4. Send via Expo HTTP API
         const messages = tokens.map(token => ({
             to: token,
             sound: 'default',
             title,
             body,
             data: data || {},
-            // Android-specific: Must match channel set in the app
             channelId: 'default',
         }));
 
-        await axios.post('https://exp.host/--/api/v2/push/send', messages, {
+        const response = await axios.post('https://exp.host/--/api/v2/push/send', messages, {
             headers: {
                 'Accept': 'application/json',
                 'Accept-encoding': 'gzip, deflate',
@@ -86,7 +90,9 @@ export const sendGroupPushNotification = async (
             }
         });
         
+        console.log(`[Push] Successfully sent ${tokens.length} messages to Expo. Response Status: ${response.status}`);
+        
     } catch (err: any) {
-        console.error('[Push] Failed to send notification:', err.message);
+        console.error('[Push] Fatal Error:', err.response?.data || err.message);
     }
 };

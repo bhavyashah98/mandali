@@ -44,10 +44,10 @@ export const RootNavigator = () => {
                 navigationRef.current.navigate('Main', {
                     screen: 'Housie',
                     params: {
-                        screen: 'HousieJoinGame',
+                        screen: 'HousieLobby',
                         params: {
-                            gameCode: params.gameCode,
-                            groupId: params.groupId
+                            groupId: params.groupId,
+                            gameCode: params.gameCode
                         }
                     }
                 });
