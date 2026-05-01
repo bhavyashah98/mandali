@@ -17,7 +17,7 @@ const HousieHostSettingsScreen = () => {
     const isTablet = useIsTablet();
 
     // Calling Mode
-    const [callingMode, setCallingMode] = useState<'manual' | 'auto'>('manual');
+    const [callingMode, setCallingMode] = useState<'manual' | 'auto'>('auto');
     const [autoCallSeconds, setAutoCallSeconds] = useState(7);
 
     // Game Style

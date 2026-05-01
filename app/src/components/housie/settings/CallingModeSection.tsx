@@ -35,37 +35,6 @@ export const CallingModeSection: React.FC<CallingModeSectionProps> = React.memo(
             {/* Mode cards */}
             <View className="flex-row gap-3 mb-2">
 
-                {/* Manual */}
-                <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => setCallingMode('manual')}
-                    className="flex-1 items-center justify-center py-4 border shadow-sm"
-                    style={{
-                        borderRadius: 24,
-                        backgroundColor: isManual ? '#fce7f3' : '#ffffff',
-                        borderColor: isManual ? '#b30069' : '#e7e5e4',
-                        borderWidth: isManual ? 1.5 : 1,
-                    }}
-                >
-                    <MaterialCommunityIcons
-                        name="account-voice"
-                        size={isTablet ? 44 : 30}
-                        color={isManual ? '#b30069' : '#a09d96'}
-                    />
-                    <Text
-                        className="font-headline-bold mt-2"
-                        style={{ fontSize: isTablet ? 20 : 15, color: isManual ? '#b30069' : '#1c1c18' }}
-                    >
-                        Manual
-                    </Text>
-                    <Text
-                        className="font-body-regular text-center mt-0.5"
-                        style={{ fontSize: isTablet ? 13 : 11, color: '#a09d96' }}
-                    >
-                        You call at your pace
-                    </Text>
-                </TouchableOpacity>
-
                 {/* Automatic */}
                 <TouchableOpacity
                     activeOpacity={0.8}
@@ -96,6 +65,45 @@ export const CallingModeSection: React.FC<CallingModeSectionProps> = React.memo(
                         Timer picks numbers
                     </Text>
                 </TouchableOpacity>
+
+                {/* Manual */}
+                <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setCallingMode('manual')}
+                    className="flex-1 items-center justify-center py-4 border shadow-sm overflow-hidden"
+                    style={{
+                        borderRadius: 24,
+                        backgroundColor: isManual ? '#fce7f3' : '#ffffff',
+                        borderColor: isManual ? '#b30069' : '#e7e5e4',
+                        borderWidth: isManual ? 1.5 : 1,
+                    }}
+                >
+                    <View 
+                        className="absolute top-2 right-2 bg-[#31302d] px-2 py-1 rounded-lg flex-row items-center"
+                        style={{ elevation: 2 }}
+                    >
+                        <MaterialCommunityIcons name="crown" size={isTablet ? 14 : 10} color="#fbbf24" />
+                        <Text className="text-[8px] font-headline-bold text-[#fbbf24] uppercase ml-1 tracking-wider">Premium</Text>
+                    </View>
+
+                    <MaterialCommunityIcons
+                        name="account-voice"
+                        size={isTablet ? 44 : 30}
+                        color={isManual ? '#b30069' : '#a09d96'}
+                    />
+                    <Text
+                        className="font-headline-bold mt-2"
+                        style={{ fontSize: isTablet ? 20 : 15, color: isManual ? '#b30069' : '#1c1c18' }}
+                    >
+                        Manual
+                    </Text>
+                    <Text
+                        className="font-body-regular text-center mt-0.5"
+                        style={{ fontSize: isTablet ? 13 : 11, color: '#a09d96' }}
+                    >
+                        You call at your pace
+                    </Text>
+                </TouchableOpacity>
             </View>
 
             {/* Auto timer controls */}
@@ -111,16 +119,24 @@ export const CallingModeSection: React.FC<CallingModeSectionProps> = React.memo(
                         >
                             Time per number
                         </Text>
-                        <View
-                            className="rounded-full px-3 py-1"
-                            style={{ backgroundColor: '#fce7f3' }}
-                        >
-                            <Text
-                                className="font-headline-bold"
-                                style={{ fontSize: isTablet ? 20 : 15, color: '#b30069' }}
+                        <View className="flex-row items-center">
+                            {autoCallSeconds !== 7 && (
+                                <View className="bg-[#31302d] rounded-full px-2 py-1 mr-2 flex-row items-center shadow-sm">
+                                    <MaterialCommunityIcons name="crown" size={10} color="#fbbf24" />
+                                    <Text className="text-[8px] font-headline-bold text-[#fbbf24] uppercase ml-1">Premium</Text>
+                                </View>
+                            )}
+                            <View
+                                className="rounded-full px-3 py-1"
+                                style={{ backgroundColor: '#fce7f3' }}
                             >
-                                {autoCallSeconds}s
-                            </Text>
+                                <Text
+                                    className="font-headline-bold"
+                                    style={{ fontSize: isTablet ? 20 : 15, color: '#b30069' }}
+                                >
+                                    {autoCallSeconds}s
+                                </Text>
+                            </View>
                         </View>
                     </View>
 
@@ -170,7 +186,7 @@ export const CallingModeSection: React.FC<CallingModeSectionProps> = React.memo(
                         className="font-body-regular text-center mt-3"
                         style={{ fontSize: 12, color: '#a09d96' }}
                     >
-                        Min 6s · Max 20s
+                        Default 7s · Min 6s · Max 20s
                     </Text>
                 </View>
             )}

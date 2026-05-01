@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Switch } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface HostTicketsSectionProps {
     hostTickets: number;
@@ -21,9 +22,9 @@ export const HostTicketsSection: React.FC<HostTicketsSectionProps> = React.memo(
     const [ticketCount, setTicketCount] = useState('1');
 
     const countOptionsMap: Record<string, string[]> = {
-        easy:   ['1', '2'],
+        easy: ['1', '2'],
         medium: ['3', '4'],
-        hard:   ['5', '6'],
+        hard: ['5', '6'],
     };
     const countOptions = countOptionsMap[ticketDifficulty] || ['1', '2'];
 
@@ -96,6 +97,10 @@ export const HostTicketsSection: React.FC<HostTicketsSectionProps> = React.memo(
                                 onPress={() => handleDifficulty('medium')}
                                 className={`flex-1 rounded-[24px] items-center justify-center border shadow-sm ${isTablet ? 'h-24' : 'h-16'} ${ticketDifficulty === 'medium' ? 'bg-[#f59e0b] border-[#f59e0b]' : 'bg-white border-stone-100'}`}
                             >
+                                <View className="absolute top-1.5 right-1.5 bg-[#31302d] px-1.5 py-0.5 rounded-lg flex-row items-center">
+                                    <MaterialCommunityIcons name="crown" size={8} color="#fbbf24" />
+                                    <Text className="text-[6px] font-headline-bold text-[#fbbf24] uppercase ml-1">Premium</Text>
+                                </View>
                                 <Text className={`font-headline-bold ${ticketDifficulty === 'medium' ? 'text-white' : 'text-[#1c1c18]'} ${isTablet ? 'text-2xl' : 'text-base'}`}>
                                     Medium
                                 </Text>
@@ -105,6 +110,10 @@ export const HostTicketsSection: React.FC<HostTicketsSectionProps> = React.memo(
                                 onPress={() => handleDifficulty('hard')}
                                 className={`flex-1 rounded-[24px] items-center justify-center border shadow-sm ${isTablet ? 'h-24' : 'h-16'} ${ticketDifficulty === 'hard' ? 'bg-[#ef4444] border-[#ef4444]' : 'bg-white border-stone-100'}`}
                             >
+                                <View className="absolute top-1.5 right-1.5 bg-[#31302d] px-1.5 py-0.5 rounded-lg flex-row items-center">
+                                    <MaterialCommunityIcons name="crown" size={8} color="#fbbf24" />
+                                    <Text className="text-[6px] font-headline-bold text-[#fbbf24] uppercase ml-1">Premium</Text>
+                                </View>
                                 <Text className={`font-headline-bold ${ticketDifficulty === 'hard' ? 'text-white' : 'text-[#1c1c18]'} ${isTablet ? 'text-2xl' : 'text-base'}`}>
                                     Hard
                                 </Text>

@@ -38,9 +38,17 @@ export const GameTwistSection: React.FC<GameTwistSectionProps> = React.memo(({
                     <MaterialCommunityIcons name={selectedStyle.icon as any} size={24} color="#b30069" />
                 </View>
                 <View className="flex-1">
-                    <Text className="font-headline-bold text-[#1c1c18]" style={{ fontSize: isTablet ? 20 : 16 }}>
-                        {selectedStyle.title}
-                    </Text>
+                    <View className="flex-row items-center">
+                        <Text className="font-headline-bold text-[#1c1c18]" style={{ fontSize: isTablet ? 20 : 16 }}>
+                            {selectedStyle.title}
+                        </Text>
+                        {gameStyle !== 'classic' && (
+                            <View className="bg-[#31302d] px-2 py-0.5 rounded-lg ml-2 flex-row items-center shadow-sm">
+                                <MaterialCommunityIcons name="crown" size={10} color="#fbbf24" />
+                                <Text className="text-[7px] font-headline-bold text-[#fbbf24] uppercase ml-1">Premium</Text>
+                            </View>
+                        )}
+                    </View>
                     <Text className="font-body-regular text-stone-500 mt-1" style={{ fontSize: isTablet ? 14 : 12 }}>
                         {selectedStyle.description}
                     </Text>
@@ -68,12 +76,20 @@ export const GameTwistSection: React.FC<GameTwistSectionProps> = React.memo(({
                                 style={{ marginRight: 16 }}
                             />
                             <View className="flex-1">
-                                <Text
-                                    className="font-headline-bold"
-                                    style={{ color: gameStyle === style.id ? '#b30069' : '#1c1c18' }}
-                                >
-                                    {style.title}
-                                </Text>
+                                <View className="flex-row items-center">
+                                    <Text
+                                        className="font-headline-bold"
+                                        style={{ color: gameStyle === style.id ? '#b30069' : '#1c1c18' }}
+                                    >
+                                        {style.title}
+                                    </Text>
+                                    {style.id !== 'classic' && (
+                                        <View className="bg-[#31302d] px-1.5 py-0.5 rounded-lg ml-2 flex-row items-center">
+                                            <MaterialCommunityIcons name="crown" size={8} color="#fbbf24" />
+                                            <Text className="text-[7px] font-headline-bold text-[#fbbf24] uppercase ml-1">Premium</Text>
+                                        </View>
+                                    )}
+                                </View>
                                 <Text className="font-body-regular text-stone-400 mt-0.5" style={{ fontSize: 12 }}>
                                     {style.description}
                                 </Text>
