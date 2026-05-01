@@ -10,7 +10,8 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-    Image
+    Image,
+    Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -21,6 +22,7 @@ import { API_URL, getAuthHeaders, uploadProfileImage } from '../../lib/api';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const SetupProfileScreen = () => {
     const { user, setUser, logout } = useAuthStore();
@@ -32,24 +34,15 @@ const SetupProfileScreen = () => {
     const [name, setName] = useState(user?.name || '');
     const [profileImage, setProfileImage] = useState<string | null>(user?.avatar_url || null);
 
-    // Parse user birthday if exists (YYYY-MM-DD)
-    const [day, setDay] = useState('');
-    const [month, setMonth] = useState('');
-    const [year, setYear] = useState('');
+    // Birthday as a Date object
+    const [birthday, setBirthday] = useState(user?.birthday ? new Date(user.birthday) : new Date(2000, 0, 1));
+    const [showDatePicker, setShowDatePicker] = useState(false);
 
     useEffect(() => {
         if (user?.birthday) {
-            const parts = user.birthday.split('-');
-            if (parts.length === 3) {
-                setYear(parts[0]);
-                setMonth(parts[1]);
-                setDay(parts[2]);
-            }
+            setBirthday(new Date(user.birthday));
         }
     }, [user?.birthday]);
-
-    const monthRef = useRef<TextInput>(null);
-    const yearRef = useRef<TextInput>(null);
 
     const [isLoading, setIsLoading] = useState(false);
 
@@ -78,14 +71,9 @@ const SetupProfileScreen = () => {
             return;
         }
 
-        const d = parseInt(day);
-        const m = parseInt(month);
-        const y = parseInt(year);
-
-        if (!d || d < 1 || d > 31 || !m || m < 1 || m > 12 || !y || y < 1920 || y > new Date().getFullYear()) {
-            Alert.alert('Invalid Date', 'Please enter a valid birthday.');
-            return;
-        }
+        const y = birthday.getFullYear();
+        const m = birthday.getMonth() + 1;
+        const d = birthday.getDate();
 
         const birthdayStr = `${y}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
 
@@ -227,50 +215,73 @@ const SetupProfileScreen = () => {
 
                             {/* Birthday Section */}
                             <View className={`mb-${isTablet ? '12' : '8'}`}>
-                                <Text className={`font-body-bold text-on-surface mb-3 ml-1 ${isTablet ? 'text-xl' : 'text-[15px]'}`}>Birthday (DD/MM/YYYY)</Text>
-                                <View className="flex-row gap-4">
-                                    <View className="flex-1 bg-surface-container rounded-[20px] px-3 items-center justify-center" style={{ height: isTablet ? 110 : 56 }}>
-                                        <TextInput
-                                            value={day}
-                                            onChangeText={(v) => {
-                                                setDay(v);
-                                                if (v.length === 2) monthRef.current?.focus();
-                                            }}
-                                            placeholder="DD"
-                                            placeholderTextColor="#a09d96"
-                                            keyboardType="number-pad"
-                                            maxLength={2}
-                                            style={{ height: isTablet ? 110 : 56, fontSize: isTablet ? 32 : 16, color: '#1c1c18', fontWeight: '700', textAlign: 'center' }}
-                                        />
-                                    </View>
-                                    <View className="flex-1 bg-surface-container rounded-[20px] px-3 items-center justify-center" style={{ height: isTablet ? 110 : 56 }}>
-                                        <TextInput
-                                            ref={monthRef}
-                                            value={month}
-                                            onChangeText={(v) => {
-                                                setMonth(v);
-                                                if (v.length === 2) yearRef.current?.focus();
-                                            }}
-                                            placeholder="MM"
-                                            placeholderTextColor="#a09d96"
-                                            keyboardType="number-pad"
-                                            maxLength={2}
-                                            style={{ height: isTablet ? 110 : 56, fontSize: isTablet ? 32 : 16, color: '#1c1c18', fontWeight: '700', textAlign: 'center' }}
-                                        />
-                                    </View>
-                                    <View className="flex-[1.5] bg-surface-container rounded-[20px] px-3 items-center justify-center" style={{ height: isTablet ? 110 : 56 }}>
-                                        <TextInput
-                                            ref={yearRef}
-                                            value={year}
-                                            onChangeText={setYear}
-                                            placeholder="YYYY"
-                                            placeholderTextColor="#a09d96"
-                                            keyboardType="number-pad"
-                                            maxLength={4}
-                                            style={{ height: isTablet ? 110 : 56, fontSize: isTablet ? 32 : 16, color: '#1c1c18', fontWeight: '700', textAlign: 'center' }}
-                                        />
-                                    </View>
-                                </View>
+                                <Text className={`font-body-bold text-on-surface mb-3 ml-1 ${isTablet ? 'text-xl' : 'text-[15px]'}`}>Your Birthday</Text>
+                                <TouchableOpacity
+                                    onPress={() => setShowDatePicker(true)}
+                                    activeOpacity={0.7}
+                                    style={{ height: isTablet ? 110 : 56 }}
+                                    className="bg-surface-container rounded-[20px] px-6 flex-row items-center justify-between"
+                                >
+                                    <Text className={`font-body-bold text-stone-800 ${isTablet ? 'text-2xl' : 'text-base'}`}>
+                                        {birthday.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                    </Text>
+                                    <MaterialIcons name="event" size={isTablet ? 28 : 20} color="#b30069" />
+                                </TouchableOpacity>
+
+                                {Platform.OS === 'ios' ? (
+                                    <Modal
+                                        visible={showDatePicker}
+                                        transparent={true}
+                                        animationType="fade"
+                                        onRequestClose={() => setShowDatePicker(false)}
+                                    >
+                                        <View 
+                                            style={{ flex: 1, backgroundColor: 'rgba(28, 28, 24, 0.4)' }} 
+                                            className="justify-end"
+                                        >
+                                            <View className="bg-white rounded-t-[40px] p-8 pb-12">
+                                                <View className="flex-row justify-between items-center mb-6">
+                                                    <Text className="text-[#1c1c18] font-headline-bold text-2xl">Select Birthday</Text>
+                                                    <TouchableOpacity 
+                                                        onPress={() => setShowDatePicker(false)}
+                                                        className="bg-stone-100 p-2 rounded-full"
+                                                    >
+                                                        <MaterialIcons name="close" size={24} color="#594048" />
+                                                    </TouchableOpacity>
+                                                </View>
+                                                
+                                                <DateTimePicker
+                                                    value={birthday}
+                                                    mode="date"
+                                                    display="spinner"
+                                                    maximumDate={new Date()}
+                                                    onChange={(event, selectedDate) => {
+                                                        if (selectedDate) setBirthday(selectedDate);
+                                                    }}
+                                                    textColor="#1c1c18"
+                                                />
+
+                                                <TouchableOpacity
+                                                    onPress={() => setShowDatePicker(false)}
+                                                    className="bg-[#b30069] rounded-full h-16 items-center justify-center mt-6 shadow-lg shadow-[#b30069]/20"
+                                                >
+                                                    <Text className="text-white font-headline-bold text-lg">Confirm Birthday</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+                                    </Modal>
+                                ) : showDatePicker && (
+                                    <DateTimePicker
+                                        value={birthday}
+                                        mode="date"
+                                        display="calendar"
+                                        maximumDate={new Date()}
+                                        onChange={(event, selectedDate) => {
+                                            setShowDatePicker(false);
+                                            if (selectedDate) setBirthday(selectedDate);
+                                        }}
+                                    />
+                                )}
                             </View>
 
                             {/* Info Card - Different for Edit vs Setup */}

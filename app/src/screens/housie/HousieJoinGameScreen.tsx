@@ -89,7 +89,8 @@ const HousieJoinGameScreen = () => {
                 <View style={{ width: isTablet ? 64 : 44 }}>
                     <TouchableOpacity
                         onPress={() => navigation.goBack()}
-                        className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                        style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                        className={`items-center justify-center rounded-full bg-white border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                     >
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />
                     </TouchableOpacity>
@@ -134,8 +135,8 @@ const HousieJoinGameScreen = () => {
                                     onChangeText={setGameCode}
                                     placeholder="E.g. MB-4029"
                                     placeholderTextColor="#c4b9b0"
-                                    style={{ height: isTablet ? 100 : 72, fontSize: isTablet ? 36 : 22 }}
-                                    className="bg-white rounded-[32px] px-8 font-headline-bold text-[#1c1c18] shadow-sm border border-stone-100"
+                                    style={{ height: isTablet ? 100 : 72, fontSize: isTablet ? 36 : 22, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                                    className="bg-white rounded-[32px] px-8 font-headline-bold text-[#1c1c18] border border-stone-100"
                                     autoCapitalize="characters"
                                     maxLength={10}
                                 />
@@ -146,21 +147,24 @@ const HousieJoinGameScreen = () => {
                                 <View className="flex-row justify-between gap-3 mb-6">
                                     <TouchableOpacity
                                         onPress={() => { setDifficulty('easy'); setTicketCount('1'); }}
-                                        className={`flex-1 rounded-[24px] items-center justify-center border shadow-sm ${isTablet ? 'h-24' : 'h-16'} ${difficulty === 'easy' ? 'bg-[#b30069] border-[#b30069]' : 'bg-white border-stone-100'}`}
+                                        style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                                        className={`flex-1 rounded-[24px] items-center justify-center border ${isTablet ? 'h-24' : 'h-16'} ${difficulty === 'easy' ? 'bg-[#b30069] border-[#b30069]' : 'bg-white border-stone-100'}`}
                                     >
                                         <Text className={`font-headline-bold ${difficulty === 'easy' ? 'text-white' : 'text-[#1c1c18]'} ${isTablet ? 'text-2xl' : 'text-base'}`}>Easy</Text>
                                     </TouchableOpacity>
 
                                     <TouchableOpacity
                                         onPress={() => { setDifficulty('medium'); setTicketCount('3'); }}
-                                        className={`flex-1 rounded-[24px] items-center justify-center border shadow-sm ${isTablet ? 'h-24' : 'h-16'} ${difficulty === 'medium' ? 'bg-[#f59e0b] border-[#f59e0b]' : 'bg-white border-stone-100'}`}
+                                        style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                                        className={`flex-1 rounded-[24px] items-center justify-center border ${isTablet ? 'h-24' : 'h-16'} ${difficulty === 'medium' ? 'bg-[#f59e0b] border-[#f59e0b]' : 'bg-white border-stone-100'}`}
                                     >
                                         <Text className={`font-headline-bold ${difficulty === 'medium' ? 'text-white' : 'text-[#1c1c18]'} ${isTablet ? 'text-2xl' : 'text-base'}`}>Medium</Text>
                                     </TouchableOpacity>
 
                                     <TouchableOpacity
                                         onPress={() => { setDifficulty('hard'); setTicketCount('5'); }}
-                                        className={`flex-1 rounded-[24px] items-center justify-center border shadow-sm ${isTablet ? 'h-24' : 'h-16'} ${difficulty === 'hard' ? 'bg-[#ef4444] border-[#ef4444]' : 'bg-white border-stone-100'}`}
+                                        style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                                        className={`flex-1 rounded-[24px] items-center justify-center border ${isTablet ? 'h-24' : 'h-16'} ${difficulty === 'hard' ? 'bg-[#ef4444] border-[#ef4444]' : 'bg-white border-stone-100'}`}
                                     >
                                         <Text className={`font-headline-bold ${difficulty === 'hard' ? 'text-white' : 'text-[#1c1c18]'} ${isTablet ? 'text-2xl' : 'text-base'}`}>Hard</Text>
                                     </TouchableOpacity>
@@ -173,7 +177,8 @@ const HousieJoinGameScreen = () => {
                                         <TouchableOpacity
                                             key={count}
                                             onPress={() => setTicketCount(count)}
-                                            className={`flex-1 rounded-[24px] items-center justify-center border shadow-sm ${isTablet ? 'h-20' : 'h-14'} ${ticketCount === count ? 'bg-[#1c1c18] border-[#1c1c18]' : 'bg-white border-stone-200'}`}
+                                            style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                                            className={`flex-1 rounded-[24px] items-center justify-center border ${isTablet ? 'h-20' : 'h-14'} ${ticketCount === count ? 'bg-[#1c1c18] border-[#1c1c18]' : 'bg-white border-stone-200'}`}
                                         >
                                             <Text className={`font-headline-bold ${ticketCount === count ? 'text-white' : 'text-[#1c1c18]'} ${isTablet ? 'text-2xl' : 'text-lg'}`}>{count} {count === '1' ? 'Ticket' : 'Tickets'}</Text>
                                         </TouchableOpacity>
@@ -204,8 +209,15 @@ const HousieJoinGameScreen = () => {
                     <TouchableOpacity
                         onPress={handleJoin}
                         disabled={isLoading || !gameCode}
-                        style={{ height: isTablet ? 110 : 72 }}
-                        className={`bg-[#b30069] rounded-[32px] flex-row items-center justify-center shadow-lg shadow-[#b30069]/20`}
+                        style={{ 
+                            height: isTablet ? 110 : 72,
+                            elevation: 8,
+                            shadowColor: '#b30069',
+                            shadowOffset: { width: 0, height: 8 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 12
+                        }}
+                        className={`bg-[#b30069] rounded-[32px] flex-row items-center justify-center`}
                     >
                         {isLoading ? (
                             <ActivityIndicator color="white" size={isTablet ? 'large' : 'small'} />

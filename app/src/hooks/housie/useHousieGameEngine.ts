@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { fetchHousieGame, updateHousieStatus, callHousieNumber } from '../../lib/api';
 import { useSocket } from '../useSocket';
+import { useSocketRoom } from '../useSocketRoom';
 
 import * as Speech from 'expo-speech';
 
@@ -67,10 +68,11 @@ export const useHousieGameEngine = (gameCode: string, groupId: string) => {
         return () => clearInterval(interval);
     }, [game?.last_activity_at, game?.status]);
 
+    useSocketRoom('join_game', gameCode);
+
     // 5. Socket Listener for Global Game Events
     useEffect(() => {
         if (!gameCode || !socket) return;
-        socket.emit('join_game', gameCode);
 
         const onNumberCalled = (data: any) => {
             const numbers = data.calledNumbers || [];
@@ -132,7 +134,7 @@ export const useHousieGameEngine = (gameCode: string, groupId: string) => {
             socket.off('player_claiming_closed', onPlayerClaimingClosed);
             socket.off('claim_result', onClaimResult);
         };
-    }, [gameCode]);
+    }, [gameCode, socket, queryClient, navigation, groupId]);
 
     // Determine if we should block calling numbers
     const hasPendingClaims = !!game?.winners?.['__pending']?.length;

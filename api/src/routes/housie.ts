@@ -2,11 +2,52 @@ import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { io } from '../index';
-//@ts-ignore
-import tambola from 'tambola';
+import tambola from '../utils/tambola';
 import { sendGroupPushNotification } from '../lib/push';
+import { startAutoHost, pauseAutoHost, resumeAutoHost, stopAutoHost } from '../services/housieAutoHost';
 
 const router = Router();
+
+// ─── Master Prize Catalogue ──────────────────────────────────────────────────
+// Standard line prizes are fixed (one each).
+// Full House is `repeatable: true` — host can add as many as they want; frontend auto-numbers them.
+// Bonus prizes are only available in manual mode (host oversees judging).
+const PRIZE_CATALOGUE = [
+    // ── Standard row prizes ──────────────────────────────────────────────────
+    { id: 'top_line', name: 'Top Line', description: 'First row of the ticket', icon: 'horizontal-rule', category: 'standard', repeatable: false, order: 1 },
+    { id: 'middle_line', name: 'Middle Line', description: 'Middle row of the ticket', icon: 'horizontal-rule', category: 'standard', repeatable: false, order: 2 },
+    { id: 'bottom_line', name: 'Bottom Line', description: 'Last row of the ticket', icon: 'horizontal-rule', category: 'standard', repeatable: false, order: 3 },
+    // ── Full House (repeatable) ──────────────────────────────────────────────
+    { id: 'full_house', name: 'Full House', description: 'All numbers on the ticket marked', icon: 'grid-view', category: 'fullhouse', repeatable: true, order: 4 },
+    // ── Bonus prizes — manual mode only ─────────────────────────────────────
+    { id: 'four_corners', name: 'Four Corners', description: 'All 4 corner numbers on ticket', icon: 'crop-free', category: 'bonus', repeatable: false, order: 7 },
+    { id: 'six_corners', name: 'Six Corners', description: 'First and last numbers of all lines', icon: 'filter-6', category: 'bonus', repeatable: false, order: 8 },
+    { id: 'star', name: 'Star', description: 'Cross + centre pattern on ticket', icon: 'star-outline', category: 'bonus', repeatable: false, order: 9 },
+    { id: 'center', name: 'Center (Laddu)', description: 'Middle number of middle row', icon: 'adjust', category: 'bonus', repeatable: false, order: 10 },
+    { id: 'pyramid', name: 'Pyramid', description: 'A pyramid shape of numbers', icon: 'change-history', category: 'bonus', repeatable: false, order: 11 },
+    { id: 'odd_even', name: 'Odd/Even', description: 'All odd or all even numbers marked', icon: 'exposure', category: 'bonus', repeatable: false, order: 12 },
+    { id: 'early_5', name: 'Early 5', description: 'First to mark any 5 numbers', icon: 'looks-5', category: 'bonus', repeatable: false, order: 13 },
+    { id: 'early_7', name: 'Early 7', description: 'First to mark any 7 numbers', icon: 'filter-7', category: 'bonus', repeatable: false, order: 14 },
+    { id: 'bp', name: 'BP / Temperature', description: 'Highest and lowest numbers on ticket', icon: 'thermostat', category: 'bonus', repeatable: false, order: 15 },
+    { id: 'child', name: 'Child', description: 'Special prize for the youngest player', icon: 'child-care', category: 'special', repeatable: false, order: 16 },
+    { id: 'young', name: 'Young', description: 'Special prize for the youngest adult', icon: 'emoji-people', category: 'special', repeatable: false, order: 13 },
+    { id: 'old', name: 'Old', description: 'Special prize for the eldest player', icon: 'elderly', category: 'special', repeatable: false, order: 14 },
+    { id: 'jackpot', name: 'Jackpot', description: 'Surprise grand prize — host decides', icon: 'celebration', category: 'special', repeatable: false, order: 15 },
+];
+
+/**
+ * GET PRIZE CATALOGUE
+ * ?mode=auto   → standard + fullhouse only (no bonus/special, no custom)
+ * ?mode=manual → all categories including bonus, special, and custom allowed
+ */
+router.get('/prizes', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const mode = (req.query.mode as string) || 'manual';
+        res.json({ prizes: PRIZE_CATALOGUE, allowCustom: mode === 'manual' });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 /**
  * Generate a unique 6-character game code
@@ -26,11 +67,11 @@ const generateGameCode = (): string => {
  */
 router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const { groupId, ticketPrice } = req.body;
+        const { groupId, ticketPrice, settings } = req.body;
         const userId = req.userId!;
         const gameCode = generateGameCode();
 
-        console.log(`[Housie] Create attempt: Group=${groupId}, Price=${ticketPrice}, User=${userId}`);
+        console.log(`[Housie] Create attempt: Group=${groupId}, Price=${ticketPrice}, User=${userId}, Settings=${JSON.stringify(settings)}`);
 
         // 1. Verify user is a MEMBER of the group
         const { data: membership } = await supabase
@@ -74,13 +115,31 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
                 called_numbers: [],
                 draw_sequence: drawSequence,
                 status: 'waiting',
-                ticket_price: 100,
+                ticket_price: ticketPrice || 100,
+                settings: settings || null,
                 last_activity_at: new Date().toISOString()
             })
             .select()
             .single();
 
         if (error) throw error;
+
+        // 5. If host opted for tickets, buy them automatically
+        if (settings && settings.hostTickets > 0) {
+            const ticketsToCreate = [];
+            for (let i = 0; i < settings.hostTickets; i++) {
+                ticketsToCreate.push({
+                    game_id: data.id,
+                    user_id: userId,
+                    ticket_data: tambola.generateTicket()
+                });
+            }
+            const { error: ticketError } = await supabase
+                .from('housie_tickets')
+                .insert(ticketsToCreate);
+
+            if (ticketError) console.error('[Housie] Failed to generate host tickets:', ticketError);
+        }
 
         // Immediately notify group so other members' lobbies refetch and see the game
         const ioInstance = req.app.get('io');
@@ -159,7 +218,7 @@ router.patch('/:gameCode/activate', authMiddleware, async (req: AuthRequest, res
 
         const { data: game, error: fetchError } = await supabase
             .from('housie_games')
-            .select('host_id, group_id')
+            .select('host_id, group_id, settings')
             .eq('game_code', gameCode)
             .single();
 
@@ -212,6 +271,12 @@ router.patch('/:gameCode/activate', authMiddleware, async (req: AuthRequest, res
                             status: 'active',
                             game: finalGame
                         });
+
+                        // ─── START AUTO HOST IF MODE IS AUTO ───
+                        if (finalGame.settings?.callingMode === 'auto' && !finalGame.settings?.isPaused) {
+                            const interval = finalGame.settings?.autoCallSeconds || 7;
+                            startAutoHost(gameCode, interval);
+                        }
                     }
                 } catch (err) {
                     console.error('[Housie] Failed to auto-activate game after starting timer:', err);
@@ -268,6 +333,8 @@ router.post('/:gameCode/cancel', authMiddleware, async (req: AuthRequest, res) =
             status: 'ended'
         });
 
+        stopAutoHost(gameCode);
+
         res.json({ success: true, game: cancelledGame });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -317,6 +384,8 @@ router.get('/:gameCode', authMiddleware, async (req: AuthRequest, res) => {
 
         (tickets || []).forEach((t: any) => {
             const uid = t.user_id;
+
+            // Host counts as a participant whenever they hold tickets
             if (!participantMap[uid]) {
                 participantMap[uid] = {
                     id: uid,
@@ -394,11 +463,13 @@ router.post('/:gameCode/call', authMiddleware, async (req: AuthRequest, res) => 
 
         const nextNumber = drawSequence[calledNumbers.length];
         const updatedNumbers = [...calledNumbers, nextNumber];
+        const isLastNumber = updatedNumbers.length === 90;
 
         const { data, error: updateError } = await supabase
             .from('housie_games')
             .update({
                 called_numbers: updatedNumbers,
+                status: isLastNumber ? 'ended' : game.status,
                 last_activity_at: new Date().toISOString()
             })
             .eq('game_code', gameCode)
@@ -407,8 +478,10 @@ router.post('/:gameCode/call', authMiddleware, async (req: AuthRequest, res) => 
 
         if (updateError) throw updateError;
 
+        const io = req.app.get("io");
+        
         // BROADCAST via Socket.io for real-time updates
-        req.app.get("io").to(gameCode).emit('number_called', {
+        io.to(gameCode).emit('number_called', {
             gameCode,
             nextNumber,
             calledNumbers: updatedNumbers,
@@ -417,7 +490,74 @@ router.post('/:gameCode/call', authMiddleware, async (req: AuthRequest, res) => 
             lastActivityAt: data.last_activity_at
         });
 
+        if (isLastNumber) {
+            io.to(gameCode).emit('game_ended', {
+                gameCode,
+                status: 'ended'
+            });
+            io.to(`group_${game.group_id}`).emit('game_created', {
+                gameCode,
+                status: 'ended',
+            });
+            stopAutoHost(gameCode);
+        }
+
         res.json({ success: true, nextNumber, game: data });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * PAUSE GAME (Auto-mode only)
+ */
+router.post('/:gameCode/pause', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const gameCode = (req.params.gameCode as string).toUpperCase();
+        const userId = req.userId!;
+
+        const { data: game } = await supabase.from('housie_games').select('*').eq('game_code', gameCode).single();
+        if (!game) return res.status(404).json({ error: 'Game not found' });
+        if (game.host_id !== userId) return res.status(403).json({ error: 'Only the host can pause the game' });
+
+        const settings = { ...game.settings, isPaused: true };
+        await supabase.from('housie_games').update({ settings }).eq('game_code', gameCode);
+
+        pauseAutoHost(gameCode);
+
+        // Broadcast pause
+        const io = req.app.get('io');
+        if (io) {
+            io.to(gameCode).emit('game_paused', { gameCode });
+        }
+
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/:gameCode/resume', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const gameCode = (req.params.gameCode as string).toUpperCase();
+        const userId = req.userId!;
+
+        const { data: game } = await supabase.from('housie_games').select('*').eq('game_code', gameCode).single();
+        if (!game) return res.status(404).json({ error: 'Game not found' });
+        if (game.host_id !== userId) return res.status(403).json({ error: 'Only the host can resume the game' });
+
+        const settings = { ...game.settings, isPaused: false };
+        await supabase.from('housie_games').update({ settings }).eq('game_code', gameCode);
+
+        resumeAutoHost(gameCode);
+
+        // Broadcast resume
+        const io = req.app.get('io');
+        if (io) {
+            io.to(gameCode).emit('game_resumed', { gameCode });
+        }
+
+        res.json({ success: true });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -465,7 +605,7 @@ router.get('/:gameCode/participants', authMiddleware, async (req: AuthRequest, r
         // 1. Get game
         const { data: game, error: gameError } = await supabase
             .from('housie_games')
-            .select('id, ticket_price, host_id')
+            .select('id, ticket_price, host_id, settings')
             .eq('game_code', gameCode)
             .single();
 
@@ -483,6 +623,8 @@ router.get('/:gameCode/participants', authMiddleware, async (req: AuthRequest, r
         const participantsMap = new Map();
         tickets.forEach((t: any) => {
             const uid = t.user_id;
+
+            // Host counts as a participant whenever they hold tickets
             if (!participantsMap.has(uid)) {
                 participantsMap.set(uid, {
                     id: uid,
@@ -664,6 +806,9 @@ router.patch('/:gameCode/status', authMiddleware, async (req: AuthRequest, res) 
                 gameCode,
                 status,
             });
+
+            // STOP AUTO HOST IF ACTIVE
+            stopAutoHost(gameCode as string);
         }
 
         res.json(updatedGame);

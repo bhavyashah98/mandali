@@ -95,7 +95,11 @@ const HousieGameScreen = () => {
             {/* Header */}
             <View className={`px-6 flex-row items-center justify-between ${isTablet ? 'py-6 px-12' : 'py-3 px-6'}`}>
                 <View style={{ width: isTablet ? 120 : 80 }}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}>
+                    <TouchableOpacity 
+                        onPress={() => navigation.goBack()} 
+                        style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                        className={`items-center justify-center rounded-full bg-white border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                    >
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 18} color="#594048" style={{ marginLeft: isTablet ? 8 : 5 }} />
                     </TouchableOpacity>
                 </View>
@@ -135,7 +139,10 @@ const HousieGameScreen = () => {
                     <Text className={`text-[#594048] font-headline-bold mb-6 ${isTablet ? 'text-4xl' : 'text-xl'}`}>Rewards</Text>
                     <View className="gap-4 pb-10">
                         {prizesArr.map((prize: any, idx: number) => (
-                            <View key={idx} className={`bg-white rounded-[24px] border border-stone-100 shadow-sm mb-1 ${isTablet ? 'p-8' : 'p-4'}`}>
+                            <View key={idx} 
+                                style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                                className={`bg-white rounded-[24px] border border-stone-100 mb-1 ${isTablet ? 'p-8' : 'p-4'}`}
+                            >
                                 <View className="flex-row items-center justify-between">
                                     <View className="flex-row items-center flex-1 min-w-0 mr-3">
                                         <View className={`rounded-2xl bg-stone-50 items-center justify-center mr-3 flex-shrink-0 ${isTablet ? 'w-20 h-20' : 'w-9 h-9'}`}>
@@ -167,7 +174,10 @@ const HousieGameScreen = () => {
                     <Text className={`text-stone-400 font-body-bold uppercase tracking-[2px] mb-6 ${isTablet ? 'text-2xl' : 'text-[10px]'}`}>Winners List</Text>
                     <View className="gap-3 pb-10">
                         {prizesArr.filter((p: any) => p.winners?.length > 0).map((prize: any, idx: number) => (
-                            <View key={idx} className={`bg-white rounded-[24px] border border-stone-100 shadow-sm ${isTablet ? 'p-10' : 'p-4'}`}>
+                            <View key={idx} 
+                                style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                                className={`bg-white rounded-[24px] border border-stone-100 ${isTablet ? 'p-10' : 'p-4'}`}
+                            >
                                 <View className="flex-row items-center justify-between">
                                     <View className="flex-row items-center flex-1 min-w-0 mr-2">
                                         <MaterialIcons name={prize.icon || 'stars'} size={isTablet ? 36 : 16} color="#b30069" />

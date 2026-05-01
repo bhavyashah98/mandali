@@ -73,7 +73,7 @@ export const uploadImage = async (uri: string, groupId: string) => {
 
     // @ts-ignore
     formData.append('file', {
-        uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
+        uri: uri,
         name: filename,
         type: 'image/jpeg',
     });
@@ -119,7 +119,7 @@ export const uploadProfileImage = async (uri: string) => {
 
     // @ts-ignore
     formData.append('file', {
-        uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
+        uri: uri,
         name: filename,
         type: 'image/jpeg',
     });
@@ -129,7 +129,7 @@ export const uploadProfileImage = async (uri: string) => {
     formData.append('signature', signData.signature);
     if (signData.uploadPreset) formData.append('upload_preset', signData.uploadPreset);
     if (signData.folder) formData.append('folder', signData.folder);
-    if (signData.publicId) formData.append('public_id', signData.publicId);
+    if (signData.public_id) formData.append('public_id', signData.public_id);
     if (signData.overwrite) formData.append('overwrite', 'true');
     if (signData.transformation) formData.append('transformation', signData.transformation);
 
@@ -150,9 +150,17 @@ export const uploadProfileImage = async (uri: string) => {
 };
 
 // --- HOUSIE API ---
-export const createHousieGame = async (groupId: string): Promise<any> => {
+export interface HousieSettings {
+    callingMode: 'manual' | 'auto';
+    autoCallSeconds: number;
+    hostTickets: number;
+    ticketDifficulty: string;
+    gameStyle: string;
+}
+
+export const createHousieGame = async (groupId: string, settings?: HousieSettings): Promise<any> => {
     const headers = await getAuthHeaders();
-    const response = await axios.post(`${API_URL}/housie/create`, { groupId }, { headers });
+    const response = await axios.post(`${API_URL}/housie/create`, { groupId, settings }, { headers });
     return response.data;
 };
 
@@ -204,6 +212,12 @@ export const fetchHousieParticipants = async (gameCode: string): Promise<any> =>
     return response.data;
 };
 
+export const fetchHousiePrizeCatalogue = async (mode: 'auto' | 'manual'): Promise<{ prizes: any[]; allowCustom: boolean }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/housie/prizes?mode=${mode}`, { headers });
+    return response.data;
+};
+
 export const updateHousieStatus = async (gameCode: string, status: string): Promise<any> => {
     const headers = await getAuthHeaders();
     const response = await axios.patch(`${API_URL}/housie/${gameCode}/status`, { status }, { headers });
@@ -213,6 +227,18 @@ export const updateHousieStatus = async (gameCode: string, status: string): Prom
 export const callHousieNumber = async (gameCode: string) => {
     const headers = await getAuthHeaders();
     const response = await axios.post(`${API_URL}/housie/${gameCode}/call`, {}, { headers });
+    return response.data;
+};
+
+export const pauseHousieGame = async (gameCode: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/housie/${gameCode}/pause`, {}, { headers });
+    return response.data;
+};
+
+export const resumeHousieGame = async (gameCode: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/housie/${gameCode}/resume`, {}, { headers });
     return response.data;
 };
 

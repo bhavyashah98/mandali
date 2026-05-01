@@ -65,7 +65,7 @@ const HousieClaimCheckingIndicator: React.FC<HousieClaimCheckingIndicatorProps> 
             }}
             className="items-center justify-center pointer-events-none"
         >
-            <View className="shadow-lg shadow-orange-500/30">
+            <View style={{ elevation: 10, shadowColor: '#f97316', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }}>
                 <LinearGradient
                     colors={['#fff7ed', '#ffedd5']}
                     start={{ x: 0, y: 0 }}
@@ -78,11 +78,11 @@ const HousieClaimCheckingIndicator: React.FC<HousieClaimCheckingIndicatorProps> 
                     
                     <View className="ml-2.5 mr-1">
                         <Text className="text-orange-600 font-headline-bold uppercase tracking-[2px] text-[9px]">
-                            Host is verifying a claim
+                            Verification in progress
                         </Text>
                         <View className="h-[1px] bg-orange-200 w-full mt-0.5" />
                         <Text className="text-orange-400 font-body-bold uppercase text-[7px] tracking-[1px] mt-0.5">
-                            Numbers are paused
+                            Game is paused
                         </Text>
                     </View>
 

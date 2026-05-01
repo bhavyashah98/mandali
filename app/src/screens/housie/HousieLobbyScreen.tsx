@@ -14,10 +14,11 @@ import { useHousieLobbyData } from '../../hooks/useHousieLobbyData';
 import { useAuthStore } from '../../stores/authStore';
 
 //api
-import { createHousieGame, cancelHousieGame } from '../../lib/api';
+import { cancelHousieGame } from '../../lib/api';
 
 //socket
 import { useSocket } from '../../hooks/useSocket';
+import { useSocketRoom } from '../../hooks/useSocketRoom';
 
 const HousieLobbyScreen = () => {
     const navigation = useNavigation<any>();
@@ -41,9 +42,10 @@ const HousieLobbyScreen = () => {
 
     const queryClient = useQueryClient();
 
+    useSocketRoom('join_group', groupId);
+
     useEffect(() => {
         if (!groupId || !socket) return;
-        socket.emit('join_group', groupId);
 
         const onGameCreated = () => {
             queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
@@ -70,9 +72,9 @@ const HousieLobbyScreen = () => {
             socket.off('game_created', onGameCreated);
             socket.off('game_starting', onGameStarting);
             socket.off('game_activated', onGameActivated);
-            socket.off('game_ended', onGameEnded)
+            socket.off('game_ended', onGameEnded);
         };
-    }, [groupId]);
+    }, [groupId, socket, queryClient]);
 
     useFocusEffect(
         useCallback(() => {
@@ -82,25 +84,14 @@ const HousieLobbyScreen = () => {
         }, [groupId, queryClient])
     );
 
-    const handleCreateGame = useCallback(async () => {
-        try {
-            setIsLoading(true);
-            const result = await createHousieGame(groupId!);
-            console.log('handleCreateGame');
-            navigation.navigate('HousieWaitingRoom', { groupId, gameCode: result.game.game_code });
-        } catch (err: any) {
-            Alert.alert('Error', err?.response?.data?.error || 'Failed to initialize game.');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [groupId, navigation]);
+
 
     const handleAction = useCallback(() => {
         if (isLoading || isGameLoading) return;
 
         // ── CASE 1: No Game → Create New ──
         if (!activeGame) {
-            handleCreateGame();
+            navigation.navigate('HousieHostSettings', { groupId });
             return;
         }
 
@@ -117,7 +108,15 @@ const HousieLobbyScreen = () => {
                     navigation.navigate('HousieStarting', { gameCode, groupId });
                     break;
                 case 'active':
-                    navigation.navigate('HousieGame', { gameCode, groupId });
+                    if (activeGame.settings?.callingMode === 'auto') {
+                        if (hasTickets) {
+                            navigation.navigate('HousieTicket', { gameCode, groupId });
+                        } else {
+                            navigation.navigate('HousieSpectator', { gameCode, groupId });
+                        }
+                    } else {
+                        navigation.navigate('HousieGame', { gameCode, groupId });
+                    }
                     break;
                 default:
                     navigation.navigate('HousieWaitingRoom', { gameCode, groupId });
@@ -145,7 +144,7 @@ const HousieLobbyScreen = () => {
                     navigation.navigate('HousieJoinGame', { groupId });
             }
         }
-    }, [activeGame, isLoading, isGameLoading, isHostOfActiveGame, hasTickets, handleCreateGame, navigation, groupId]);
+    }, [activeGame, isLoading, isGameLoading, isHostOfActiveGame, hasTickets, navigation, groupId]);
 
     const handleCancelStuckGame = useCallback(() => {
         Alert.alert(
@@ -231,8 +230,16 @@ const HousieLobbyScreen = () => {
             >
                 {/* Main Card */}
                 <View
-                    className={`bg-white rounded-[40px] w-full items-center shadow-2xl shadow-black/5 border border-black/5 ${isTablet ? 'p-16' : 'p-8'}`}
-                    style={{ elevation: 12 }}
+                    style={{ 
+                        backgroundColor: 'white',
+                        elevation: 12,
+                        shadowColor: 'black',
+                        shadowOffset: { width: 0, height: 10 },
+                        shadowOpacity: 0.05,
+                        shadowRadius: 20,
+                        borderColor: 'rgba(0,0,0,0.05)'
+                    }}
+                    className={`rounded-[40px] w-full items-center border ${isTablet ? 'p-16' : 'p-8'}`}
                 >
                     <Text className={`text-[#b30069] font-body-bold tracking-[2px] mb-4 uppercase ${isTablet ? 'text-lg' : 'text-xs'}`}>
                         {groupName}
@@ -254,10 +261,17 @@ const HousieLobbyScreen = () => {
                         <TouchableOpacity
                             onPress={handleAction}
                             disabled={isLoading || isGameLoading || joinConfig.disabled}
-                            className={`rounded-[32px] flex-row items-center justify-center shadow-lg ${isTablet ? 'h-28' : 'h-20'} ${joinConfig.isPrimary
-                                ? 'bg-[#b30069] shadow-[#b30069]/30'
-                                : 'bg-stone-50 border border-stone-100 shadow-black/5'
-                                }`}
+                            style={{ 
+                                height: isTablet ? 28 * 4 : 20 * 4,
+                                backgroundColor: joinConfig.isPrimary ? '#b30069' : '#fafaf9',
+                                borderColor: joinConfig.isPrimary ? 'transparent' : '#f5f5f4',
+                                elevation: 8,
+                                shadowColor: joinConfig.isPrimary ? '#b30069' : 'black',
+                                shadowOffset: { width: 0, height: 6 },
+                                shadowOpacity: joinConfig.isPrimary ? 0.3 : 0.05,
+                                shadowRadius: 10
+                            }}
+                            className={`rounded-[32px] flex-row items-center justify-center border`}
                         >
                             {isLoading || isGameLoading ? (
                                 <ActivityIndicator color={joinConfig.isPrimary ? 'white' : '#31302d'} />
@@ -283,12 +297,20 @@ const HousieLobbyScreen = () => {
                         {hasLastGame && (
                             <TouchableOpacity
                                 onPress={() => navigation.navigate('HousieResults', { gameCode: lastGame.game_code, groupId })}
-                                className={`bg-primary/5 rounded-[24px] flex-row items-center justify-center border border-primary/20 ${isTablet ? 'h-24 px-10' : 'h-16'}`}
+                                style={{ 
+                                    backgroundColor: 'rgba(179, 0, 105, 0.05)',
+                                    borderColor: 'rgba(179, 0, 105, 0.2)',
+                                    height: isTablet ? 96 : 64
+                                }}
+                                className={`rounded-[24px] flex-row items-center justify-center border`}
                             >
                                 <Ionicons name="trophy" size={isTablet ? 36 : 24} color="#b30069" />
                                 <View className="ml-4">
                                     <Text className={`text-primary font-headline-bold leading-tight ${isTablet ? 'text-2xl' : 'text-lg'}`}>Last Results</Text>
-                                    <Text className={`text-primary/60 font-body-bold uppercase tracking-wider ${isTablet ? 'text-base mt-1' : 'text-[10px]'}`}>{lastGame.game_code}</Text>
+                                    <Text 
+                                        style={{ color: 'rgba(179, 0, 105, 0.6)' }}
+                                        className={`font-body-bold uppercase tracking-wider ${isTablet ? 'text-base mt-1' : 'text-[10px]'}`}
+                                    >{lastGame.game_code}</Text>
                                 </View>
                             </TouchableOpacity>
                         )}
@@ -297,7 +319,10 @@ const HousieLobbyScreen = () => {
 
                 {/* Active Game Info */}
                 {activeGame && activeGame.status !== 'ended' && (
-                    <View className={`mt-8 items-center bg-white rounded-[40px] border border-stone-100 shadow-sm w-full ${isTablet ? 'p-12' : 'p-6'}`}>
+                    <View 
+                        style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                        className={`mt-8 items-center bg-white rounded-[40px] border border-stone-100 w-full ${isTablet ? 'p-12' : 'p-6'}`}
+                    >
                         <Text className={`text-stone-400 font-body-bold uppercase tracking-widest mb-3 ${isTablet ? 'text-xl' : 'text-xs'}`}>Live Game Code</Text>
                         <Text className={`text-[#b30069] font-headline-bold mb-2 ${isTablet ? 'text-7xl' : 'text-4xl'}`}>{activeGame.game_code}</Text>
                         <Text className={`text-stone-400 font-body-bold text-center ${isTablet ? 'text-2xl mt-2' : ''}`}>Hosted by: <Text className="text-stone-600">{activeGame.hostName || 'MANDALI'}</Text></Text>
@@ -338,7 +363,8 @@ const HousieLobbyScreen = () => {
             {/* Back Button */}
             <TouchableOpacity
                 onPress={() => navigation.goBack()}
-                className={`absolute left-8 items-center justify-center bg-white rounded-full shadow-md z-10 border border-stone-50 ${isTablet ? 'top-20 w-16 h-16' : 'top-16 w-12 h-12'}`}
+                style={{ elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}
+                className={`absolute left-8 items-center justify-center bg-white rounded-full z-10 border border-stone-50 ${isTablet ? 'top-20 w-16 h-16' : 'top-16 w-12 h-12'}`}
             >
                 <MaterialIcons name="arrow-back" size={isTablet ? 36 : 28} color="#31302d" />
             </TouchableOpacity>

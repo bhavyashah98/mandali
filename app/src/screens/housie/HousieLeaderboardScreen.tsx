@@ -57,7 +57,8 @@ const HousieLeaderboardScreen = () => {
             <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                 <TouchableOpacity
                     onPress={() => navigation.goBack()}
-                    className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                    style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                    className={`items-center justify-center rounded-full bg-white border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                 >
                     <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 18} color="#594048" style={{ marginLeft: isTablet ? 12 : 4 }} />
                 </TouchableOpacity>
@@ -91,7 +92,10 @@ const HousieLeaderboardScreen = () => {
             </View>
 
             {/* Period Tabs */}
-            <View className={`flex-row bg-white border border-stone-100 shadow-sm ${isTablet ? 'mx-16 mb-12 p-3 rounded-[32px]' : 'mx-6 mb-6 p-1.5 rounded-[20px]'}`}>
+            <View 
+                style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                className={`flex-row bg-white border border-stone-100 ${isTablet ? 'mx-16 mb-12 p-3 rounded-[32px]' : 'mx-6 mb-6 p-1.5 rounded-[20px]'}`}
+            >
                 {TABS.map(tab => {
                     const isActive = activePeriod === tab.key;
                     return (
@@ -133,8 +137,14 @@ const HousieLeaderboardScreen = () => {
                     </View>
                 ) : leaderboard.length === 0 ? (
                     /* Empty State */
-                    <View className="bg-white rounded-[32px] p-10 items-center border border-stone-100 shadow-sm mt-4">
-                        <View className="w-20 h-20 rounded-full bg-primary/5 items-center justify-center mb-5">
+                    <View 
+                        style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                        className="bg-white rounded-[32px] p-10 items-center border border-stone-100 mt-4"
+                    >
+                        <View 
+                            style={{ backgroundColor: 'rgba(179, 0, 105, 0.05)' }}
+                            className="w-20 h-20 rounded-full items-center justify-center mb-5"
+                        >
                             <FontAwesome5 name="trophy" size={34} color="#e8c4d8" />
                         </View>
                         <Text className="text-[#594048] font-headline-bold text-xl mb-2 text-center">
@@ -187,7 +197,10 @@ const HousieLeaderboardScreen = () => {
                                                 resizeMode="cover"
                                             />
                                         ) : (
-                                            <View className="w-full h-full items-center justify-center bg-primary/10">
+                                            <View 
+                                                style={{ backgroundColor: 'rgba(179, 0, 105, 0.1)' }}
+                                                className="w-full h-full items-center justify-center"
+                                            >
                                                 <Text 
                                                     className="text-primary font-headline-bold"
                                                     style={{ fontSize: isTablet ? 36 : 16 }}
@@ -255,8 +268,8 @@ const HousieLeaderboardScreen = () => {
             >
                 <TouchableOpacity
                     onPress={() => navigation.goBack()}
-                    style={{ height: isTablet ? 110 : 64 }}
-                    className="bg-[#b30069] rounded-[32px] items-center justify-center shadow-xl shadow-primary/20"
+                    style={{ height: isTablet ? 110 : 64, elevation: 8, shadowColor: '#b30069', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 }}
+                    className="bg-[#b30069] rounded-[32px] items-center justify-center"
                 >
                     <Text 
                         className="text-white font-headline-bold"

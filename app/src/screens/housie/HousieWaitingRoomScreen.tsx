@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Alert, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 
 //hooks
 import { useIsTablet } from '../../hooks/useIsTablet';
@@ -14,6 +14,7 @@ import { useHousieWaitingRoomSync } from '../../hooks/housie/useHousieWaitingRoo
 //api
 import { fetchHousieGame, updateHousieStatus, fetchGroupDetail, fetchHousieParticipants, getOptimizedImageUrl } from '../../lib/api';
 import { useSocket } from '../../hooks/useSocket';
+import { useSocketRoom } from '../../hooks/useSocketRoom';
 
 const HousieWaitingRoomScreen = () => {
     const isTablet = useIsTablet();
@@ -24,6 +25,15 @@ const HousieWaitingRoomScreen = () => {
     const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};
     const { user } = useAuthStore();
     const socket = useSocket();
+
+    useFocusEffect(
+        React.useCallback(() => {
+            if (gameCode) {
+                queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
+                queryClient.invalidateQueries({ queryKey: ['housieParticipants', gameCode] });
+            }
+        }, [gameCode, queryClient])
+    );
 
     // 1. Fetch Game Status
     const { data: game } = useQuery({
@@ -59,9 +69,10 @@ const HousieWaitingRoomScreen = () => {
         isHost
     });
 
+    useSocketRoom('join_game', gameCode);
+
     useEffect(() => {
         if (!socket) return;
-        socket.emit('join_game', gameCode);
 
         const onTicketsBought = () => {
             queryClient.invalidateQueries({ queryKey: ['housieParticipants', gameCode] });
@@ -84,7 +95,7 @@ const HousieWaitingRoomScreen = () => {
             socket.off('game_starting', onGameStarting);
             socket.off('game_ended', onGameEnded);
         };
-    }, [gameCode, queryClient, navigation, groupId]);
+    }, [socket, gameCode, queryClient, navigation, groupId]);
 
     const handleStartGame = async () => {
         navigation.replace('HousieDefineBounty', { gameCode, groupId });
@@ -98,21 +109,57 @@ const HousieWaitingRoomScreen = () => {
         );
     }
 
-    const renderParticipant = ({ item }: { item: any }) => (
-        <View className={`flex-row items-center bg-white border border-stone-100 shadow-sm mb-4 ${isTablet ? 'rounded-[32px] p-8' : 'rounded-[24px] p-4'}`}>
-            <View className={`rounded-full bg-stone-50 items-center justify-center overflow-hidden ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}>
-                {item.avatar ? (
-                    <Image source={{ uri: getOptimizedImageUrl(item.avatar, 'w_150,q_auto,f_auto') }} className="w-full h-full" />
-                ) : (
-                    <Text className={`text-primary font-headline-bold ${isTablet ? 'text-5xl' : 'text-lg'}`}>{item.name[0]}</Text>
-                )}
+    const renderParticipant = ({ item }: { item: any }) => {
+        const isParticipantHost = item.id === game?.host_id;
+        
+        return (
+            <View 
+                style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                className={`flex-row items-center bg-white border border-stone-100 mb-4 ${isTablet ? 'rounded-[32px] p-8' : 'rounded-[24px] p-4'}`}
+            >
+                <View className={`rounded-full bg-stone-50 items-center justify-center overflow-hidden border border-stone-100 ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}>
+                    {item.avatar ? (
+                        <Image source={{ uri: getOptimizedImageUrl(item.avatar, 'w_150,q_auto,f_auto') }} className="w-full h-full" />
+                    ) : (
+                        <Text className={`text-primary font-headline-bold ${isTablet ? 'text-5xl' : 'text-lg'}`}>{item.name[0]}</Text>
+                    )}
+                </View>
+                <View className="ml-4 flex-1">
+                    <View className="flex-row items-center">
+                        <Text className={`font-headline-bold text-[#594048] ${isTablet ? 'text-3xl' : 'text-base'}`}>{item.name}</Text>
+                        {isParticipantHost && (
+                            <View 
+                                style={{ backgroundColor: 'rgba(179, 0, 105, 0.1)' }}
+                                className="px-2 py-0.5 rounded-md ml-2"
+                            >
+                                <Text className="text-primary font-body-bold text-[10px] uppercase">Host</Text>
+                            </View>
+                        )}
+                    </View>
+                    <Text className={`text-stone-400 font-body-medium ${isTablet ? 'text-xl mt-1' : 'text-xs'}`}>{item.ticketCount} {item.ticketCount === 1 ? 'Ticket' : 'Tickets'} Bought</Text>
+                </View>
             </View>
-            <View className="ml-6 flex-1">
-                <Text className={`font-headline-bold text-[#594048] ${isTablet ? 'text-3xl' : 'text-base'}`}>{item.name}</Text>
-                <Text className={`text-stone-400 font-body-medium ${isTablet ? 'text-xl mt-1' : 'text-xs'}`}>{item.ticketCount} Tickets Bought</Text>
-            </View>
-        </View>
-    );
+        );
+    };
+
+    const getModeText = () => {
+        if (!game?.settings) return 'Classic';
+        switch (game.settings.gameStyle) {
+            case 'plus_one':  return '+1 Housie';
+            case 'minus_one': return '-1 Housie';
+            case 'reverse':   return 'Reverse';
+            case 'classic':
+            default:          return 'Classic';
+        }
+    };
+
+    const getCallingText = () => {
+        if (!game?.settings) return 'Manual Calling';
+        if (game.settings.callingMode === 'auto') {
+            return `Auto (${game.settings.autoCallSeconds}s/num)`;
+        }
+        return 'Manual Calling';
+    };
 
     return (
         <View className="flex-1 bg-[#fdf9f3]" style={{ paddingTop: insets.top }}>
@@ -121,7 +168,8 @@ const HousieWaitingRoomScreen = () => {
                 <View style={{ width: isTablet ? 64 : 44 }}>
                     <TouchableOpacity
                         onPress={() => navigation.goBack()}
-                        className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                        style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                        className={`items-center justify-center rounded-full bg-white border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                     >
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 18} color="#594048" style={{ marginLeft: isTablet ? 8 : 5 }} />
                     </TouchableOpacity>
@@ -174,18 +222,44 @@ const HousieWaitingRoomScreen = () => {
                 ListHeaderComponent={
                     <View>
                         {/* Game Code Card - Optimized size for tablet */}
-                        <View className={`bg-[#b30069] rounded-[48px] items-center shadow-2xl shadow-[#b30069]/20 mb-10 ${isTablet ? 'p-12' : 'p-8'}`} style={{ elevation: 12 }}>
-                            <Text className={`text-white/70 font-body-bold uppercase tracking-[4px] mb-4 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>JOINING CODE</Text>
+                        <View 
+                            style={{ 
+                                backgroundColor: '#b30069', 
+                                elevation: 12, 
+                                shadowColor: '#b30069', 
+                                shadowOffset: { width: 0, height: 10 }, 
+                                shadowOpacity: 0.2, 
+                                shadowRadius: 20 
+                            }}
+                            className={`rounded-[48px] items-center mb-6 ${isTablet ? 'p-12' : 'p-8'}`}
+                        >
+                            <Text 
+                                style={{ color: 'rgba(255, 255, 255, 0.7)' }}
+                                className={`font-body-bold uppercase tracking-[4px] mb-4 ${isTablet ? 'text-xl' : 'text-[10px]'}`}
+                            >JOINING CODE</Text>
                             <Text
                                 className="text-white font-headline-bold tracking-[8px]"
                                 style={{ fontSize: isTablet ? 90 : 52 }}
                                 adjustsFontSizeToFit
                                 numberOfLines={1}
                             >{gameCode}</Text>
+                            
+                            <View 
+                                style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
+                                className="flex-row items-center mt-6 px-4 py-2 rounded-full"
+                            >
+                                <Ionicons name="settings-outline" size={14} color="white" />
+                                <Text className="text-white font-body-bold text-[11px] uppercase tracking-wider ml-2">
+                                    {getModeText()} • {getCallingText()}
+                                </Text>
+                            </View>
                         </View>
 
                         {/* Stats Display */}
-                        <View className={`bg-white rounded-[40px] border border-stone-100 items-center shadow-sm ${isTablet ? 'p-12' : 'p-6'}`}>
+                        <View 
+                            style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                            className={`bg-white rounded-[40px] border border-stone-100 items-center ${isTablet ? 'p-12' : 'p-6'}`}
+                        >
                             <View className={`flex-row justify-between w-full ${isTablet ? 'px-16' : 'px-4'}`}>
                                 <View className="items-center">
                                     <Text className={`text-stone-400 uppercase font-body-bold mb-1 ${isTablet ? 'text-lg' : 'text-[9px]'}`}>Players</Text>
@@ -198,7 +272,7 @@ const HousieWaitingRoomScreen = () => {
                             </View>
                         </View>
 
-                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[2px] mt-16 mb-8 px-4 ${isTablet ? 'text-3xl' : 'text-xs'}`}>Participants List</Text>
+                        <Text className={`text-stone-400 font-body-bold uppercase tracking-[2px] mt-12 mb-6 px-4 ${isTablet ? 'text-3xl' : 'text-xs'}`}>Participants List</Text>
                     </View>
                 }
                 ListEmptyComponent={() => (
@@ -224,7 +298,15 @@ const HousieWaitingRoomScreen = () => {
                         onPress={handleStartGame}
                         disabled={(stats?.totalTickets || 0) === 0}
                         activeOpacity={0.9}
-                        className={`rounded-[40px] flex-row items-center justify-center shadow-2xl shadow-primary/30 ${isTablet ? 'h-28' : 'h-20'} ${(stats?.totalTickets || 0) === 0 ? 'bg-primary/50' : 'bg-primary'}`}
+                        style={{ 
+                            backgroundColor: (stats?.totalTickets || 0) === 0 ? 'rgba(179, 0, 105, 0.5)' : '#b30069',
+                            elevation: 8,
+                            shadowColor: '#b30069',
+                            shadowOffset: { width: 0, height: 8 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 12
+                        }}
+                        className={`rounded-[40px] flex-row items-center justify-center ${isTablet ? 'h-28' : 'h-20'}`}
                     >
                         <Ionicons name="trophy" size={isTablet ? 36 : 26} color="white" />
                         <Text className={`text-white font-headline-bold ml-4 ${isTablet ? 'text-4xl' : 'text-2xl'}`}>Set the Stage →</Text>

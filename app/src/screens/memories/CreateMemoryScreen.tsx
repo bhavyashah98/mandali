@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Dimensions, ActivityIndicator, Alert, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Dimensions, ActivityIndicator, Alert, Platform, useWindowDimensions, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -208,11 +208,53 @@ const CreateMemoryScreen = () => {
                             <MaterialIcons name="chevron-right" size={isTablet ? 32 : 20} color="#a09d96" />
                         </TouchableOpacity>
 
-                        {showDatePicker && (
+                        {Platform.OS === 'ios' ? (
+                            <Modal
+                                visible={showDatePicker}
+                                transparent={true}
+                                animationType="fade"
+                                onRequestClose={() => setShowDatePicker(false)}
+                            >
+                                <View 
+                                    style={{ flex: 1, backgroundColor: 'rgba(28, 28, 24, 0.4)' }} 
+                                    className="justify-end"
+                                >
+                                    <View className="bg-white rounded-t-[40px] p-8 pb-12">
+                                        <View className="flex-row justify-between items-center mb-6">
+                                            <Text className="text-[#1c1c18] font-headline-bold text-2xl">Select Date</Text>
+                                            <TouchableOpacity 
+                                                onPress={() => setShowDatePicker(false)}
+                                                className="bg-stone-100 p-2 rounded-full"
+                                            >
+                                                <MaterialIcons name="close" size={24} color="#594048" />
+                                            </TouchableOpacity>
+                                        </View>
+                                        
+                                        <DateTimePicker
+                                            value={memoryDate}
+                                            mode="date"
+                                            display="spinner"
+                                            maximumDate={new Date()}
+                                            onChange={(event, selectedDate) => {
+                                                if (selectedDate) setMemoryDate(selectedDate);
+                                            }}
+                                            textColor="#1c1c18"
+                                        />
+
+                                        <TouchableOpacity
+                                            onPress={() => setShowDatePicker(false)}
+                                            className="bg-[#b30069] rounded-full h-16 items-center justify-center mt-6 shadow-lg shadow-[#b30069]/20"
+                                        >
+                                            <Text className="text-white font-headline-bold text-lg">Confirm Date</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </Modal>
+                        ) : showDatePicker && (
                             <DateTimePicker
                                 value={memoryDate}
                                 mode="date"
-                                display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
+                                display="calendar"
                                 maximumDate={new Date()}
                                 onChange={(event, selectedDate) => {
                                     setShowDatePicker(false);

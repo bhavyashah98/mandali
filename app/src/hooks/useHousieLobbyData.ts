@@ -43,7 +43,7 @@ export const useHousieLobbyData = (groupId: string | undefined) => {
     
     const isHostOfActiveGame = !!(activeGame && activeGame.host_id === user?.id && activeGame.status !== 'ended');
 
-    const hasTickets = isHostOfActiveGame ? false : !!(ticketData?.tickets && ticketData.tickets.length > 0);
+    const hasTickets = !!(ticketData?.tickets && ticketData.tickets.length > 0);
 
     const isStuck = !!(
         activeGame &&

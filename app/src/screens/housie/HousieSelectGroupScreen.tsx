@@ -52,8 +52,8 @@ const HousieSelectGroupScreen = () => {
                     "Mandali Glory",
                     "This represents your total social points won across all groups. These points are virtual and have no cash value."
                 )}
-                className={`bg-[#1c1c18] rounded-[40px] shadow-lg shadow-black/20 mb-8 overflow-hidden ${isTablet ? 'p-12' : 'p-6'}`}
-                style={{ elevation: 10 }}
+                style={{ elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10 }}
+                className={`bg-[#1c1c18] rounded-[40px] mb-8 overflow-hidden ${isTablet ? 'p-12' : 'p-6'}`}
             >
                 <LinearGradient
                     colors={['rgba(255,255,255,0.05)', 'transparent']}
@@ -71,7 +71,10 @@ const HousieSelectGroupScreen = () => {
                             <MandaliCoin size={isTablet ? 48 : 24} style={{ marginLeft: 12 }} />
                         </View>
                     </View>
-                    <View className={`bg-white/10 rounded-[28px] items-center justify-center ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}>
+                    <View 
+                        style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
+                        className={`rounded-[28px] items-center justify-center ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}
+                    >
                         <MaterialIcons name="emoji-events" size={isTablet ? 48 : 24} color="#f59e0b" />
                     </View>
                 </View>
@@ -81,29 +84,44 @@ const HousieSelectGroupScreen = () => {
 
     const renderContextCards = () => (
         <View className={`gap-4 flex-1 w-full pb-12 ${isTablet ? 'mt-12' : 'mt-4'}`}>
-            <View className={`h-[1px] bg-stone-200/80 w-full mb-${isTablet ? '12' : '4'} mt-2`} />
-            <View className={`bg-primary/5 rounded-[32px] ${isTablet ? 'p-12' : 'p-5'}`}>
+            <View 
+                style={{ backgroundColor: 'rgba(231, 229, 228, 0.8)' }}
+                className={`h-[1px] w-full mb-${isTablet ? '12' : '4'} mt-2`} 
+            />
+            <View 
+                style={{ backgroundColor: 'rgba(179, 0, 105, 0.05)' }}
+                className={`rounded-[32px] ${isTablet ? 'p-12' : 'p-5'}`}
+            >
                 <MaterialIcons name="confirmation-num" size={isTablet ? 48 : 24} color="#b30069" className="mb-4" />
                 <Text className={`font-headline-bold text-[#1c1c18] mb-2 ${isTablet ? 'text-3xl' : 'text-[15px]'}`}>Classic Gameplay</Text>
                 <Text className={`font-body-medium text-stone-500 leading-relaxed ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
                     Generate automated digital tickets instantly and play live with anyone in your Mandali circle.
                 </Text>
             </View>
-            <View className={`bg-primary/5 rounded-[32px] ${isTablet ? 'p-12' : 'p-5'}`}>
+            <View 
+                style={{ backgroundColor: 'rgba(179, 0, 105, 0.05)' }}
+                className={`rounded-[32px] ${isTablet ? 'p-12' : 'p-5'}`}
+            >
                 <MaterialIcons name="emoji-events" size={isTablet ? 48 : 24} color="#b30069" className="mb-4" />
                 <Text className={`font-headline-bold text-[#1c1c18] mb-2 ${isTablet ? 'text-3xl' : 'text-[15px]'}`}>Live Bounties</Text>
                 <Text className={`font-body-medium text-stone-500 leading-relaxed ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
                     Fastest five, first row, full house... sprint to claim digital rewards against your friends.
                 </Text>
             </View>
-            <View className={`bg-primary/5 rounded-[32px] ${isTablet ? 'p-12' : 'p-5'}`}>
+            <View 
+                style={{ backgroundColor: 'rgba(179, 0, 105, 0.05)' }}
+                className={`rounded-[32px] ${isTablet ? 'p-12' : 'p-5'}`}
+            >
                 <MaterialIcons name="notifications-active" size={isTablet ? 48 : 24} color="#b30069" className="mb-4" />
                 <Text className={`font-headline-bold text-[#1c1c18] mb-2 ${isTablet ? 'text-3xl' : 'text-[15px]'}`}>Instant Invites</Text>
                 <Text className={`font-body-medium text-stone-500 leading-relaxed ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
                     When a game is launched, all members of your chosen Mandali are notified instantly to join the lobby.
                 </Text>
             </View>
-            <View className={`bg-primary/5 rounded-[32px] ${isTablet ? 'p-12' : 'p-5'}`}>
+            <View 
+                style={{ backgroundColor: 'rgba(179, 0, 105, 0.05)' }}
+                className={`rounded-[32px] ${isTablet ? 'p-12' : 'p-5'}`}
+            >
                 <MaterialIcons name="leaderboard" size={isTablet ? 48 : 24} color="#b30069" className="mb-4" />
                 <Text className={`font-headline-bold text-[#1c1c18] mb-2 ${isTablet ? 'text-3xl' : 'text-[15px]'}`}>Mandali Leaderboards</Text>
                 <Text className={`font-body-medium text-stone-500 leading-relaxed ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
@@ -115,7 +133,10 @@ const HousieSelectGroupScreen = () => {
 
     const renderEmptyState = () => (
         <View className="items-center w-full mb-12 mt-16 px-6">
-            <View className={`rounded-full bg-primary/5 items-center justify-center mb-8 ${isTablet ? 'w-40 h-40' : 'w-20 h-20'}`}>
+            <View 
+                style={{ backgroundColor: 'rgba(179, 0, 105, 0.05)' }}
+                className={`rounded-full items-center justify-center mb-8 ${isTablet ? 'w-40 h-40' : 'w-20 h-20'}`}
+            >
                 <MaterialIcons name="local-activity" size={isTablet ? 80 : 40} color="#b30069" />
             </View>
             <Text className={`font-headline-bold text-on-surface text-center mb-4 ${isTablet ? 'text-5xl' : 'text-2xl'}`}>No Mandali Found!</Text>
@@ -134,8 +155,8 @@ const HousieSelectGroupScreen = () => {
                             }
                         }
                     })}
-                    style={{ height: isTablet ? 110 : 64 }}
-                    className="rounded-[32px] bg-[#b30069] flex-row items-center justify-center px-8 shadow-xl shadow-primary/20"
+                    style={{ height: isTablet ? 110 : 64, elevation: 8, shadowColor: '#b30069', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 }}
+                    className="rounded-[32px] bg-[#b30069] flex-row items-center justify-center px-8"
                 >
                     <Ionicons name="add-circle" size={isTablet ? 36 : 24} color="white" />
                     <Text
@@ -154,8 +175,8 @@ const HousieSelectGroupScreen = () => {
                             }
                         }
                     })}
-                    style={{ height: isTablet ? 110 : 64 }}
-                    className="rounded-[32px] bg-[#fcecf2] flex-row items-center justify-center px-8 border border-[#b30069]/10"
+                    style={{ height: isTablet ? 110 : 64, borderColor: 'rgba(179, 0, 105, 0.1)' }}
+                    className="rounded-[32px] bg-[#fcecf2] flex-row items-center justify-center px-8 border"
                 >
                     <Ionicons name="enter" size={isTablet ? 36 : 24} color="#b30069" />
                     <Text
@@ -172,8 +193,8 @@ const HousieSelectGroupScreen = () => {
             <TouchableOpacity
                 onPress={() => navigation.navigate('HousieLobby', { groupId: item.id })}
                 activeOpacity={0.7}
-                className={`bg-white rounded-[32px] flex-row items-center border border-stone-100 shadow-sm mb-4 ${isTablet ? 'px-10 py-8' : 'px-4 py-4'}`}
-                style={{ elevation: 2 }}
+                style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                className={`bg-white rounded-[32px] flex-row items-center border border-stone-100 mb-4 ${isTablet ? 'px-10 py-8' : 'px-4 py-4'}`}
             >
                 {/* Group Avatar */}
                 <View className={`rounded-2xl overflow-hidden bg-stone-50 border border-stone-100 ${isTablet ? 'w-24 h-24' : 'w-16 h-16'}`}>
@@ -184,7 +205,10 @@ const HousieSelectGroupScreen = () => {
                             resizeMode="cover"
                         />
                     ) : (
-                        <View className="w-full h-full items-center justify-center bg-primary/5">
+                        <View 
+                            style={{ backgroundColor: 'rgba(179, 0, 105, 0.05)' }}
+                            className="w-full h-full items-center justify-center"
+                        >
                             <Text
                                 className="font-headline-bold text-primary opacity-30"
                                 style={{ fontSize: isTablet ? 42 : 24 }}
@@ -205,7 +229,10 @@ const HousieSelectGroupScreen = () => {
                         {item.name}
                     </Text>
                     <View className="flex-row items-center">
-                        <View className={`rounded-full bg-primary/40 mr-3 ${isTablet ? 'w-2.5 h-2.5' : 'w-1.5 h-1.5'}`} />
+                        <View 
+                            style={{ backgroundColor: 'rgba(179, 0, 105, 0.4)' }}
+                            className={`rounded-full mr-3 ${isTablet ? 'w-2.5 h-2.5' : 'w-1.5 h-1.5'}`} 
+                        />
                         <Text className={`font-body-bold text-[#594048] opacity-60 ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
                             {item.is_admin ? 'Admin • ' : ''}{item.memberCount || 0} Members
                         </Text>

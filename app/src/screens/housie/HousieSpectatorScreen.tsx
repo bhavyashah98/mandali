@@ -8,9 +8,10 @@ import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import MandaliCoin from '../../components/MandaliCoin';
-import { fetchHousieGame, fetchGroupDetail, getOptimizedImageUrl } from '../../lib/api';
+import { useAuthStore } from '../../stores/authStore';
+import { fetchHousieGame, fetchGroupDetail, getOptimizedImageUrl, pauseHousieGame, resumeHousieGame, updateHousieStatus } from '../../lib/api';
 import { useSocket } from '../../hooks/useSocket';
+import { useSocketRoom } from '../../hooks/useSocketRoom';
 import HousieWinNotification from '../../components/housie/HousieWinNotification';
 import HousieClaimCheckingIndicator from '../../components/housie/HousieClaimCheckingIndicator';
 
@@ -21,6 +22,7 @@ const HousieSpectatorScreen = () => {
     const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};
     const queryClient = useQueryClient();
     const socket = useSocket();
+    const { user } = useAuthStore();
 
     const [isPlayerClaiming, setIsPlayerClaiming] = React.useState(false);
     const [activeNotification, setActiveNotification] = React.useState<{
@@ -38,7 +40,7 @@ const HousieSpectatorScreen = () => {
     });
 
     // Fetch game state
-    const { data: game, isLoading } = useQuery({
+    const { data: game, isLoading, refetch: refetchGame } = useQuery({
         queryKey: ['housieGame', gameCode],
         queryFn: () => fetchHousieGame(gameCode),
         staleTime: 0,
@@ -46,10 +48,11 @@ const HousieSpectatorScreen = () => {
         refetchOnWindowFocus: false,
     });
 
+    useSocketRoom('join_game', gameCode);
+
     // Socket — listen for numbers and game end
     useEffect(() => {
         if (!socket) return;
-        socket.emit('join_game', gameCode);
 
         const onNumberCalled = (data: any) => {
             queryClient.setQueryData(['housieGame', gameCode], (old: any) => ({
@@ -88,6 +91,9 @@ const HousieSpectatorScreen = () => {
         const onPlayerClaimingOpen = () => setIsPlayerClaiming(true);
         const onPlayerClaimingClosed = () => setIsPlayerClaiming(false);
 
+        const onGamePaused = () => queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
+        const onGameResumed = () => queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
+
         socket.on('number_called', onNumberCalled);
         socket.on('claim_result', onClaimResult);
         socket.on('game_ended', onGameEnded);
@@ -95,6 +101,8 @@ const HousieSpectatorScreen = () => {
         socket.on('game_activated', onGameActivated);
         socket.on('player_claiming_open', onPlayerClaimingOpen);
         socket.on('player_claiming_closed', onPlayerClaimingClosed);
+        socket.on('game_paused', onGamePaused);
+        socket.on('game_resumed', onGameResumed);
 
         return () => {
             socket.off('number_called', onNumberCalled);
@@ -104,8 +112,10 @@ const HousieSpectatorScreen = () => {
             socket.off('game_activated', onGameActivated);
             socket.off('player_claiming_open', onPlayerClaimingOpen);
             socket.off('player_claiming_closed', onPlayerClaimingClosed);
+            socket.off('game_paused', onGamePaused);
+            socket.off('game_resumed', onGameResumed);
         };
-    }, [gameCode]);
+    }, [gameCode, socket, queryClient, navigation, groupId]);
 
     const calledNumbers = game?.called_numbers || [];
     const latestNumber = calledNumbers[calledNumbers.length - 1];
@@ -174,12 +184,13 @@ const HousieSpectatorScreen = () => {
                 <View style={{ width: isTablet ? 64 : 44 }}>
                     <TouchableOpacity
                         onPress={() => navigation.goBack()}
-                        className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                        style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                        className={`items-center justify-center rounded-full bg-white border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                     >
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />
                     </TouchableOpacity>
                 </View>
-                <View className="flex-1 items-center">
+                <View className="flex-1 items-center px-2">
                     <Text
                         className={`text-[#a09a90] font-body-bold uppercase tracking-[3px] text-center ${isTablet ? 'text-xl' : 'text-[10px]'}`}
                         numberOfLines={1}
@@ -187,16 +198,56 @@ const HousieSpectatorScreen = () => {
                         MANDALI • {groupData?.group?.name || 'SPECTATING'}
                     </Text>
                     <Text className={`text-[#b30069] font-headline-bold leading-tight ${isTablet ? 'text-2xl mt-1' : 'text-xs'}`}>Live Game Board</Text>
-                    {game?.hostName && (
-                        <Text className={`text-stone-400 font-body-bold mt-1 ${isTablet ? 'text-sm' : 'text-[10px]'}`}>
-                            Hosted by {game.hostName}
-                        </Text>
-                    )}
                 </View>
-                <View className={`bg-green-100 rounded-full flex-row items-center border border-green-200 ${isTablet ? 'px-6 py-2' : 'px-3 py-1'}`}>
-                    <View className={`rounded-full bg-green-500 ${isTablet ? 'w-3 h-3 mr-3' : 'w-2 h-2 mr-2'}`} />
-                    <Text className={`text-green-800 font-body-bold uppercase tracking-widest ${isTablet ? 'text-lg' : 'text-[10px]'}`}>Live</Text>
-                </View>
+                
+                {/* Host Controls for Auto Mode */}
+                {game?.host_id === user?.id && game?.settings?.callingMode === 'auto' ? (
+                    <View className="flex-row items-center" style={{ gap: 8 }}>
+                        <TouchableOpacity
+                            onPress={async () => {
+                                try {
+                                    if (game.settings?.isPaused) {
+                                        await resumeHousieGame(gameCode);
+                                    } else {
+                                        await pauseHousieGame(gameCode);
+                                    }
+                                    refetchGame();
+                                } catch (e) {
+                                    console.error("Failed to toggle pause:", e);
+                                }
+                            }}
+                            style={game.settings?.isPaused ? {} : { elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                            className={`rounded-full flex-row items-center border border-stone-100 px-3 py-1.5 ${game.settings?.isPaused ? 'bg-orange-50' : 'bg-white'}`}
+                        >
+                            <MaterialIcons 
+                                name={game.settings?.isPaused ? 'play-arrow' : 'pause'} 
+                                size={16} 
+                                color={game.settings?.isPaused ? '#f97316' : '#b30069'} 
+                            />
+                            <Text className={`font-headline-bold ml-1 uppercase tracking-tight ${game.settings?.isPaused ? 'text-orange-600' : 'text-primary'} text-[9px]`}>
+                                {game.settings?.isPaused ? 'Resume' : 'Pause'}
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            onPress={() => {
+                                Alert.alert('End Game?', 'Are you sure you want to finish this session?', [
+                                    { text: 'Cancel', style: 'cancel' },
+                                    { text: 'Finish', style: 'destructive', onPress: () => updateHousieStatus(gameCode, 'ended') }
+                                ]);
+                            }} 
+                            className="bg-red-50 px-2 py-1.5 rounded-xl border border-red-100 flex-row items-center"
+                        >
+                            <MaterialIcons name="power-settings-new" size={14} color="#dc2626" />
+                            <Text className="text-[#dc2626] font-headline-bold ml-1 text-[9px] uppercase">Finish</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <View className={`bg-green-100 rounded-full flex-row items-center border border-green-200 ${isTablet ? 'px-6 py-2' : 'px-3 py-1'}`}>
+                        <View className={`rounded-full bg-green-500 ${isTablet ? 'w-3 h-3 mr-3' : 'w-2 h-2 mr-2'}`} />
+                        <Text className={`text-green-800 font-body-bold uppercase tracking-widest ${isTablet ? 'text-lg' : 'text-[10px]'}`}>Live</Text>
+                    </View>
+                )}
             </View>
 
             <ScrollView
@@ -208,41 +259,50 @@ const HousieSpectatorScreen = () => {
                     <Text className={`text-stone-400 font-body-bold uppercase tracking-[4px] mb-6 ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>NOW CALLING</Text>
                     <View className="w-full items-center justify-center">
                         <View className="flex-row items-center justify-center gap-x-5 px-4">
-                            {/* Ball p-2 */}
-                            <View className="items-center">
-                                <View
-                                    style={{ width: isTablet ? 90 : 58, height: isTablet ? 90 : 58, borderRadius: 45 }}
-                                    className="bg-[#b30069]/10 border border-[#b30069]/20 items-center justify-center"
-                                >
-                                    <Text className={`text-[#594048] font-headline-bold text-center ${isTablet ? 'text-3xl' : 'text-lg'}`}>
-                                        {calledNumbers[calledNumbers.length - 3] || '--'}
-                                    </Text>
-                                </View>
-                            </View>
-
-                            {/* Ball p-1 */}
-                            <View className="items-center">
-                                <View
-                                    style={{ width: isTablet ? 110 : 72, height: isTablet ? 110 : 72, borderRadius: 55 }}
-                                    className="bg-[#b30069]/20 border border-[#b30069]/30 items-center justify-center"
-                                >
-                                    <Text className={`text-[#594048] font-headline-bold text-center ${isTablet ? 'text-4xl' : 'text-2xl'}`}>
-                                        {calledNumbers[calledNumbers.length - 2] || '--'}
-                                    </Text>
-                                </View>
-                            </View>
-
-                            {/* CURRENT BALL */}
-                            <View className="items-center">
-                                <View
-                                    style={{ width: isTablet ? 180 : 110, height: isTablet ? 180 : 110, borderRadius: 90, elevation: 12 }}
-                                    className="bg-[#b30069] items-center justify-center shadow-2xl shadow-[#b30069]/30 border-[5px] border-white"
-                                >
-                                    <Text className={`text-white font-headline-bold text-center ${isTablet ? 'text-[84px]' : 'text-[54px]'}`}>
-                                        {latestNumber || "—"}
-                                    </Text>
-                                </View>
-                            </View>
+                             {/* Ball p-2 */}
+                             <View className="items-center">
+                                 <View
+                                     style={{ width: isTablet ? 90 : 58, height: isTablet ? 90 : 58, borderRadius: 45, backgroundColor: 'rgba(179, 0, 105, 0.1)', borderColor: 'rgba(179, 0, 105, 0.2)' }}
+                                     className="border items-center justify-center"
+                                 >
+                                     <Text className={`text-[#594048] font-headline-bold text-center ${isTablet ? 'text-3xl' : 'text-lg'}`}>
+                                         {calledNumbers[calledNumbers.length - 3] || '--'}
+                                     </Text>
+                                 </View>
+                             </View>
+ 
+                             {/* Ball p-1 */}
+                             <View className="items-center">
+                                 <View
+                                     style={{ width: isTablet ? 110 : 72, height: isTablet ? 110 : 72, borderRadius: 55, backgroundColor: 'rgba(179, 0, 105, 0.2)', borderColor: 'rgba(179, 0, 105, 0.3)' }}
+                                     className="border items-center justify-center"
+                                 >
+                                     <Text className={`text-[#594048] font-headline-bold text-center ${isTablet ? 'text-4xl' : 'text-2xl'}`}>
+                                         {calledNumbers[calledNumbers.length - 2] || '--'}
+                                     </Text>
+                                 </View>
+                             </View>
+ 
+                             {/* CURRENT BALL */}
+                             <View className="items-center">
+                                 <View
+                                     style={{ 
+                                         width: isTablet ? 180 : 110, 
+                                         height: isTablet ? 180 : 110, 
+                                         borderRadius: 90, 
+                                         elevation: 12,
+                                         shadowColor: '#b30069',
+                                         shadowOffset: { width: 0, height: 10 },
+                                         shadowOpacity: 0.3,
+                                         shadowRadius: 15
+                                     }}
+                                     className="bg-[#b30069] items-center justify-center border-[5px] border-white"
+                                 >
+                                     <Text className={`text-white font-headline-bold text-center ${isTablet ? 'text-[84px]' : 'text-[54px]'}`}>
+                                         {latestNumber || "—"}
+                                     </Text>
+                                 </View>
+                             </View>
                         </View>
                     </View>
                     <HousieClaimCheckingIndicator visible={isPlayerClaiming} />
@@ -280,7 +340,10 @@ const HousieSpectatorScreen = () => {
                 )}
 
                 {/* Number Board */}
-                <View className={`bg-white rounded-[40px] shadow-sm border border-stone-100 mb-10 ${isTablet ? 'p-10' : 'p-6'}`}>
+                <View 
+                    style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                    className={`bg-white rounded-[40px] border border-stone-100 mb-10 ${isTablet ? 'p-10' : 'p-6'}`}
+                >
                     <Text className={`text-[#594048] font-headline-bold mb-6 ${isTablet ? 'text-4xl' : 'text-xl'}`}>Main Board</Text>
                     <View className="items-center w-full">
                         {renderBoard()}
@@ -292,7 +355,10 @@ const HousieSpectatorScreen = () => {
                     <Text className={`text-[#594048] font-headline-bold mb-6 ${isTablet ? 'text-4xl' : 'text-xl'}`}>Rewards</Text>
                     <View className="gap-4 pb-10">
                         {prizesArr.map((prize: any, idx: number) => (
-                            <View key={idx} className={`bg-white rounded-[24px] border border-stone-100 shadow-sm mb-1 ${isTablet ? 'p-8' : 'p-4'}`}>
+                            <View key={idx} 
+                                style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                                className={`bg-white rounded-[24px] border border-stone-100 mb-1 ${isTablet ? 'p-8' : 'p-4'}`}
+                            >
                                 <View className="flex-row items-center justify-between">
                                     <View className="flex-row items-center flex-1 min-w-0 mr-3">
                                         <View className={`rounded-2xl bg-stone-50 items-center justify-center mr-3 flex-shrink-0 ${isTablet ? 'w-20 h-20' : 'w-9 h-9'}`}>

@@ -59,7 +59,10 @@ const HousieResultsScreen = () => {
                     marginBottom: isTablet ? 40 : 16
                 }}
             >
-                <View className={`bg-primary/10 rounded-full mb-4 items-center justify-center shadow-sm ${isTablet ? 'w-40 h-40' : 'w-24 h-24'}`}>
+                <View 
+                    style={{ backgroundColor: 'rgba(179, 0, 105, 0.1)', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                    className={`rounded-full mb-4 items-center justify-center ${isTablet ? 'w-40 h-40' : 'w-24 h-24'}`}
+                >
                     <MaterialIcons name="emoji-events" size={isTablet ? 90 : 54} color="#b30069" />
                 </View>
                 <Text
@@ -88,15 +91,27 @@ const HousieResultsScreen = () => {
                         <Text className="text-stone-400 font-body-bold text-lg mt-4">Surprisingly, no winners tonight!</Text>
                     </View>
                 ) : (
-                    results.map((player, index) => (
+                    results.map((player: any, index: number) => (
                         <View
                             key={player.userId}
-                            className={`flex-row items-center rounded-[32px] mb-6 bg-white border border-stone-100 shadow-sm ${index === 0 ? 'border-primary/30 bg-primary/5' : ''} ${isTablet ? 'p-10' : 'p-5'}`}
+                            style={{ 
+                                elevation: 2, 
+                                shadowColor: '#000', 
+                                shadowOffset: { width: 0, height: 1 }, 
+                                shadowOpacity: 0.05, 
+                                shadowRadius: 2,
+                                backgroundColor: index === 0 ? 'rgba(179, 0, 105, 0.05)' : '#fff',
+                                borderColor: index === 0 ? 'rgba(179, 0, 105, 0.3)' : '#f5f5f4'
+                            }}
+                            className={`flex-row items-center rounded-[32px] mb-6 border ${isTablet ? 'p-10' : 'p-5'}`}
                         >
                             {/* Rank Icon */}
                             <View className={`${isTablet ? 'w-20' : 'w-10'} items-center justify-center mr-4`}>
                                 {index === 0 ? (
-                                    <View className={`bg-amber-400 rounded-full items-center justify-center shadow-sm ${isTablet ? 'w-12 h-12' : 'w-8 h-8'}`}>
+                                    <View 
+                                        style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 }}
+                                        className={`bg-amber-400 rounded-full items-center justify-center ${isTablet ? 'w-12 h-12' : 'w-8 h-8'}`}
+                                    >
                                         <Text className={`text-white font-headline-bold ${isTablet ? 'text-2xl' : 'text-base'}`}>1</Text>
                                     </View>
                                 ) : (
@@ -105,15 +120,16 @@ const HousieResultsScreen = () => {
                             </View>
 
                             {/* Avatar */}
-                            <View
-                                className={`rounded-full bg-stone-100 overflow-hidden border-4 border-white shadow-md ${isTablet ? 'w-24 h-24 mr-8' : 'w-11 h-11 mr-3'}`}
-                            >
+                             <View
+                                 style={{ elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}
+                                 className={`rounded-full bg-stone-100 overflow-hidden border-4 border-white ${isTablet ? 'w-24 h-24 mr-8' : 'w-11 h-11 mr-3'}`}
+                             >
                                 {player.avatarUrl ? (
                                     <Image source={{ uri: getOptimizedImageUrl(player.avatarUrl, 'w_150,q_auto,f_auto') }} className="w-full h-full" />
                                 ) : (
                                     <View className="flex-1 items-center justify-center">
                                         <Text className={`text-stone-400 font-headline-bold ${isTablet ? 'text-3xl' : 'text-base'}`}>
-                                            {player.name.charAt(0).toUpperCase()}
+                                            {player.name?.[0]?.toUpperCase() || '?'}
                                         </Text>
                                     </View>
                                 )}
@@ -130,7 +146,10 @@ const HousieResultsScreen = () => {
                                     {player.name}
                                 </Text>
                                 <View className="flex-row items-center">
-                                    <View className="bg-primary/10 px-2 py-0.5 rounded-full mr-2">
+                                    <View 
+                                        style={{ backgroundColor: 'rgba(179, 0, 105, 0.1)' }}
+                                        className="px-2 py-0.5 rounded-full mr-2"
+                                    >
                                         <Text className={`text-primary font-body-bold ${isTablet ? 'text-xl' : 'text-[10px]'}`}>
                                             {player.winCount} {player.winCount === 1 ? 'WIN' : 'WINS'}
                                         </Text>
@@ -171,8 +190,8 @@ const HousieResultsScreen = () => {
             >
                 <TouchableOpacity
                     onPress={handleClose}
-                    style={{ height: isTablet ? 110 : 70 }}
-                    className="bg-[#b30069] rounded-[32px] items-center justify-center shadow-xl shadow-primary/20"
+                    style={{ height: isTablet ? 110 : 70, elevation: 8, shadowColor: '#b30069', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 }}
+                    className="bg-[#b30069] rounded-[32px] items-center justify-center"
                 >
                     <Text
                         className="text-white font-headline-bold"

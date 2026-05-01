@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchGroupDetail, leaveGroup, deleteGroup, transferOwnership, fetchBlockedUsers, blockUser, unblockUser, getOptimizedImageUrl } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { useSocket } from '../../hooks/useSocket';
+import { useSocketRoom } from '../../hooks/useSocketRoom';
 
 const GroupDetailScreen = () => {
     const navigation = useNavigation<any>();
@@ -39,11 +40,11 @@ const GroupDetailScreen = () => {
         queryFn: fetchBlockedUsers
     });
 
+    useSocketRoom('join_group', groupId);
+
     useFocusEffect(
         useCallback(() => {
             if (!socket) return;
-
-            socket.emit('join_group', groupId);
 
             const handleGroupEvent = (event: any) => {
                 if (event.payload?.groupId === groupId) {
