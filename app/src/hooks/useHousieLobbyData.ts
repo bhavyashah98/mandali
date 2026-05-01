@@ -39,8 +39,8 @@ export const useHousieLobbyData = (groupId: string | undefined) => {
     });
 
     // Computed Properties
-    const groupName = groupData?.group?.name || 'Your';
-    
+    const groupName = groupData?.group?.name;
+
     const isHostOfActiveGame = !!(activeGame && activeGame.host_id === user?.id && activeGame.status !== 'ended');
 
     const hasTickets = !!(ticketData?.tickets && ticketData.tickets.length > 0);
