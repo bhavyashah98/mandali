@@ -238,14 +238,18 @@ router.patch('/:gameCode/activate', authMiddleware, async (req: AuthRequest, res
         if (fetchError || !game) return res.status(404).json({ error: 'Game not found' });
         if (game.host_id !== userId) return res.status(403).json({ error: 'Only the host can activate the game' });
 
-        const { prizes = [] } = req.body;
+        const now = new Date();
+        const activationTime = new Date(now.getTime() + 15000);
+        const { prizes } = req.body // 15 seconds countdown
 
         const { data: updatedGame, error: updateError } = await supabase
             .from('housie_games')
             .update({
                 status: 'starting',
                 prizes: prizes,
-                last_activity_at: new Date().toISOString()
+                starting_at: now.toISOString(),
+                activation_at: activationTime.toISOString(),
+                last_activity_at: now.toISOString()
             })
             .eq('game_code', gameCode)
             .select()
@@ -255,7 +259,7 @@ router.patch('/:gameCode/activate', authMiddleware, async (req: AuthRequest, res
 
         const io = req.app.get('io');
         if (io) {
-            // 1. Notify everyone that game is STARTING (25s countdown)
+            // 1. Notify everyone that game is STARTING (15s countdown)
             io.to(gameCode).emit('game_starting', {
                 gameCode,
                 status: 'starting',
@@ -267,34 +271,6 @@ router.patch('/:gameCode/activate', authMiddleware, async (req: AuthRequest, res
                 gameCode,
                 status: 'starting'
             });
-
-            // 3. Set a timeout to flip status to 'active' automatically after 15s
-            setTimeout(async () => {
-                try {
-                    const { data: finalGame } = await supabase
-                        .from('housie_games')
-                        .update({ status: 'active' })
-                        .eq('game_code', gameCode)
-                        .select()
-                        .single();
-
-                    if (finalGame) {
-                        io.to(gameCode).emit('game_activated', {
-                            gameCode,
-                            status: 'active',
-                            game: finalGame
-                        });
-
-                        // ─── START AUTO HOST IF MODE IS AUTO ───
-                        if (finalGame.settings?.callingMode === 'auto' && !finalGame.settings?.isPaused) {
-                            const interval = finalGame.settings?.autoCallSeconds || 7;
-                            startAutoHost(gameCode, interval);
-                        }
-                    }
-                } catch (err) {
-                    console.error('[Housie] Failed to auto-activate game after starting timer:', err);
-                }
-            }, 15000);
         }
 
         res.json(updatedGame);

@@ -40,7 +40,10 @@ const SetupProfileScreen = () => {
 
     useEffect(() => {
         if (user?.birthday) {
-            setBirthday(new Date(user.birthday));
+            const date = new Date(user.birthday);
+            if (!isNaN(date.getTime())) {
+                setBirthday(date);
+            }
         }
     }, [user?.birthday]);
 
@@ -309,7 +312,7 @@ const SetupProfileScreen = () => {
 
                             {/* Save/Join Button */}
                             <TouchableOpacity
-                                className={`w-full rounded-[32px] items-center justify-center ${name.trim() && day && month && year && !isLoading ? 'bg-[#b30069]' : 'bg-[#b30069]/50'}`}
+                                className={`w-full rounded-[32px] items-center justify-center ${name.trim() && !isLoading ? 'bg-[#b30069]' : 'bg-[#b30069]/50'}`}
                                 style={{
                                     height: isTablet ? 110 : 64,
                                     elevation: 8,
@@ -318,7 +321,7 @@ const SetupProfileScreen = () => {
                                     shadowOpacity: 0.2,
                                     shadowRadius: 12,
                                 }}
-                                disabled={!name.trim() || !day || isLoading}
+                                disabled={!name.trim() || isLoading}
                                 activeOpacity={0.85}
                                 onPress={handleSaveProfile}
                             >

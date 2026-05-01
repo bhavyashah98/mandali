@@ -61,6 +61,10 @@ app.get('/health', (req, res) => {
 
 import { registerChatHandlers } from './sockets/chatHandlers';
 import { registerHousieHandlers } from './sockets/housieHandlers';
+import { initHousieEngine } from './services/housieEngine';
+
+// Initialize Background Engine
+initHousieEngine();
 
 // --- Real-time Presence Cache ---
 const onlineUsers = new Map<string, string>(); // userId -> socketId
@@ -135,8 +139,43 @@ io.on('connection', async (socket) => {
             supabase.from('users').update({
                 online_status: false,
                 last_seen: new Date().toISOString()
-            }).eq('id', userId).then(({ error }) => {
-                if (!error) io.emit('online_status', { userId, status: false });
+            }).eq('id', userId).then(async ({ error }) => {
+                if (!error) {
+                    io.emit('online_status', { userId, status: false });
+                    
+                    // Cleanup: Remove any "pre_claim" virtual locks for this user from active games
+                    try {
+                        const { data: games } = await supabase
+                            .from('housie_games')
+                            .select('game_code, winners')
+                            .eq('status', 'active');
+                        
+                        if (games) {
+                            for (const game of games) {
+                                const winners = game.winners || {};
+                                const pending = winners['__pending'] || [];
+                                
+                                const updatedPending = pending.filter(
+                                    (p: any) => !(p.userId === userId && p.type === 'pre_claim')
+                                );
+                                
+                                if (updatedPending.length !== pending.length) {
+                                    console.log(`[Socket] Cleaning up zombie pre_claim for user ${userId} in game ${game.game_code}`);
+                                    await supabase
+                                        .from('housie_games')
+                                        .update({ 
+                                            winners: { ...winners, __pending: updatedPending },
+                                            last_activity_at: new Date().toISOString()
+                                        })
+                                        .eq('game_code', game.game_code)
+                                        .eq('winners', winners); // atomic guard
+                                }
+                            }
+                        }
+                    } catch (cleanupErr) {
+                        console.error("[Socket] Failed to cleanup pre_claims on disconnect:", cleanupErr);
+                    }
+                }
             });
         }
     });

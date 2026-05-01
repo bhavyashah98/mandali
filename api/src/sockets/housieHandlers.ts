@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { supabase } from '../lib/supabase';
 import { checkPrize } from '../utils/tambola';
-import { resetAutoHostTimer } from '../services/housieAutoHost';
+import { pauseAutoHost, resetAutoHostTimer } from '../services/housieAutoHost';
 
 export const registerHousieHandlers = (io: Server, socket: Socket) => {
 
@@ -26,12 +26,15 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
 
             const winners = game.winners || {};
             const pending = winners['__pending'] || [];
-            
+
             // Add a "virtual" claim to force the auto-host to pause
-            const alreadyIn = pending.some((p: any) => p.userId === userId && p.type === 'modal_open');
+            const alreadyIn = pending.some((p: any) => p.userId === userId && p.type === 'pre_claim');
             if (!alreadyIn) {
-                winners['__pending'] = [...pending, { userId, type: 'modal_open', at: new Date().toISOString() }];
+                winners['__pending'] = [...pending, { userId, type: 'pre_claim', at: new Date().toISOString() }];
                 await supabase.from('housie_games').update({ winners }).eq('game_code', gameCode);
+                if (pending.length === 0) {
+                    await pauseAutoHost(gameCode);
+                }
             }
 
             socket.to(gameCode).emit('player_claiming_open', { userId });
@@ -53,20 +56,23 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
 
             const winners = game.winners || {};
             const pending = winners['__pending'] || [];
-            
+
             // Remove the "virtual" claim
-            const updatedPending = pending.filter((p: any) => !(p.userId === userId && p.type === 'modal_open'));
+            const updatedPending = pending.filter((p: any) => !(p.userId === userId && p.type === 'pre_claim'));
+
             if (updatedPending.length !== pending.length) {
                 winners['__pending'] = updatedPending;
                 await supabase
                     .from('housie_games')
-                    .update({ 
+                    .update({
                         winners,
                         last_activity_at: new Date().toISOString()
                     })
                     .eq('game_code', gameCode);
-                
-                resetAutoHostTimer(gameCode);
+
+                if (updatedPending.length === 0) {
+                    await resetAutoHostTimer(gameCode);
+                }
             }
 
             socket.to(gameCode).emit('player_claiming_closed', { userId });
@@ -95,27 +101,34 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
                 prizeId, userId, ticketId, markedNumbers,
                 claimedOnNumber: lastNumber,
                 claimedOnIndex: currentNumberIndex,
-                claimedAt: new Date().toISOString()
+                claimedAt: new Date().toISOString(),
+                type: 'claim'
             };
 
             const isAutoMode = game.settings?.callingMode === 'auto';
             const winners = game.winners || {};
             const pending = winners['__pending'] || [];
-            
+
             // 1. Remove the "modal_open" virtual claim for this user if it exists
             // 2. Add the actual claim
-            const updatedPending = pending.filter((p: any) => !(p.userId === userId && p.type === 'modal_open'));
-            winners['__pending'] = [...updatedPending, claimPayload];
+            const updatedPending = pending.filter((p: any) => !(p.userId === userId && p.type === 'pre_claim'));
+            const newPending = [...updatedPending, claimPayload];
 
-            await supabase
+            const { data: updatedGame } = await supabase
                 .from('housie_games')
-                .update({ winners })
-                .eq('game_code', gameCode);
-            
+                .update({ winners: { ...winners, __pending: newPending } })
+                .eq('game_code', gameCode).eq('winners', winners)
+                .select()
+                .single();
+
+            if (!updatedGame) {
+                console.log('[claim_prize] race condition, retry later');
+                return;
+            }
+
             io.to(gameCode).emit('new_claim', claimPayload);
 
             if (isAutoMode) {
-                // ─── AUTO MODE: Instant verification ───
                 try {
                     const { data: ticket } = await supabase
                         .from('housie_tickets')
@@ -150,6 +163,9 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
         const { prizeId, userId, ticketId, status, claimedOnIndex } = data;
 
         try {
+            const now = new Date().toISOString();
+
+            // 1) Fetch current game snapshot
             const { data: game } = await supabase
                 .from('housie_games')
                 .select('id, group_id, winners, called_numbers, prizes')
@@ -158,50 +174,69 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
 
             if (!game) return;
 
-            const winners = game.winners || {};
+            const prevWinners = game.winners || {};
+            const winners = { ...prevWinners }; // work on a copy
+
             const currentCalledCount = game.called_numbers?.length || 0;
-            const prizes = game.prizes || [];
-            const prize = prizes.find((p: any) => p.id === prizeId);
+            const prizesData = game.prizes || [];
+            const prize = prizesData.find((p: any) => p.id === prizeId);
             const prizeTotalAmount = prize ? (prize.amount || 0) : 0;
 
-            if (status === 'accepted') {
-                const existingWinners = Array.isArray(winners[prizeId]) ? winners[prizeId] : (winners[prizeId] ? [winners[prizeId]] : []);
+            const existingWinners: any[] = Array.isArray(winners[prizeId])
+                ? winners[prizeId]
+                : (winners[prizeId] ? [winners[prizeId]] : []);
 
-                // Prevent late claims if someone already won this prize on an earlier number
+            const effectiveIndex = claimedOnIndex || currentCalledCount;
+
+            // 2) Decide outcome
+            if (status === 'accepted') {
+                // (a) Prevent duplicate accept for same ticket+prize
+                const alreadyAccepted = existingWinners.some(
+                    (w: any) => w.ticketId === ticketId
+                );
+                if (alreadyAccepted) {
+                    await finalizeAndBroadcast('denied', 'Duplicate claim for same ticket');
+                    return;
+                }
+
+                // (b) Enforce earliest index rule
                 if (existingWinners.length > 0) {
                     const firstWinnerIndex = existingWinners[0].claimedOnIndex;
-                    if (firstWinnerIndex && firstWinnerIndex < (claimedOnIndex || currentCalledCount)) {
-                        broadcastResult('denied', 'Prize already claimed');
+                    if (firstWinnerIndex < effectiveIndex) {
+                        await finalizeAndBroadcast('denied', 'Prize already claimed earlier');
                         return;
                     }
                 }
 
+                // (c) Accept and append
                 const newWinner = {
                     userId,
                     ticketId,
-                    claimedAt: new Date(),
-                    claimedOnIndex: claimedOnIndex || currentCalledCount
+                    claimedAt: now,
+                    claimedOnIndex: effectiveIndex
                 };
 
                 const updatedWinnersList = [...existingWinners, newWinner];
                 winners[prizeId] = updatedWinnersList;
 
+                // (d) Split prize (same-index winners share)
                 const splitAmount = Math.floor(prizeTotalAmount / updatedWinnersList.length);
 
-                for (const winEntry of updatedWinnersList) {
-                    await supabase
-                        .from('game_results')
-                        .upsert({
-                            game_id: game.id,
-                            group_id: game.group_id,
-                            user_id: winEntry.userId,
-                            prize_name: prize ? prize.name : prizeId,
-                            prize_amount: splitAmount
-                        }, {
-                            onConflict: 'game_id,user_id,prize_name'
-                        });
-                }
-            } else if (status === 'denied') {
+                // Upsert results for all winners (idempotent)
+                await Promise.all(updatedWinnersList.map((winEntry) =>
+                    supabase.from('game_results').upsert({
+                        game_id: game.id,
+                        group_id: game.group_id,
+                        user_id: winEntry.userId,
+                        prize_name: prize ? prize.name : prizeId,
+                        prize_amount: splitAmount
+                    }, {
+                        onConflict: 'game_id,user_id,prize_name'
+                    })
+                ));
+
+            } else {
+                // denied path
                 const deniedMap = winners['__denied'] || {};
                 const ticketDeniedInfo = deniedMap[ticketId] || [];
                 if (!ticketDeniedInfo.includes(prizeId)) {
@@ -211,27 +246,80 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
                 winners['__denied'] = deniedMap;
             }
 
-            // Remove from pending if it was there
-            const updatedPending = (winners['__pending'] || []).filter(
+            // 3) Remove this claim from pending (precise match)
+            const prevPending = winners['__pending'] || [];
+            const updatedPending = prevPending.filter(
                 (c: any) => !(c.ticketId === ticketId && c.prizeId === prizeId)
             );
             winners['__pending'] = updatedPending;
 
-            // Final update for winners and reset timer
-            await supabase
+            // 4) ATOMIC update (prevents overwrites)
+            const { data: updatedGame } = await supabase
                 .from('housie_games')
-                .update({ 
+                .update({
                     winners,
-                    last_activity_at: new Date().toISOString()
+                    last_activity_at: now
                 })
-                .eq('game_code', gameCode);
+                .eq('game_code', gameCode)
+                .eq('winners', prevWinners) // 🔥 atomic guard
+                .select()
+                .single();
 
-            resetAutoHostTimer(gameCode);
+            if (!updatedGame) {
+                console.log('[processClaimResolution] race detected, skipping write');
+                return;
+            }
 
-            broadcastResult(status);
+            // 5) Resume ONLY when no pending remains
+            if (updatedPending.length === 0) {
+                await resetAutoHostTimer(gameCode);
+            }
+
+            // 6) Broadcast result
+            await broadcastResult(status);
 
         } catch (err) {
             console.error("Error resolving claim:", err);
+        }
+
+        // ---- helpers ----
+
+        async function finalizeAndBroadcast(finalStatus: string, message?: string) {
+            const now = new Date().toISOString();
+
+            const { data: game } = await supabase
+                .from('housie_games')
+                .select('winners')
+                .eq('game_code', gameCode)
+                .single();
+
+            if (!game) return;
+
+            const prevWinners = game.winners || {};
+            const winners = { ...prevWinners };
+
+            const prevPending = winners['__pending'] || [];
+            const updatedPending = prevPending.filter(
+                (c: any) => !(c.ticketId === ticketId && c.prizeId === prizeId)
+            );
+            winners['__pending'] = updatedPending;
+
+            const { data: updatedGame } = await supabase
+                .from('housie_games')
+                .update({
+                    winners,
+                    last_activity_at: now
+                })
+                .eq('game_code', gameCode)
+                .eq('winners', prevWinners)
+                .select()
+                .single();
+
+            if (updatedGame && updatedPending.length === 0) {
+                await resetAutoHostTimer(gameCode);
+            }
+
+            await broadcastResult(finalStatus, message);
         }
 
         async function broadcastResult(finalStatus: string, message?: string) {
@@ -253,7 +341,7 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
                     const prize = gData.prizes.find((p: any) => p.id === prizeId);
                     if (prize) prizeName = prize.name;
                 }
-            } catch (e) {}
+            } catch (e) { }
 
             io.to(gameCode).emit('claim_result', {
                 prizeId, userId, ticketId, status: finalStatus,
