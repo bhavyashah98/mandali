@@ -8,6 +8,7 @@ import React, {
     ReactNode,
 } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
+import { useHousieGlobalSync } from '../hooks/housie/useHousieGlobalSync';
 
 //Socket
 import { socketService } from '../lib/socketService';
@@ -23,6 +24,11 @@ interface Props {
     token: string | null;
     children: ReactNode;
 }
+
+const HousieSyncManager = () => {
+    useHousieGlobalSync();
+    return null;
+};
 
 export const SocketProvider: React.FC<Props> = ({ token, children }) => {
     const [socket, setSocket] = useState<Socket | null>(null);
@@ -66,6 +72,7 @@ export const SocketProvider: React.FC<Props> = ({ token, children }) => {
 
     return (
         <SocketContext.Provider value={value}>
+            <HousieSyncManager />
             {children}
         </SocketContext.Provider>
     );

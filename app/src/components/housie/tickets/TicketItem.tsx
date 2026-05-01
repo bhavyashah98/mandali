@@ -85,6 +85,8 @@ const TicketItem: React.FC<TicketItemProps> = ({
             <Ticket
                 ticketData={ticket.ticket_data}
                 markedNumbers={markedNumbers}
+                calledNumbers={game?.called_numbers || []}
+                gameStyle={game?.settings?.gameStyle}
                 onNumberPress={onToggleMark}
                 isTablet={isTablet}
                 isBoggy={isBoggy}

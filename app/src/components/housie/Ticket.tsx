@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { transformHousieNumber } from '../../utils/housieGameUtils';
 
 interface TicketProps {
     ticketData: (number | null)[][];
     markedNumbers: number[];
     calledNumbers?: number[];
+    gameStyle?: string;
     onNumberPress?: (num: number) => void;
     isTablet?: boolean;
     isBoggy?: boolean;
@@ -17,6 +19,7 @@ export const Ticket: React.FC<TicketProps> = ({
     ticketData,
     markedNumbers,
     calledNumbers = [],
+    gameStyle = 'classic',
     onNumberPress,
     isTablet = false,
     isBoggy = false,
@@ -24,6 +27,16 @@ export const Ticket: React.FC<TicketProps> = ({
     showVerificationColors = false,
     containerStyle,
 }) => {
+    // Optimization: Pre-transform called numbers for faster lookup
+    const effectiveCalled = React.useMemo(() => {
+        const set = new Set<number>();
+        calledNumbers.forEach(n => {
+            const transformed = transformHousieNumber(n, gameStyle);
+            if (transformed >= 1 && transformed <= 90) set.add(transformed);
+        });
+        return set;
+    }, [calledNumbers, gameStyle]);
+
     return (
         <View
             style={[{
@@ -65,7 +78,7 @@ export const Ticket: React.FC<TicketProps> = ({
                     >
                         {row.map((num, cIdx) => {
                             const isMarked = num !== null && markedNumbers.includes(num);
-                            const isCalled = num !== null && calledNumbers.includes(num);
+                            const isCalled = num !== null && effectiveCalled.has(num);
                             
                             let bg = '#ffffff';
                             let textColor = '#1c1c18';

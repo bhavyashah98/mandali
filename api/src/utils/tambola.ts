@@ -186,10 +186,10 @@ export const isFourCorners = (ticket: number[][], called: number[]): boolean => 
 /** Star: Four Corners + Center Number */
 export const isStar = (ticket: number[][], called: number[]): boolean => {
   if (!isFourCorners(ticket, called)) return false;
-  
+
   const midRow = ticket[1].filter(n => n > 0);
   const centerNum = midRow[2]; // Middle of 5 numbers
-  
+
   return called.includes(centerNum);
 };
 
@@ -216,7 +216,7 @@ export const isOddEven = (ticket: number[][], called: number[]): { won: boolean;
 
   if (oddNumbers.every(n => called.includes(n))) return { won: true, type: 'odd' };
   if (evenNumbers.every(n => called.includes(n))) return { won: true, type: 'even' };
-  
+
   return { won: false };
 };
 
@@ -240,28 +240,104 @@ export const isBP = (ticket: number[][], called: number[]): boolean => {
   const flatNumbers = ticket.flat().filter(n => n > 0);
   const min = Math.min(...flatNumbers);
   const max = Math.max(...flatNumbers);
-  
+
   return called.includes(min) && called.includes(max);
 };
 
 /** 
  * Master verification function
+ * @param gameMode 'classic', 'plus_one', 'minus_one', 'reverse'
  */
-export const checkPrize = (prizeId: string, ticket: number[][], called: number[]): boolean => {
+export const checkPrize = (prizeId: string, ticket: number[][], called: number[], gameMode: string = 'classic'): boolean => {
+  if (!called || called.length === 0) return false;
+
+  const lastRaw = called[called.length - 1];
+
+  /**
+   * Transforms a called number into the number a player is allowed to mark.
+   */
+  const transform = (n: number): number => {
+    if (gameMode === 'plus_one') return n + 1 > 90 ? 1 : n + 1;
+    if (gameMode === 'minus_one') return n - 1 < 1 ? 90 : n - 1;
+    if (gameMode === 'reverse') {
+      const units = n % 10;
+      const tens = Math.floor(n / 10);
+      const rev = units * 10 + tens;
+      return (rev >= 1 && rev <= 90) ? rev : -1;
+    }
+    return n;
+  };
+
+  const lastEffective = transform(lastRaw);
+
+  // If the transformed last number is invalid, no claim can be made on it
+  if (lastEffective < 1 || lastEffective > 90) return false;
+
+  // The last called number MUST be part of the ticket's marked numbers for this prize
+  const flatTicket = ticket.flat().filter(n => n > 0);
+  if (!flatTicket.includes(lastEffective)) return false;
+
+  // All called numbers transformed
+  const effectiveCalled = called.map(transform).filter(n => n >= 1 && n <= 90);
+
+  // Helper to check if a specific set of numbers includes the winning trigger
+  const includesTrigger = (nums: number[]) => nums.includes(lastEffective);
+
   switch (prizeId) {
-    case 'top_line': return isLine(ticket, 0, called);
-    case 'middle_line': return isLine(ticket, 1, called);
-    case 'bottom_line': return isLine(ticket, 2, called);
-    case 'full_house': return isFullHouse(ticket, called);
-    case 'early_5': return isEarly(ticket, 5, called);
-    case 'early_7': return isEarly(ticket, 7, called);
-    case 'four_corners': return isFourCorners(ticket, called);
-    case 'star': return isStar(ticket, called);
-    case 'six_corners': return isSixCorners(ticket, called);
-    case 'center': return isCenter(ticket, called);
-    case 'odd_even': return isOddEven(ticket, called).won;
-    case 'pyramid': return isPyramid(ticket, called);
-    case 'bp': return isBP(ticket, called);
+    case 'top_line':
+      return isLine(ticket, 0, effectiveCalled) && includesTrigger(ticket[0]);
+    case 'middle_line':
+      return isLine(ticket, 1, effectiveCalled) && includesTrigger(ticket[1]);
+    case 'bottom_line':
+      return isLine(ticket, 2, effectiveCalled) && includesTrigger(ticket[2]);
+    case 'full_house':
+      return isFullHouse(ticket, effectiveCalled) && includesTrigger(flatTicket);
+    case 'early_5':
+      return isEarly(ticket, 5, effectiveCalled) && includesTrigger(flatTicket);
+    case 'early_7':
+      return isEarly(ticket, 7, effectiveCalled) && includesTrigger(flatTicket);
+    case 'four_corners': {
+      const topRow = ticket[0].filter(n => n > 0);
+      const bottomRow = ticket[2].filter(n => n > 0);
+      const corners = [topRow[0], topRow[topRow.length - 1], bottomRow[0], bottomRow[bottomRow.length - 1]];
+      return isFourCorners(ticket, effectiveCalled) && includesTrigger(corners);
+    }
+    case 'star': {
+      const topRow = ticket[0].filter(n => n > 0);
+      const bottomRow = ticket[2].filter(n => n > 0);
+      const midRow = ticket[1].filter(n => n > 0);
+      const cornersAndCenter = [topRow[0], topRow[topRow.length - 1], bottomRow[0], bottomRow[bottomRow.length - 1], midRow[2]];
+      return isStar(ticket, effectiveCalled) && includesTrigger(cornersAndCenter);
+    }
+    case 'six_corners': {
+      const corners = ticket.flatMap(row => {
+        const nums = row.filter(n => n > 0);
+        return [nums[0], nums[nums.length - 1]];
+      });
+      return isSixCorners(ticket, effectiveCalled) && includesTrigger(corners);
+    }
+    case 'center': {
+      const midRow = ticket[1].filter(n => n > 0);
+      return isCenter(ticket, effectiveCalled) && includesTrigger([midRow[2]]);
+    }
+    case 'odd_even': {
+      const res = isOddEven(ticket, effectiveCalled);
+      if (!res.won) return false;
+      const targets = flatTicket.filter(n => res.type === 'odd' ? n % 2 !== 0 : n % 2 === 0);
+      return includesTrigger(targets);
+    }
+    case 'pyramid': {
+      const row0 = ticket[0].filter(n => n > 0);
+      const row1 = ticket[1].filter(n => n > 0);
+      const row2 = ticket[2].filter(n => n > 0);
+      const pyramidNums = [row0[2], row1[1], row1[3], row2[0], row2[2], row2[4]];
+      return isPyramid(ticket, effectiveCalled) && includesTrigger(pyramidNums);
+    }
+    case 'bp': {
+      const min = Math.min(...flatTicket);
+      const max = Math.max(...flatTicket);
+      return isBP(ticket, effectiveCalled) && includesTrigger([min, max]);
+    }
     default:
       return false;
   }

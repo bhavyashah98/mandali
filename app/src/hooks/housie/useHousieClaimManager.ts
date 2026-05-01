@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSocket } from '../useSocket';
 import { useSocketRoom } from '../useSocketRoom';
@@ -19,7 +19,7 @@ export const useHousieClaimManager = (gameCode: string, game: any) => {
     // Initial hydration of pending claims
     useEffect(() => {
         if (!game?.winners?.['__pending'] || initialHydrationRef.current) return;
-        
+
         const pending: any[] = game.winners['__pending'];
         if (pending.length === 0) return;
 
@@ -79,7 +79,7 @@ export const useHousieClaimManager = (gameCode: string, game: any) => {
         };
     }, [gameCode, socket, queryClient]);
 
-    const verifyClaim = (status: 'accepted' | 'denied') => {
+    const verifyClaim = useCallback((status: 'accepted' | 'denied') => {
         const activeClaim = claimsQueue[0];
         if (!activeClaim || !socket) return;
         socket.emit('verify_claim', {
@@ -92,7 +92,9 @@ export const useHousieClaimManager = (gameCode: string, game: any) => {
         });
 
         setClaimsQueue(prev => prev.slice(1));
-    };
+    }, [claimsQueue, socket, gameCode]);
+
+    const clearNotification = useCallback(() => setActiveNotification(null), []);
 
     return {
         claimsQueue,
@@ -100,6 +102,6 @@ export const useHousieClaimManager = (gameCode: string, game: any) => {
         pendingCount: claimsQueue.length,
         verifyClaim,
         activeNotification,
-        clearNotification: () => setActiveNotification(null)
+        clearNotification
     };
 };

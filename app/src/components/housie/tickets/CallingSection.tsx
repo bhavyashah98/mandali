@@ -80,9 +80,18 @@ const CallingSection: React.FC<CallingSectionProps> = ({
                 )}
             </View>
             
-            {isPlayerClaiming && (
-                <View className="bg-orange-50/50 py-2 border-t border-orange-100 items-center">
-                    <HousieClaimCheckingIndicator visible={isPlayerClaiming} />
+            {(isPlayerClaiming || isPaused) && (
+                <View className={`${isPaused && !isPlayerClaiming ? 'bg-orange-50' : 'bg-amber-50'} py-3 border-t ${isPaused && !isPlayerClaiming ? 'border-orange-100' : 'border-amber-100'} items-center flex-row justify-center`}>
+                    {isPlayerClaiming ? (
+                        <HousieClaimCheckingIndicator visible={isPlayerClaiming} />
+                    ) : (
+                        <View className="flex-row items-center">
+                            <MaterialIcons name="pause-circle-filled" size={isTablet ? 24 : 16} color="#f97316" />
+                            <Text className={`text-orange-600 font-headline-bold ml-2 uppercase tracking-widest ${isTablet ? 'text-lg' : 'text-[10px]'}`}>
+                                Game Paused by Host
+                            </Text>
+                        </View>
+                    )}
                 </View>
             )}
         </View>

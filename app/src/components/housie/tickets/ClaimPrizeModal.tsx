@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import MandaliCoin from '../../MandaliCoin';
+import ClaimConfirmModal from './ClaimConfirmModal';
 
 interface ClaimPrizeModalProps {
     visible: boolean;
@@ -12,6 +13,11 @@ interface ClaimPrizeModalProps {
     claimCountdown: number;
     isTablet: boolean;
     onClaimSelect: (prizeId: string) => void;
+    // New props for confirmation
+    confirmVisible: boolean;
+    pendingPrizeId: string | null;
+    onConfirm: () => void;
+    onCancelConfirm: () => void;
 }
 
 const ClaimPrizeModal: React.FC<ClaimPrizeModalProps> = ({
@@ -22,7 +28,11 @@ const ClaimPrizeModal: React.FC<ClaimPrizeModalProps> = ({
     deniedClaims,
     claimCountdown,
     isTablet,
-    onClaimSelect
+    onClaimSelect,
+    confirmVisible,
+    pendingPrizeId,
+    onConfirm,
+    onCancelConfirm
 }) => {
     if (!game) return null;
 
@@ -40,6 +50,8 @@ const ClaimPrizeModal: React.FC<ClaimPrizeModalProps> = ({
         return parseInt(b.amount || '0') - parseInt(a.amount || '0');
     });
 
+    const pendingPrizeName = game.prizes?.find((p: any) => p.id === pendingPrizeId)?.name || '';
+
     return (
         <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
             <View
@@ -48,7 +60,7 @@ const ClaimPrizeModal: React.FC<ClaimPrizeModalProps> = ({
             >
                 <View
                     style={{ elevation: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, borderColor: 'rgba(255, 255, 255, 0.2)' }}
-                    className={`bg-[#FDF9F3] rounded-[40px] border max-h-[100%] ${isTablet ? 'p-12' : 'p-6'}`}
+                    className={`bg-[#FDF9F3] rounded-[40px] border max-h-[100%] ${isTablet ? 'p-12' : 'p-6'} overflow-hidden`}
                 >
                     <ScrollView showsVerticalScrollIndicator={false}>
                         <View className="flex-row items-center justify-between mb-2">
@@ -124,6 +136,21 @@ const ClaimPrizeModal: React.FC<ClaimPrizeModalProps> = ({
                             })}
                         </View>
                     </ScrollView>
+
+                    {/* Nested Confirmation Modal (Absolute view inside the main modal) */}
+                    {confirmVisible && (
+                        <View className="absolute top-0 left-0 right-0 bottom-0 z-[100]">
+                            <ClaimConfirmModal
+                                visible={confirmVisible}
+                                prizeName={pendingPrizeName}
+                                claimCountdown={claimCountdown}
+                                isTablet={isTablet}
+                                onConfirm={onConfirm}
+                                onCancel={onCancelConfirm}
+                                isNested={true}
+                            />
+                        </View>
+                    )}
                 </View>
             </View>
         </Modal>

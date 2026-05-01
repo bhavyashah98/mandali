@@ -51,29 +51,85 @@ export const pauseAutoHost = (gameCode: string) => {
 
 /**
  * Resume the automatic number calling.
- * Resumes with the regular autoCallSeconds interval.
+ * Ensures the auto-host loop is running if the game state warrants it.
  */
-export const resumeAutoHost = (gameCode: string) => {
-    console.log(`[AutoHost] Resuming for ${gameCode}`);
-    const state = gameTimers.get(gameCode);
-    if (state && state.isPaused) {
-        state.isPaused = false;
-        const timer = setTimeout(() => {
-            executeCall(gameCode);
-        }, state.autoCallSeconds * 1000);
-        state.timer = timer;
-    }
+export const resumeAutoHost = async (gameCode: string) => {
+    console.log(`[AutoHost] Resume requested for ${gameCode}`);
+    await ensureAutoHostRunning(gameCode);
 };
 
 /**
- * Stop and cleanup automatic calling.
+ * Robust check to ensure auto-host is running if it should be.
+ * Useful for recovering from server restarts or pause/resume glitches.
  */
+export const ensureAutoHostRunning = async (gameCode: string) => {
+    const state = gameTimers.get(gameCode);
+    
+    // If already running and not paused, do nothing
+    if (state && !state.isPaused && state.timer) {
+        return;
+    }
+
+    try {
+        const { data: game } = await supabase
+            .from('housie_games')
+            .select('status, settings')
+            .eq('game_code', gameCode)
+            .single();
+
+        if (!game || game.status !== 'active' || game.settings?.callingMode !== 'auto' || game.settings?.isPaused) {
+            console.log(`[AutoHost] ensureAutoHostRunning: Conditions not met for ${gameCode}`);
+            return;
+        }
+
+        const interval = game.settings?.autoCallSeconds || 7;
+        
+        if (state) {
+            state.isPaused = false;
+            state.autoCallSeconds = interval;
+            if (state.timer) clearTimeout(state.timer);
+        } else {
+            gameTimers.set(gameCode, {
+                timer: null,
+                autoCallSeconds: interval,
+                isPaused: false
+            });
+        }
+
+        const nextTimer = setTimeout(() => {
+            executeCall(gameCode);
+        }, interval * 1000);
+
+        const newState = gameTimers.get(gameCode);
+        if (newState) newState.timer = nextTimer;
+        
+        console.log(`[AutoHost] Started/Resumed loop for ${gameCode}`);
+    } catch (err) {
+        console.error(`[AutoHost] Failed in ensureAutoHostRunning for ${gameCode}:`, err);
+    }
+};
+
 export const stopAutoHost = (gameCode: string) => {
     const state = gameTimers.get(gameCode);
     if (state) {
         if (state.timer) clearTimeout(state.timer);
         gameTimers.delete(gameCode);
         console.log(`[AutoHost] Stopped for ${gameCode}`);
+    }
+};
+
+/**
+ * Reset the timer to start the full interval from now.
+ * Used when a claim is resolved or closed.
+ */
+export const resetAutoHostTimer = (gameCode: string) => {
+    const state = gameTimers.get(gameCode);
+    if (state && !state.isPaused) {
+        if (state.timer) clearTimeout(state.timer);
+        console.log(`[AutoHost] Resetting timer for ${gameCode} to ${state.autoCallSeconds}s`);
+        state.timer = setTimeout(() => {
+            executeCall(gameCode);
+        }, state.autoCallSeconds * 1000);
     }
 };
 

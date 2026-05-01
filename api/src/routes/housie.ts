@@ -31,6 +31,12 @@ const PRIZE_CATALOGUE = [
     { id: 'bp', name: 'BP / Temperature', description: 'Highest and lowest numbers on ticket', icon: 'thermostat', category: 'bonus', repeatable: false, order: 15 },
 ];
 
+const GAME_STYLES = [
+    { id: 'classic', title: 'Classic Housie', description: 'Standard rules and numbers', icon: 'ticket-confirmation-outline' },
+    { id: 'plus_one', title: '+1 Housie', description: 'Mark the number + 1 (e.g. Call 10, Mark 11)', icon: 'plus-circle-outline' },
+    { id: 'minus_one', title: '-1 Housie', description: 'Mark the number - 1 (e.g. Call 10, Mark 9)', icon: 'minus-circle-outline' },
+];
+
 /**
  * GET PRIZE CATALOGUE
  * ?mode=auto   → standard + fullhouse only (no bonus/special, no custom)
@@ -40,6 +46,17 @@ router.get('/prizes', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const mode = (req.query.mode as string) || 'manual';
         res.json({ prizes: PRIZE_CATALOGUE, allowCustom: mode === 'manual' });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * GET GAME STYLES (TWISTS)
+ */
+router.get('/styles', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        res.json({ styles: GAME_STYLES });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -475,7 +492,7 @@ router.post('/:gameCode/call', authMiddleware, async (req: AuthRequest, res) => 
         if (updateError) throw updateError;
 
         const io = req.app.get("io");
-        
+
         // BROADCAST via Socket.io for real-time updates
         io.to(gameCode).emit('number_called', {
             gameCode,
@@ -794,14 +811,10 @@ router.patch('/:gameCode/status', authMiddleware, async (req: AuthRequest, res) 
         // Broadcast game_ended only when actually ending — not for other status transitions
         if (status === 'ended') {
             const io = req.app.get('io');
-            io.to(gameCode).emit('game_ended', {
-                gameCode,
-                status: 'ended'
-            });
-            io.to(`group_${game.group_id}`).emit('game_created', {
-                gameCode,
-                status,
-            });
+            // Notify players in the game
+            io.to(gameCode).emit('game_ended', { gameCode, status: 'ended' });
+            // Notify lobby/group listeners
+            io.to(`group_${game.group_id}`).emit('game_ended', { gameCode, status: 'ended' });
 
             // STOP AUTO HOST IF ACTIVE
             stopAutoHost(gameCode as string);

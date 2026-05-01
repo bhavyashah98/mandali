@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -63,21 +63,26 @@ const HousieGameScreen = () => {
         }
     }, [activeClaim?.ticketId]);
 
-    const getParticipantName = (userId: string) => {
+    const getParticipantName = useCallback((userId: string) => {
         const participant = game?.participants?.find((p: any) => p.id === userId);
         return participant?.name || 'Player';
-    };
+    }, [game?.participants]);
 
-    const handleEndGamePress = () => {
+    const handleEndGamePress = useCallback(() => {
         Alert.alert('End Game?', 'Are you sure you want to finish this session?', [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Finish Game', style: 'destructive', onPress: () => endGame() }
         ]);
-    };
+    }, [endGame]);
+
+    const calledNumbers = game?.called_numbers || [];
+
+    const renderBoardModal = useCallback(() => (
+        <MainBoardGrid calledNumbers={calledNumbers} isTablet={isTablet} minimal />
+    ), [calledNumbers, isTablet]);
 
     if (isLoading) return <ActivityIndicator size="large" className="flex-1" color="#b30069" />;
 
-    const calledNumbers = game?.called_numbers || [];
     const currentNumber = calledNumbers[calledNumbers.length - 1] || '--';
     const recentNumbers = [...calledNumbers].reverse().slice(1, 4);
 
@@ -95,8 +100,8 @@ const HousieGameScreen = () => {
             {/* Header */}
             <View className={`px-6 flex-row items-center justify-between ${isTablet ? 'py-6 px-12' : 'py-3 px-6'}`}>
                 <View style={{ width: isTablet ? 120 : 80 }}>
-                    <TouchableOpacity 
-                        onPress={() => navigation.goBack()} 
+                    <TouchableOpacity
+                        onPress={() => navigation.goBack()}
                         style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
                         className={`items-center justify-center rounded-full bg-white border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                     >
@@ -130,6 +135,7 @@ const HousieGameScreen = () => {
                     onCallNumber={callNumber}
                     isTablet={isTablet}
                     gameStatus={game?.status}
+                    isPaused={game?.settings?.isPaused}
                 />
 
                 <MainBoardGrid calledNumbers={calledNumbers} isTablet={isTablet} />
@@ -139,7 +145,7 @@ const HousieGameScreen = () => {
                     <Text className={`text-[#594048] font-headline-bold mb-6 ${isTablet ? 'text-4xl' : 'text-xl'}`}>Rewards</Text>
                     <View className="gap-4 pb-10">
                         {prizesArr.map((prize: any, idx: number) => (
-                            <View key={idx} 
+                            <View key={idx}
                                 style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
                                 className={`bg-white rounded-[24px] border border-stone-100 mb-1 ${isTablet ? 'p-8' : 'p-4'}`}
                             >
@@ -174,7 +180,7 @@ const HousieGameScreen = () => {
                     <Text className={`text-stone-400 font-body-bold uppercase tracking-[2px] mb-6 ${isTablet ? 'text-2xl' : 'text-[10px]'}`}>Winners List</Text>
                     <View className="gap-3 pb-10">
                         {prizesArr.filter((p: any) => p.winners?.length > 0).map((prize: any, idx: number) => (
-                            <View key={idx} 
+                            <View key={idx}
                                 style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
                                 className={`bg-white rounded-[24px] border border-stone-100 ${isTablet ? 'p-10' : 'p-4'}`}
                             >
@@ -202,9 +208,10 @@ const HousieGameScreen = () => {
                 verifyingTicket={verifyingTicket}
                 pendingCount={pendingCount}
                 calledNumbers={calledNumbers}
+                gameStyle={game?.settings?.gameStyle}
                 onResolve={verifyClaim}
                 isTablet={isTablet}
-                renderBoard={() => <MainBoardGrid calledNumbers={calledNumbers} isTablet={isTablet} minimal />}
+                renderBoard={renderBoardModal}
                 prizeName={prizesArr.find((p: any) => p.id === activeClaim?.prizeId)?.name || ''}
             />
 

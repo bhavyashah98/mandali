@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal } from 'react-native';
-import { FontAwesome5 } from '@expo/vector-icons';
+import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import { Ticket } from './Ticket';
+import { transformHousieNumber } from '../../utils/housieGameUtils';
 
 interface ClaimVerificationModalProps {
     visible: boolean;
@@ -9,34 +10,67 @@ interface ClaimVerificationModalProps {
     verifyingTicket: any;
     pendingCount: number;
     calledNumbers: number[];
+    gameStyle?: string;
     onResolve: (status: 'accepted' | 'denied') => void;
     renderBoard: () => React.ReactNode;
     isTablet: boolean;
     prizeName: string;
 }
 
-export const ClaimVerificationModal: React.FC<ClaimVerificationModalProps> = ({
+export const ClaimVerificationModal = React.memo(({
     visible,
     activeClaim,
     verifyingTicket,
     pendingCount,
     calledNumbers,
+    gameStyle = 'classic',
     onResolve,
     renderBoard,
     isTablet,
     prizeName
-}) => {
+}: ClaimVerificationModalProps) => {
     if (!visible) return null;
+
+    // Check if the claim is technically correct according to the rules
+    // (This is a helper for the host, but the backend does the final check on Approval)
+    const isTechnicallyCorrect = React.useMemo(() => {
+        if (!activeClaim || !verifyingTicket || !calledNumbers.length) return false;
+        
+        const lastRaw = calledNumbers[calledNumbers.length - 1];
+        const lastEffective = transformHousieNumber(lastRaw, gameStyle);
+        
+        // Rule: Last effective number MUST be on the ticket
+        const ticketNums = verifyingTicket.ticket_data.flat().filter((n: any) => n !== null);
+        if (!ticketNums.includes(lastEffective)) return false;
+
+        // Rule: The player MUST have marked the last effective number
+        if (!(activeClaim.markedNumbers || []).includes(lastEffective)) return false;
+
+        return true;
+    }, [activeClaim, verifyingTicket, calledNumbers, gameStyle]);
 
     return (
         <Modal visible={visible} transparent animationType="fade">
             <View className={`flex-1 justify-center bg-[#594048]/90 ${isTablet ? 'px-20 py-20' : 'px-4 py-16'}`}>
                 <View className={`bg-[#FDF9F3] rounded-[40px] shadow-2xl border border-white/20 max-h-[100%] ${isTablet ? 'p-12' : 'p-6'}`}>
                     <ScrollView showsVerticalScrollIndicator={false}>
-                        <View className="items-center mb-10">
+                        <View className="items-center mb-8">
                             <View className={`${isTablet ? 'w-24 h-24 mb-6' : 'w-16 h-16 mb-4'} rounded-full bg-white items-center justify-center shadow-sm`}>
                                 <FontAwesome5 name="trophy" size={isTablet ? 40 : 24} color="#b30069" />
                             </View>
+                            
+                            {isTechnicallyCorrect ? (
+                                <View className="bg-green-100 flex-row items-center px-4 py-1.5 rounded-full mb-4 border border-green-200">
+                                    <MaterialIcons name="check-circle" size={14} color="#16a34a" />
+                                    <Text className="text-green-700 font-headline-bold ml-1.5 uppercase text-[10px] tracking-widest">Technically Correct</Text>
+                                </View>
+                            ) : (
+                                <View className="bg-orange-100 flex-row items-center px-4 py-1.5 rounded-full mb-4 border border-orange-200">
+                                    <MaterialIcons name="info" size={14} color="#ea580c" />
+                                    <Text className="text-orange-700 font-headline-bold ml-1.5 uppercase text-[10px] tracking-widest">Potentially Boggy</Text>
+                                </View>
+                            )}
+
                             <Text className={`text-stone-400 font-body-bold uppercase tracking-widest mb-2 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Claim Verification</Text>
                             {pendingCount > 1 && (
                                 <View className={`bg-orange-100 rounded-full mb-4 ${isTablet ? 'px-6 py-2' : 'px-3 py-1'}`}>
@@ -53,6 +87,7 @@ export const ClaimVerificationModal: React.FC<ClaimVerificationModalProps> = ({
                             ticketData={verifyingTicket?.ticket_data || []}
                             markedNumbers={activeClaim?.markedNumbers || []}
                             calledNumbers={calledNumbers}
+                            gameStyle={gameStyle}
                             showVerificationColors={true}
                             isTablet={isTablet}
                             containerStyle={{ width: isTablet ? '80%' : '100%', alignSelf: 'center', marginBottom: 40 }}
@@ -78,4 +113,4 @@ export const ClaimVerificationModal: React.FC<ClaimVerificationModalProps> = ({
             </View>
         </Modal>
     );
-};
+});

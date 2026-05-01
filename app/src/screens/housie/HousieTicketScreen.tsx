@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, ActivityIndicator, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -78,32 +78,39 @@ const HousieTicketScreen = () => {
         markedTickets
     });
 
+    const handleClaimResult = useCallback((data: any) => {
+        const { prizeId, status, playerName, avatarUrl, prizeName, userId, ticketId } = data;
+        if (status === 'accepted') {
+            setActiveNotification({ type: 'win', playerName, avatarUrl, prizeName });
+        } else if (status === 'denied' && data.message !== 'Prize already claimed') {
+            setActiveNotification({ type: 'boggy', playerName, avatarUrl, prizeName });
+            if (userId === user?.id) {
+                setDeniedClaims(prev => ({
+                    ...prev,
+                    [ticketId]: [...(prev[ticketId] || []), prizeId]
+                }));
+            }
+        }
+    }, [user?.id, setDeniedClaims]);
+
+    const handleGameEnded = useCallback(() => {
+        setTimeout(() => {
+            navigation.replace('HousieResults', { gameCode, groupId });
+        }, 100);
+    }, [navigation, gameCode, groupId]);
+
+    const handlePlayerClaimingOpen = useCallback(() => setIsPlayerClaiming(true), []);
+    const handlePlayerClaimingClosed = useCallback(() => setIsPlayerClaiming(false), []);
+
     // 5. Sync Hook (Socket listeners)
     useHousieTicketSync({
         gameCode,
         userId: user?.id,
         groupId,
-        onClaimResult: (data) => {
-            const { prizeId, status, playerName, avatarUrl, prizeName, userId, ticketId } = data;
-            if (status === 'accepted') {
-                setActiveNotification({ type: 'win', playerName, avatarUrl, prizeName });
-            } else if (status === 'denied' && data.message !== 'Prize already claimed') {
-                setActiveNotification({ type: 'boggy', playerName, avatarUrl, prizeName });
-                if (userId === user?.id) {
-                    setDeniedClaims(prev => ({
-                        ...prev,
-                        [ticketId]: [...(prev[ticketId] || []), prizeId]
-                    }));
-                }
-            }
-        },
-        onGameEnded: () => {
-            setTimeout(() => {
-                navigation.replace('HousieResults', { gameCode, groupId });
-            }, 100);
-        },
-        onPlayerClaimingOpen: () => setIsPlayerClaiming(true),
-        onPlayerClaimingClosed: () => setIsPlayerClaiming(false)
+        onClaimResult: handleClaimResult,
+        onGameEnded: handleGameEnded,
+        onPlayerClaimingOpen: handlePlayerClaimingOpen,
+        onPlayerClaimingClosed: handlePlayerClaimingClosed
     });
 
     // 6. Helpers & Actions
@@ -115,16 +122,30 @@ const HousieTicketScreen = () => {
             } else {
                 await pauseHousieGame(gameCode);
             }
-            refetchGame();
+            // Small delay to allow DB update to propagate before refetch
+            setTimeout(() => refetchGame(), 200);
         } catch (e) {
             console.error("Failed to toggle pause:", e);
         }
-    }, [game, gameCode, refetchGame]);
+    }, [game?.settings?.isPaused, gameCode, refetchGame]);
 
     const getParticipantName = useCallback((userId: string) => {
         const participant = game?.participants?.find((p: any) => p.id === userId);
         return participant?.name || 'Player';
     }, [game?.participants]);
+
+    // 8. Handle ended state if missed socket event
+    useEffect(() => {
+        if (game?.status === 'ended') {
+            navigation.replace('HousieResults', { gameCode, groupId });
+        }
+    }, [game?.status, gameCode, groupId, navigation]);
+
+    const handleConfirmClaim = useCallback(() => {
+        if (pendingClaimPrizeId) {
+            handleClaimPrize(pendingClaimPrizeId);
+        }
+    }, [pendingClaimPrizeId, handleClaimPrize]);
 
     if (isLoading || !isJoined) {
         return (
@@ -202,15 +223,10 @@ const HousieTicketScreen = () => {
                 claimCountdown={claimCountdown}
                 isTablet={isTablet}
                 onClaimSelect={openClaimConfirm}
-            />
-
-            <ClaimConfirmModal 
-                visible={claimConfirmVisible}
-                prizeName={game?.prizes?.find((p: any) => p.id === pendingClaimPrizeId)?.name || ''}
-                claimCountdown={claimCountdown}
-                isTablet={isTablet}
-                onConfirm={() => pendingClaimPrizeId && handleClaimPrize(pendingClaimPrizeId)}
-                onCancel={closeClaimConfirm}
+                confirmVisible={claimConfirmVisible}
+                pendingPrizeId={pendingClaimPrizeId}
+                onConfirm={handleConfirmClaim}
+                onCancelConfirm={closeClaimConfirm}
             />
 
             {activeNotification && (

@@ -38,6 +38,7 @@ export const useHousieClaiming = ({ gameCode, userId, game, markedTickets }: Cla
 
     const openClaimConfirm = useCallback((prizeId: string) => {
         setPendingClaimPrizeId(prizeId);
+        setClaimCountdown(10);
         setClaimConfirmVisible(true);
     }, []);
 
@@ -87,9 +88,12 @@ export const useHousieClaiming = ({ gameCode, userId, game, markedTickets }: Cla
 
     // Timer logic
     useEffect(() => {
-        if (!prizesModalVisible) return;
+        if (!prizesModalVisible) {
+            if (claimCountdownRef.current) clearInterval(claimCountdownRef.current);
+            return;
+        }
 
-        setClaimCountdown(10);
+        // Timer runs continuously as long as prizesModalVisible is true
         claimCountdownRef.current = setInterval(() => {
             setClaimCountdown(prev => {
                 if (prev <= 1) {

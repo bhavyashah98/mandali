@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { supabase } from '../lib/supabase';
 import { checkPrize } from '../utils/tambola';
+import { resetAutoHostTimer } from '../services/housieAutoHost';
 
 export const registerHousieHandlers = (io: Server, socket: Socket) => {
 
@@ -57,7 +58,15 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
             const updatedPending = pending.filter((p: any) => !(p.userId === userId && p.type === 'modal_open'));
             if (updatedPending.length !== pending.length) {
                 winners['__pending'] = updatedPending;
-                await supabase.from('housie_games').update({ winners }).eq('game_code', gameCode);
+                await supabase
+                    .from('housie_games')
+                    .update({ 
+                        winners,
+                        last_activity_at: new Date().toISOString()
+                    })
+                    .eq('game_code', gameCode);
+                
+                resetAutoHostTimer(gameCode);
             }
 
             socket.to(gameCode).emit('player_claiming_closed', { userId });
@@ -114,7 +123,7 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
                         .eq('id', ticketId)
                         .single();
 
-                    const isCorrect = ticket && checkPrize(prizeId, ticket.ticket_data, currentCalledNumbers);
+                    const isCorrect = ticket && checkPrize(prizeId, ticket.ticket_data, currentCalledNumbers, game.settings?.gameStyle);
                     const status = isCorrect ? 'accepted' : 'denied';
 
                     await processClaimResolution(io, gameCode, {
@@ -177,11 +186,6 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
                 const updatedWinnersList = [...existingWinners, newWinner];
                 winners[prizeId] = updatedWinnersList;
 
-                await supabase
-                    .from('housie_games')
-                    .update({ winners })
-                    .eq('game_code', gameCode);
-
                 const splitAmount = Math.floor(prizeTotalAmount / updatedWinnersList.length);
 
                 for (const winEntry of updatedWinnersList) {
@@ -213,10 +217,16 @@ export const registerHousieHandlers = (io: Server, socket: Socket) => {
             );
             winners['__pending'] = updatedPending;
 
+            // Final update for winners and reset timer
             await supabase
                 .from('housie_games')
-                .update({ winners })
+                .update({ 
+                    winners,
+                    last_activity_at: new Date().toISOString()
+                })
                 .eq('game_code', gameCode);
+
+            resetAutoHostTimer(gameCode);
 
             broadcastResult(status);
 

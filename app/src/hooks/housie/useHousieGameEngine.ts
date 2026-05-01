@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { fetchHousieGame, updateHousieStatus, callHousieNumber } from '../../lib/api';
 import { useSocket } from '../useSocket';
 import { useSocketRoom } from '../useSocketRoom';
+import { useHousieStore } from '../../stores/housieStore';
 
 import * as Speech from 'expo-speech';
 
@@ -14,11 +15,17 @@ export const useHousieGameEngine = (gameCode: string, groupId: string) => {
     const queryClient = useQueryClient();
     const navigation = useNavigation<any>();
     const [secondsSinceLastCall, setSecondsSinceLastCall] = useState(0);
-    const [claimingPlayers, setClaimingPlayers] = useState<Set<string>>(new Set());
-    const socket = useSocket();
+    const [lastRestartTime, setLastRestartTime] = useState<number | null>(null);
+    
+    const { 
+        setActiveGame, 
+        isGameEnded, 
+        claimingPlayers: storeClaimingPlayers,
+        reset: resetStore 
+    } = useHousieStore();
 
     // 1. Fetch live game data
-    const { data: game, isLoading } = useQuery({
+    const { data: game, isLoading, refetch } = useQuery({
         queryKey: ['housieGame', gameCode],
         queryFn: () => fetchHousieGame(gameCode),
         enabled: !!gameCode,
@@ -26,7 +33,32 @@ export const useHousieGameEngine = (gameCode: string, groupId: string) => {
         refetchOnMount: true,
     });
 
-    // 2. Call Number Mutation
+    // 2. Manage Global Sync Lifecycle
+    useEffect(() => {
+        if (gameCode) {
+            setActiveGame(gameCode);
+        }
+        // We don't resetStore here because we might want to keep data for Results screen
+    }, [gameCode, setActiveGame]);
+
+    // Determine if we should block calling numbers
+    const hasPendingClaims = !!game?.winners?.['__pending']?.length;
+    const effectivelyClaiming = storeClaimingPlayers.size > 0 || hasPendingClaims;
+
+    // 3. Timer Reference Logic (Restart timer when claim ends)
+    const prevEffectivelyClaiming = useRef(effectivelyClaiming);
+    useEffect(() => {
+        if (prevEffectivelyClaiming.current && !effectivelyClaiming) {
+            setLastRestartTime(Date.now());
+        }
+        prevEffectivelyClaiming.current = effectivelyClaiming;
+    }, [effectivelyClaiming]);
+
+    useEffect(() => {
+        setLastRestartTime(null);
+    }, [game?.last_activity_at]);
+
+    // 4. Call Number Mutation
     const callNumberMutation = useMutation({
         mutationFn: () => callHousieNumber(gameCode),
         onSuccess: (data: any) => {
@@ -39,13 +71,12 @@ export const useHousieGameEngine = (gameCode: string, groupId: string) => {
         }
     });
     
-    // 3. End Game Mutation
+    // 5. End Game Mutation
     const endGameMutation = useMutation({
         mutationFn: () => updateHousieStatus(gameCode, 'ended'),
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
             await queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
-            // Redirection is handled by the 'game_ended' socket event for both host and players
         },
         onError: (err: any) => {
             const msg = err?.response?.data?.error || err?.message || 'Failed to end session.';
@@ -53,92 +84,39 @@ export const useHousieGameEngine = (gameCode: string, groupId: string) => {
         }
     });
 
-    // 4. Timer Logic
+    // 6. Timer Logic
     useEffect(() => {
-        if (!game?.last_activity_at || game?.status !== 'active') return;
+        if (!game?.last_activity_at || game?.status !== 'active' || game?.settings?.isPaused || effectivelyClaiming) {
+            setSecondsSinceLastCall(0);
+            return;
+        }
 
         const updateTimer = () => {
-            const lastCall = new Date(game.last_activity_at).getTime();
+            const baseTime = lastRestartTime || new Date(game.last_activity_at).getTime();
             const now = Date.now();
-            setSecondsSinceLastCall(Math.floor((now - lastCall) / 1000));
+            const diff = Math.max(0, Math.floor((now - baseTime) / 1000));
+            setSecondsSinceLastCall(diff);
         };
 
         updateTimer();
         const interval = setInterval(updateTimer, 1000);
         return () => clearInterval(interval);
-    }, [game?.last_activity_at, game?.status]);
+    }, [game?.last_activity_at, game?.status, game?.settings?.isPaused, effectivelyClaiming, lastRestartTime]);
 
-    useSocketRoom('join_game', gameCode);
+    // Background Sync & Room Management
+    useSocketRoom('join_game', gameCode, () => {
+        console.log('[HousieGameEngine] 🔄 Syncing on foreground/reconnect');
+        refetch();
+    });
 
-    // 5. Socket Listener for Global Game Events
+    // 7. Navigation logic for game end
     useEffect(() => {
-        if (!gameCode || !socket) return;
-
-        const onNumberCalled = (data: any) => {
-            const numbers = data.calledNumbers || [];
-            const latest = numbers[numbers.length - 1];
-
-            if (latest) {
-                announceHousieNumber(latest);
-            }
-
-            queryClient.setQueryData(['housieGame', gameCode], (old: any) => {
-                if (!old) return old;
-                return {
-                    ...old,
-                    called_numbers: data.calledNumbers,
-                    last_activity_at: data.lastActivityAt
-                };
-            });
-        };
-
-        const onGameEnded = () => {
+        if (isGameEnded || game?.status === 'ended') {
             navigation.replace('HousieResults', { gameCode, groupId });
-        };
-
-        const onPlayerClaimingOpen = ({ userId }: { userId?: string }) => {
-            if (userId) {
-                setClaimingPlayers(prev => new Set(prev).add(userId));
-            }
-        };
-        const onPlayerClaimingClosed = ({ userId }: { userId?: string }) => {
-            if (userId) {
-                setClaimingPlayers(prev => {
-                    const next = new Set(prev);
-                    next.delete(userId);
-                    return next;
-                });
-            }
-        };
-
-        const onClaimResult = (data: any) => {
-            if (data?.userId) {
-                setClaimingPlayers(prev => {
-                    const next = new Set(prev);
-                    next.delete(data.userId);
-                    return next;
-                });
-            }
-        };
-
-        socket.on('number_called', onNumberCalled);
-        socket.on('game_ended', onGameEnded);
-        socket.on('player_claiming_open', onPlayerClaimingOpen);
-        socket.on('player_claiming_closed', onPlayerClaimingClosed);
-        socket.on('claim_result', onClaimResult);
-
-        return () => {
-            socket.off('number_called', onNumberCalled);
-            socket.off('game_ended', onGameEnded);
-            socket.off('player_claiming_open', onPlayerClaimingOpen);
-            socket.off('player_claiming_closed', onPlayerClaimingClosed);
-            socket.off('claim_result', onClaimResult);
-        };
-    }, [gameCode, socket, queryClient, navigation, groupId]);
-
-    // Determine if we should block calling numbers
-    const hasPendingClaims = !!game?.winners?.['__pending']?.length;
-    const effectivelyClaiming = claimingPlayers.size > 0 || hasPendingClaims;
+            // Clean up global sync only after we move to results or leave
+            setActiveGame(null); 
+        }
+    }, [isGameEnded, game?.status, gameCode, groupId, navigation, setActiveGame]);
 
     return {
         game,

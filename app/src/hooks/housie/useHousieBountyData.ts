@@ -29,39 +29,43 @@ const seedPrizes = (catalogue: any[]): Prize[] => {
     return seeded;
 };
 
-/** Auto-distribute prize pool: 10% per line row, rest split (weighted) among full houses. */
+/** Auto-distribute prize pool: 10% per non-Full House prize, rest split (weighted) among full houses. */
 const distributePool = (prizes: Prize[], pool: number): Prize[] => {
     const fhPrizes = prizes.filter(p => p.category === 'fullhouse');
-    const lineIds = ['top_line', 'middle_line', 'bottom_line'];
-    const lineCount = prizes.filter(p => lineIds.includes(p.id)).length;
-    
-    // Non-distributed prizes (bonus/special/custom) should keep their values if possible?
-    // Actually, the previous implementation just cleared them? 
-    // "Total allocated" should include them.
+    const fixedPrizes = prizes.filter(p => p.category !== 'fullhouse');
     
     if (fhPrizes.length === 0 || pool <= 0) return prizes;
 
-    const lineAmt = Math.floor(pool * 0.10);
-    const remaining = pool - lineAmt * lineCount;
+    // Default amount for a "row" or "bonus" is 10%
+    let fixedAmt = Math.floor(pool * 0.10);
     
-    // We only distribute the "remaining" to full houses.
-    // If there are bonus prizes with fixed amounts, they should subtract from the pool first.
-    // But for now, let's keep it simple as per previous logic but safer.
+    // Safety: If fixed prizes eat more than 70% of the pool, scale them down
+    // so Full Houses always have at least 30% to share.
+    const maxFixedTotal = Math.floor(pool * 0.70);
+    if (fixedAmt * fixedPrizes.length > maxFixedTotal) {
+        fixedAmt = Math.floor(maxFixedTotal / fixedPrizes.length);
+    }
     
+    const remaining = pool - (fixedAmt * fixedPrizes.length);
+    
+    // Distribute remaining to Full Houses with decreasing weights (1st FH gets most)
     const totalW = (fhPrizes.length * (fhPrizes.length + 1)) / 2;
-    // Reverse weights: 1st gets fhPrizes.length, last gets 1
     const fhAmts = fhPrizes.map((_, i) => Math.floor(remaining * (fhPrizes.length - i) / totalW));
     
     if (fhAmts.length > 0) {
-        // Adjust the first one for rounding (since it's the biggest, it's safer to put remainder there or the last one)
-        // Let's put remainder in the 1st Full House to ensure it remains the greatest
-        fhAmts[0] += remaining - fhAmts.reduce((a, b) => a + b, 0);
+        // Add rounding remainder to the first Full House
+        const allocatedFH = fhAmts.reduce((a, b) => a + b, 0);
+        fhAmts[0] += (remaining - allocatedFH);
     }
 
     return prizes.map(p => {
-        if (lineIds.includes(p.id)) return { ...p, amount: lineAmt.toString() };
+        if (p.category !== 'fullhouse') {
+            return { ...p, amount: fixedAmt.toString() };
+        }
         const fi = fhPrizes.findIndex(fh => fh.id === p.id);
-        if (fi >= 0) return { ...p, amount: fhAmts[fi].toString() };
+        if (fi >= 0) {
+            return { ...p, amount: fhAmts[fi].toString() };
+        }
         return p;
     });
 };
@@ -111,14 +115,12 @@ export const useHousieBountyData = (gameCode: string) => {
         setCatalogueSeeded(true);
     }, [catalogue, catalogueSeeded]);
 
-    // Re-distribute whenever pool or prize list changes (e.g. adding/removing full houses)
-    const fhCount = useMemo(() => prizes.filter(p => p.category === 'fullhouse').length, [prizes]);
-    
+    // Re-distribute whenever pool or prize list changes (e.g. adding/removing prizes)
     useEffect(() => {
         if (totalPrizePool > 0) {
             setPrizes(prev => distributePool(prev, totalPrizePool));
         }
-    }, [totalPrizePool, fhCount]);
+    }, [totalPrizePool, prizes.length]);
 
     const totalAllocated = useMemo(() => 
         prizes.reduce((s, p) => s + (parseInt(p.amount) || 0), 0)

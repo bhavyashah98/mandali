@@ -12,6 +12,7 @@ interface LiveCallerCardProps {
     onCallNumber: () => void;
     isTablet: boolean;
     gameStatus: string;
+    isPaused?: boolean;
 }
 
 export const LiveCallerCard: React.FC<LiveCallerCardProps> = ({
@@ -23,17 +24,18 @@ export const LiveCallerCard: React.FC<LiveCallerCardProps> = ({
     isEndingGame,
     onCallNumber,
     isTablet,
-    gameStatus
+    gameStatus,
+    isPaused
 }) => {
     return (
         <View className={`bg-white rounded-[40px] items-center shadow-md border border-stone-100 mb-6 ${isTablet ? 'p-10' : 'p-4'}`}>
             <View className="w-full flex-row items-center justify-between px-2 mb-4">
                 <Text className={`text-stone-400 font-body-bold uppercase tracking-[3px] ${isTablet ? 'text-xl' : 'text-[9px]'}`}>LIVE CALLER</Text>
-                {gameStatus === 'active' && !isPlayerClaiming && (
-                    <View className="bg-stone-50 px-3 py-1 rounded-full border border-stone-100 flex-row items-center">
-                        <MaterialIcons name="timer" size={isTablet ? 18 : 12} color="#b30069" />
-                        <Text className={`text-stone-400 font-headline-bold ml-1.5 uppercase ${isTablet ? 'text-base' : 'text-[9px]'}`}>
-                            {secondsSinceLastCall}s Ago
+                {gameStatus === 'active' && (
+                    <View className={`px-3 py-1 rounded-full border flex-row items-center ${isPlayerClaiming || isPaused ? 'bg-orange-50 border-orange-100' : 'bg-stone-50 border-stone-100'}`}>
+                        <MaterialIcons name="timer" size={isTablet ? 18 : 12} color={isPlayerClaiming || isPaused ? '#f97316' : '#b30069'} />
+                        <Text className={`font-headline-bold ml-1.5 uppercase ${isTablet ? 'text-base' : 'text-[9px]'} ${isPlayerClaiming || isPaused ? 'text-orange-400' : 'text-stone-400'}`}>
+                            {secondsSinceLastCall}s{isPlayerClaiming || isPaused ? ' (Paused)' : ' Ago'}
                         </Text>
                     </View>
                 )}
@@ -63,10 +65,19 @@ export const LiveCallerCard: React.FC<LiveCallerCardProps> = ({
             </View>
 
             <View className="w-full">
-                {isPlayerClaiming ? (
-                    <View className={`bg-amber-50 border border-amber-200 rounded-[24px] flex-row items-center justify-center ${isTablet ? 'h-24' : 'h-14'}`}>
-                        <ActivityIndicator color="#d97706" size="small" />
-                        <Text className={`text-amber-600 font-headline-bold ml-3 ${isTablet ? 'text-2xl' : 'text-xs uppercase'}`}>A player is claiming...</Text>
+                {isPlayerClaiming || isPaused ? (
+                    <View className={`${isPaused && !isPlayerClaiming ? 'bg-orange-50 border-orange-200' : 'bg-amber-50 border-amber-200'} border rounded-[24px] flex-row items-center justify-center ${isTablet ? 'h-24' : 'h-14'}`}>
+                        {isPlayerClaiming ? (
+                            <>
+                                <ActivityIndicator color="#d97706" size="small" />
+                                <Text className={`text-amber-600 font-headline-bold ml-3 ${isTablet ? 'text-2xl' : 'text-xs uppercase'}`}>A player is claiming...</Text>
+                            </>
+                        ) : (
+                            <>
+                                <MaterialIcons name="pause-circle-filled" size={isTablet ? 32 : 20} color="#f97316" />
+                                <Text className={`text-orange-600 font-headline-bold ml-3 ${isTablet ? 'text-2xl' : 'text-xs uppercase'}`}>Game Paused</Text>
+                            </>
+                        )}
                     </View>
                 ) : (
                     <TouchableOpacity

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import {
-    View, Text, ScrollView, ActivityIndicator, useWindowDimensions, Image
+    View, Text, ScrollView, ActivityIndicator, useWindowDimensions, Image, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,8 @@ import { useSocket } from '../../hooks/useSocket';
 import { useSocketRoom } from '../../hooks/useSocketRoom';
 import HousieWinNotification from '../../components/housie/HousieWinNotification';
 import HousieClaimCheckingIndicator from '../../components/housie/HousieClaimCheckingIndicator';
+import MandaliCoin from '../../components/MandaliCoin';
+
 
 const HousieSpectatorScreen = () => {
     const isTablet = useIsTablet();
@@ -117,6 +119,13 @@ const HousieSpectatorScreen = () => {
         };
     }, [gameCode, socket, queryClient, navigation, groupId]);
 
+    // 6. Handle ended state if missed socket event
+    useEffect(() => {
+        if (game?.status === 'ended') {
+            navigation.replace('HousieResults', { gameCode, groupId });
+        }
+    }, [game?.status, gameCode, groupId, navigation]);
+
     const calledNumbers = game?.called_numbers || [];
     const latestNumber = calledNumbers[calledNumbers.length - 1];
     const prizes: any[] = game?.prizes || [];
@@ -199,7 +208,7 @@ const HousieSpectatorScreen = () => {
                     </Text>
                     <Text className={`text-[#b30069] font-headline-bold leading-tight ${isTablet ? 'text-2xl mt-1' : 'text-xs'}`}>Live Game Board</Text>
                 </View>
-                
+
                 {/* Host Controls for Auto Mode */}
                 {game?.host_id === user?.id && game?.settings?.callingMode === 'auto' ? (
                     <View className="flex-row items-center" style={{ gap: 8 }}>
@@ -219,23 +228,23 @@ const HousieSpectatorScreen = () => {
                             style={game.settings?.isPaused ? {} : { elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
                             className={`rounded-full flex-row items-center border border-stone-100 px-3 py-1.5 ${game.settings?.isPaused ? 'bg-orange-50' : 'bg-white'}`}
                         >
-                            <MaterialIcons 
-                                name={game.settings?.isPaused ? 'play-arrow' : 'pause'} 
-                                size={16} 
-                                color={game.settings?.isPaused ? '#f97316' : '#b30069'} 
+                            <MaterialIcons
+                                name={game.settings?.isPaused ? 'play-arrow' : 'pause'}
+                                size={16}
+                                color={game.settings?.isPaused ? '#f97316' : '#b30069'}
                             />
                             <Text className={`font-headline-bold ml-1 uppercase tracking-tight ${game.settings?.isPaused ? 'text-orange-600' : 'text-primary'} text-[9px]`}>
                                 {game.settings?.isPaused ? 'Resume' : 'Pause'}
                             </Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             onPress={() => {
                                 Alert.alert('End Game?', 'Are you sure you want to finish this session?', [
                                     { text: 'Cancel', style: 'cancel' },
                                     { text: 'Finish', style: 'destructive', onPress: () => updateHousieStatus(gameCode, 'ended') }
                                 ]);
-                            }} 
+                            }}
                             className="bg-red-50 px-2 py-1.5 rounded-xl border border-red-100 flex-row items-center"
                         >
                             <MaterialIcons name="power-settings-new" size={14} color="#dc2626" />
@@ -259,50 +268,50 @@ const HousieSpectatorScreen = () => {
                     <Text className={`text-stone-400 font-body-bold uppercase tracking-[4px] mb-6 ${isTablet ? 'text-2xl' : 'text-[11px]'}`}>NOW CALLING</Text>
                     <View className="w-full items-center justify-center">
                         <View className="flex-row items-center justify-center gap-x-5 px-4">
-                             {/* Ball p-2 */}
-                             <View className="items-center">
-                                 <View
-                                     style={{ width: isTablet ? 90 : 58, height: isTablet ? 90 : 58, borderRadius: 45, backgroundColor: 'rgba(179, 0, 105, 0.1)', borderColor: 'rgba(179, 0, 105, 0.2)' }}
-                                     className="border items-center justify-center"
-                                 >
-                                     <Text className={`text-[#594048] font-headline-bold text-center ${isTablet ? 'text-3xl' : 'text-lg'}`}>
-                                         {calledNumbers[calledNumbers.length - 3] || '--'}
-                                     </Text>
-                                 </View>
-                             </View>
- 
-                             {/* Ball p-1 */}
-                             <View className="items-center">
-                                 <View
-                                     style={{ width: isTablet ? 110 : 72, height: isTablet ? 110 : 72, borderRadius: 55, backgroundColor: 'rgba(179, 0, 105, 0.2)', borderColor: 'rgba(179, 0, 105, 0.3)' }}
-                                     className="border items-center justify-center"
-                                 >
-                                     <Text className={`text-[#594048] font-headline-bold text-center ${isTablet ? 'text-4xl' : 'text-2xl'}`}>
-                                         {calledNumbers[calledNumbers.length - 2] || '--'}
-                                     </Text>
-                                 </View>
-                             </View>
- 
-                             {/* CURRENT BALL */}
-                             <View className="items-center">
-                                 <View
-                                     style={{ 
-                                         width: isTablet ? 180 : 110, 
-                                         height: isTablet ? 180 : 110, 
-                                         borderRadius: 90, 
-                                         elevation: 12,
-                                         shadowColor: '#b30069',
-                                         shadowOffset: { width: 0, height: 10 },
-                                         shadowOpacity: 0.3,
-                                         shadowRadius: 15
-                                     }}
-                                     className="bg-[#b30069] items-center justify-center border-[5px] border-white"
-                                 >
-                                     <Text className={`text-white font-headline-bold text-center ${isTablet ? 'text-[84px]' : 'text-[54px]'}`}>
-                                         {latestNumber || "—"}
-                                     </Text>
-                                 </View>
-                             </View>
+                            {/* Ball p-2 */}
+                            <View className="items-center">
+                                <View
+                                    style={{ width: isTablet ? 90 : 58, height: isTablet ? 90 : 58, borderRadius: 45, backgroundColor: 'rgba(179, 0, 105, 0.1)', borderColor: 'rgba(179, 0, 105, 0.2)' }}
+                                    className="border items-center justify-center"
+                                >
+                                    <Text className={`text-[#594048] font-headline-bold text-center ${isTablet ? 'text-3xl' : 'text-lg'}`}>
+                                        {calledNumbers[calledNumbers.length - 3] || '--'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Ball p-1 */}
+                            <View className="items-center">
+                                <View
+                                    style={{ width: isTablet ? 110 : 72, height: isTablet ? 110 : 72, borderRadius: 55, backgroundColor: 'rgba(179, 0, 105, 0.2)', borderColor: 'rgba(179, 0, 105, 0.3)' }}
+                                    className="border items-center justify-center"
+                                >
+                                    <Text className={`text-[#594048] font-headline-bold text-center ${isTablet ? 'text-4xl' : 'text-2xl'}`}>
+                                        {calledNumbers[calledNumbers.length - 2] || '--'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* CURRENT BALL */}
+                            <View className="items-center">
+                                <View
+                                    style={{
+                                        width: isTablet ? 180 : 110,
+                                        height: isTablet ? 180 : 110,
+                                        borderRadius: 90,
+                                        elevation: 12,
+                                        shadowColor: '#b30069',
+                                        shadowOffset: { width: 0, height: 10 },
+                                        shadowOpacity: 0.3,
+                                        shadowRadius: 15
+                                    }}
+                                    className="bg-[#b30069] items-center justify-center border-[5px] border-white"
+                                >
+                                    <Text className={`text-white font-headline-bold text-center ${isTablet ? 'text-[84px]' : 'text-[54px]'}`}>
+                                        {latestNumber || "—"}
+                                    </Text>
+                                </View>
+                            </View>
                         </View>
                     </View>
                     <HousieClaimCheckingIndicator visible={isPlayerClaiming} />
@@ -340,7 +349,7 @@ const HousieSpectatorScreen = () => {
                 )}
 
                 {/* Number Board */}
-                <View 
+                <View
                     style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
                     className={`bg-white rounded-[40px] border border-stone-100 mb-10 ${isTablet ? 'p-10' : 'p-6'}`}
                 >
@@ -355,7 +364,7 @@ const HousieSpectatorScreen = () => {
                     <Text className={`text-[#594048] font-headline-bold mb-6 ${isTablet ? 'text-4xl' : 'text-xl'}`}>Rewards</Text>
                     <View className="gap-4 pb-10">
                         {prizesArr.map((prize: any, idx: number) => (
-                            <View key={idx} 
+                            <View key={idx}
                                 style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
                                 className={`bg-white rounded-[24px] border border-stone-100 mb-1 ${isTablet ? 'p-8' : 'p-4'}`}
                             >

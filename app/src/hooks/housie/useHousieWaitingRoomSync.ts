@@ -41,7 +41,8 @@ export const useHousieWaitingRoomSync = ({
         };
 
         const onGameStarting = () => {
-            navigation.replace('HousieStarting', { gameCode, groupId });
+            // Only invalidate, let the status useEffect handle navigation
+            invalidate();
         };
 
         const onGameEnded = () => {
@@ -57,9 +58,9 @@ export const useHousieWaitingRoomSync = ({
             socket.off('game_starting', onGameStarting);
             socket.off('game_ended', onGameEnded);
         };
-    }, [socket, gameCode, queryClient, navigation, groupId]);
+    }, [socket, gameCode, invalidate, navigation, groupId]);
 
-    // Handle initial state redirection
+    // Handle initial state redirection - Single Source of Truth
     useEffect(() => {
         if (!game) return;
 

@@ -218,6 +218,12 @@ export const fetchHousiePrizeCatalogue = async (mode: 'auto' | 'manual'): Promis
     return response.data;
 };
 
+export const fetchHousieGameStyles = async (): Promise<{ styles: any[] }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/housie/styles`, { headers });
+    return response.data;
+};
+
 export const updateHousieStatus = async (gameCode: string, status: string): Promise<any> => {
     const headers = await getAuthHeaders();
     const response = await axios.patch(`${API_URL}/housie/${gameCode}/status`, { status }, { headers });
