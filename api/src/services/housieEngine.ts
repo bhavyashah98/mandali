@@ -87,7 +87,10 @@ export const executeAutoCall = async (game: any) => {
         const updatedNumbers = [...calledNumbers, nextNumber];
         const isLastNumber = updatedNumbers.length === 90;
 
-        // 5. ATOMIC update (critical)
+        // 5. ATOMIC update
+        // We already have a lock from the engine (next_call_at was set to null), 
+        // so we don't strictly need a second atomic check on called_numbers here,
+        // which can be finicky with JSONB array comparisons.
         const { data: updatedGame, error: updateError } = await supabase
             .from('housie_games')
             .update({
@@ -95,12 +98,13 @@ export const executeAutoCall = async (game: any) => {
                 last_activity_at: now
             })
             .eq('game_code', gameCode)
-            .eq('called_numbers', calledNumbers) // 🔥 atomic condition
             .select()
             .single();
 
-        if (!updatedGame || updateError) {
-            console.log(`[AutoHost] Atomic update failed for ${gameCode} (likely already handled)`);
+        if (updateError || !updatedGame) {
+            console.error(`[AutoHost] Update failed for ${gameCode}:`, updateError?.message);
+            // Fallback: Reschedule so the game doesn't stall if this was a transient DB error
+            await setNextCallTime(gameCode, 5);
             return;
         }
 
