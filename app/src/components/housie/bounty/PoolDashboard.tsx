@@ -24,48 +24,52 @@ const PoolDashboard: React.FC<Props> = ({
         >
 
             <View className="flex-row items-center justify-between">
-                {/* Left: total pool */}
+                {/* Left: total allocated (The HERO now) */}
                 <View className="flex-1 mr-3">
                     <Text className="font-body-bold text-stone-400 uppercase tracking-wider"
                         style={{ fontSize: isTablet ? 16 : 9 }}>
-                        Total Match Rewards
+                        Total Allocated
                     </Text>
                     <View className="flex-row items-center mt-1">
                         <Text
                             className="font-headline-bold"
-                            style={{ fontSize: isTablet ? 52 : 28, color: overAllocated ? '#c2410c' : '#b30069' }}
+                            style={{ fontSize: isTablet ? 52 : 28, color: '#b30069' }}
                             adjustsFontSizeToFit
                             numberOfLines={1}
                         >
-                            {totalPrizePool.toLocaleString()}
+                            {totalAllocated.toLocaleString()}
                         </Text>
                         <MandaliCoin size={isTablet ? 34 : 20} style={{ marginLeft: 8 }} />
                     </View>
                 </View>
 
-                {/* Right: stats */}
+                {/* Right: stats and Total Match Pool (The secondary now) */}
                 <View className="items-end">
-                    <View className="flex-row items-center mb-1">
+                    <View className="flex-row items-center mb-2">
                         <View className="w-2 h-2 rounded-full bg-green-500 mr-1.5" />
                         <Text className="font-body-bold text-stone-400 uppercase"
                             style={{ fontSize: isTablet ? 14 : 10 }}>
                             {participantCount} Players
                         </Text>
                     </View>
-                    <View className="flex-row items-center">
+                    
+                    <View 
+                        className="bg-stone-50 border border-stone-100 rounded-xl px-3 py-1.5 flex-row items-center"
+                        style={{ elevation: 1 }}
+                    >
                         <Text
-                            className="font-body-bold uppercase"
-                            style={{ fontSize: isTablet ? 14 : 10, color: isBalanced ? '#22c55e' : '#d6d3d1' }}
+                            className="font-body-bold text-stone-400 uppercase mr-2"
+                            style={{ fontSize: isTablet ? 14 : 9 }}
                         >
-                            {totalAllocated}
+                            Match Pool:
                         </Text>
-                        <MandaliCoin size={isTablet ? 14 : 11} style={{ marginHorizontal: 3 }} />
                         <Text
-                            className="font-body-bold uppercase"
-                            style={{ fontSize: isTablet ? 14 : 10, color: isBalanced ? '#22c55e' : '#d6d3d1' }}
+                            className="font-headline-bold"
+                            style={{ fontSize: isTablet ? 20 : 14, color: '#b30069' }}
                         >
-                            alloc.
+                            {totalPrizePool.toLocaleString()}
                         </Text>
+                        <MandaliCoin size={isTablet ? 16 : 12} style={{ marginLeft: 4 }} />
                     </View>
                 </View>
             </View>

@@ -29,10 +29,6 @@ const PRIZE_CATALOGUE = [
     { id: 'early_5', name: 'Early 5', description: 'First to mark any 5 numbers', icon: 'looks-5', category: 'bonus', repeatable: false, order: 13 },
     { id: 'early_7', name: 'Early 7', description: 'First to mark any 7 numbers', icon: 'filter-7', category: 'bonus', repeatable: false, order: 14 },
     { id: 'bp', name: 'BP / Temperature', description: 'Highest and lowest numbers on ticket', icon: 'thermostat', category: 'bonus', repeatable: false, order: 15 },
-    { id: 'child', name: 'Child', description: 'Special prize for the youngest player', icon: 'child-care', category: 'special', repeatable: false, order: 16 },
-    { id: 'young', name: 'Young', description: 'Special prize for the youngest adult', icon: 'emoji-people', category: 'special', repeatable: false, order: 13 },
-    { id: 'old', name: 'Old', description: 'Special prize for the eldest player', icon: 'elderly', category: 'special', repeatable: false, order: 14 },
-    { id: 'jackpot', name: 'Jackpot', description: 'Surprise grand prize — host decides', icon: 'celebration', category: 'special', repeatable: false, order: 15 },
 ];
 
 /**

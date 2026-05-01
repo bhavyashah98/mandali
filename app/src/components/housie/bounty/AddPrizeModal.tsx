@@ -3,7 +3,7 @@ import {
     View, Text, TouchableOpacity, TextInput,
     Modal, ScrollView, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MandaliCoin from '../../MandaliCoin';
 import { Prize } from './MilestonesList';
@@ -19,7 +19,6 @@ const CATEGORY_LABELS: Record<string, string> = {
     standard: 'Row Prizes',
     fullhouse: 'Full House',
     bonus: 'Bonus Prizes',
-    special: 'Special Prizes',
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -53,8 +52,8 @@ const AddPrizeModal: React.FC<Props> = ({
             }
             onAdd({ ...item, amount: '0', isHighlight: item.category === 'fullhouse' });
         } else {
-            const n = prizes.filter(p => p.id.startsWith('full_house_')).length + 1;
-            onAdd({ ...item, id: `full_house_${n}`, name: `${ordinal(n)} Full House`, amount: '0', isHighlight: true });
+            const n = prizes.filter(p => p.category === item.category).length + 1;
+            onAdd({ ...item, id: `${item.id}_${n}`, name: `${ordinal(n)} ${item.name}`, amount: '0', isHighlight: true });
         }
         close();
     };
@@ -70,7 +69,7 @@ const AddPrizeModal: React.FC<Props> = ({
         close();
     };
 
-    const categories = (['standard', 'fullhouse', 'bonus', 'special'] as const)
+    const categories = (['standard', 'fullhouse', 'bonus'] as const)
         .filter(cat => catalogue.some((p: any) => p.category === cat));
 
     return (
@@ -112,67 +111,86 @@ const AddPrizeModal: React.FC<Props> = ({
                                             </Text>
                                             <View style={{ gap: 8 }}>
                                                 {catItems.map((item: any) => {
-                                                    const alreadyAdded = !item.repeatable && !!prizes.find((p: any) => p.id === item.id);
-                                                    const repeatCount = item.repeatable
-                                                        ? prizes.filter((p: any) => p.id.startsWith('full_house_')).length
-                                                        : 0;
-                                                    return (
-                                                        <TouchableOpacity
-                                                            key={item.id}
-                                                            onPress={() => addFromCatalogue(item)}
-                                                            disabled={alreadyAdded}
-                                                            className="flex-row items-center bg-stone-50 rounded-[18px] border border-stone-100"
-                                                            style={{ padding: isTablet ? 14 : 11, gap: 12, opacity: alreadyAdded ? 0.4 : 1 }}
-                                                        >
-                                                            {/* Icon */}
-                                                            <View
-                                                                className="rounded-full items-center justify-center"
-                                                                style={{
-                                                                    width: isTablet ? 44 : 34,
-                                                                    height: isTablet ? 44 : 34,
-                                                                    backgroundColor: isSpecialCat ? '#fef3c7' : '#fce7f3',
-                                                                }}
-                                                            >
-                                                                <MaterialIcons
-                                                                    name={item.icon as any}
-                                                                    size={isTablet ? 22 : 17}
-                                                                    color={isSpecialCat ? '#d97706' : '#b30069'}
-                                                                />
-                                                            </View>
+                                                     const alreadyAdded = !item.repeatable && !!prizes.find((p: any) => p.id === item.id);
+                                                     const isRepeatable = item.repeatable;
+                                                     
+                                                     // Premium logic: Anything not standard or fullhouse is premium
+                                                     const isPremium = item.category !== 'standard' && item.category !== 'fullhouse';
 
-                                                            {/* Text */}
-                                                            <View className="flex-1">
-                                                                <Text className="font-headline-bold"
-                                                                    style={{ fontSize: isTablet ? 17 : 14, color: '#1c1c18' }}>
-                                                                    {item.repeatable ? 'Add Full House' : item.name}
-                                                                </Text>
-                                                                <Text className="font-body-regular text-stone-400"
-                                                                    style={{ fontSize: isTablet ? 12 : 11 }}>
-                                                                    {item.repeatable && repeatCount > 0
-                                                                        ? `${repeatCount} added — tap to add ${ordinal(repeatCount + 1)}`
-                                                                        : item.description}
-                                                                </Text>
-                                                            </View>
+                                                     const repeatCount = isRepeatable
+                                                         ? prizes.filter((p: any) => p.category === item.category).length
+                                                         : 0;
 
-                                                            {/* Right action */}
-                                                            {item.repeatable ? (
-                                                                <View className="flex-row items-center" style={{ gap: 6 }}>
-                                                                    {repeatCount > 0 && (
-                                                                        <View className="bg-pink-100 rounded-full px-2 py-0.5">
-                                                                            <Text className="font-headline-bold"
-                                                                                style={{ color: '#b30069', fontSize: isTablet ? 13 : 11 }}>
-                                                                                {repeatCount}
+                                                     return (
+                                                         <TouchableOpacity
+                                                             key={item.id}
+                                                             onPress={() => addFromCatalogue(item)}
+                                                             disabled={alreadyAdded}
+                                                             className="flex-row items-center bg-stone-50 rounded-[18px] border border-stone-100"
+                                                             style={{ padding: isTablet ? 14 : 11, gap: 12, opacity: alreadyAdded ? 0.4 : 1 }}
+                                                         >
+                                                             {/* Icon */}
+                                                             <View
+                                                                 className="rounded-full items-center justify-center"
+                                                                 style={{
+                                                                     width: isTablet ? 44 : 34,
+                                                                     height: isTablet ? 44 : 34,
+                                                                     backgroundColor: isPremium ? '#31302d' : '#fce7f3',
+                                                                 }}
+                                                             >
+                                                                 <MaterialIcons
+                                                                     name={item.icon as any}
+                                                                     size={isTablet ? 22 : 17}
+                                                                     color={isPremium ? '#fbbf24' : '#b30069'}
+                                                                 />
+                                                             </View>
+
+                                                             {/* Text */}
+                                                             <View className="flex-1">
+                                                                 <View className="flex-row items-center">
+                                                                    <Text className="font-headline-bold"
+                                                                        style={{ fontSize: isTablet ? 17 : 14, color: '#1c1c18' }}>
+                                                                        {isRepeatable ? `Add ${item.name}` : item.name}
+                                                                    </Text>
+                                                                    {isPremium && (
+                                                                        <View 
+                                                                            className="flex-row items-center px-2 py-0.5 rounded-lg ml-2"
+                                                                            style={{ backgroundColor: '#31302d' }}
+                                                                        >
+                                                                            <MaterialCommunityIcons name="crown" size={isTablet ? 12 : 10} color="#fbbf24" />
+                                                                            <Text className="font-body-bold text-[#fbbf24] uppercase ml-1" style={{ fontSize: isTablet ? 10 : 8 }}>
+                                                                                PREMIUM
                                                                             </Text>
                                                                         </View>
                                                                     )}
-                                                                    <MaterialIcons name="add-circle-outline" size={isTablet ? 26 : 22} color="#b30069" />
-                                                                </View>
-                                                            ) : alreadyAdded
-                                                                ? <MaterialIcons name="check-circle" size={isTablet ? 26 : 22} color="#22c55e" />
-                                                                : <MaterialIcons name="add-circle-outline" size={isTablet ? 26 : 22} color={isSpecialCat ? '#d97706' : '#b30069'} />}
-                                                        </TouchableOpacity>
-                                                    );
-                                                })}
+                                                                 </View>
+                                                                 <Text className="font-body-regular text-stone-400"
+                                                                     style={{ fontSize: isTablet ? 12 : 11 }}>
+                                                                     {isRepeatable && repeatCount > 0
+                                                                         ? `${repeatCount} added — tap to add ${ordinal(repeatCount + 1)}`
+                                                                         : item.description}
+                                                                 </Text>
+                                                             </View>
+
+                                                             {/* Right action */}
+                                                             {isRepeatable ? (
+                                                                 <View className="flex-row items-center" style={{ gap: 6 }}>
+                                                                     {repeatCount > 0 && (
+                                                                         <View className="bg-pink-100 rounded-full px-2 py-0.5">
+                                                                             <Text className="font-headline-bold"
+                                                                                 style={{ color: '#b30069', fontSize: isTablet ? 13 : 11 }}>
+                                                                                 {repeatCount}
+                                                                             </Text>
+                                                                         </View>
+                                                                     )}
+                                                                     <MaterialIcons name="add-circle-outline" size={isTablet ? 26 : 22} color="#b30069" />
+                                                                 </View>
+                                                             ) : alreadyAdded
+                                                                 ? <MaterialIcons name="check-circle" size={isTablet ? 26 : 22} color="#22c55e" />
+                                                                 : <MaterialIcons name="add-circle-outline" size={isTablet ? 26 : 22} color={isPremium ? '#fbbf24' : '#b30069'} />}
+                                                         </TouchableOpacity>
+                                                     );
+                                                 })}
                                             </View>
                                         </View>
                                     );
