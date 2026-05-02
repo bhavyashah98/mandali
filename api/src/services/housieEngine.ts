@@ -271,26 +271,60 @@ const runAutoCall = async (gameCode: string) => {
 export const manageGameTimer = (gameCode: string, gameData: any) => {
     const existing = gameEngines.get(gameCode);
     const targetTime = gameData.next_call_at || gameData.activation_at;
+    
+    const settings = gameData.settings || {};
+    const callingMode = settings.callingMode || 'manual';
+    const isPaused = settings.isPaused || false;
+    const status = gameData.status;
 
-    console.log(`[HousieEngine] [DEBUG] manageGameTimer for ${gameCode} (Status: ${gameData.status}, Target: ${targetTime})`);
+    console.log(`[HousieEngine] [DEBUG] manageGameTimer for ${gameCode} (Status: ${status}, Target: ${targetTime})`);
 
-    // 1. Optimization: If already scheduled for this exact timestamp, skip
-    if (existing?.scheduledFor && existing.scheduledFor === targetTime) {
-        console.log(`[HousieEngine] [DEBUG] Skipping ${gameCode} - already scheduled for this time.`);
+    // --- SIGNIFICANT CHANGE FILTER ---
+    // We only care about updates to status, next_call_at, isPaused, or callingMode.
+    // This ignores "noise" like last_activity_at or spectator counts.
+    const hasTimestampChanged = existing?.scheduledFor !== targetTime;
+    const hasStatusChanged = existing?.lastStatus !== status;
+    const hasPausedChanged = existing?.lastPaused !== isPaused;
+    const hasModeChanged = existing?.lastCallingMode !== callingMode;
+
+    if (!hasTimestampChanged && !hasStatusChanged && !hasPausedChanged && !hasModeChanged) {
+        console.log(`[HousieEngine] [DEBUG] Skipping ${gameCode} - no significant changes detected.`);
+        return;
+    }
+
+    // --- STALE EVENT GUARD ---
+    if (existing && existing.scheduledFor && targetTime) {
+        const existingTime = new Date(existing.scheduledFor).getTime();
+        const incomingTime = new Date(targetTime).getTime();
+
+        if (incomingTime < existingTime) {
+            console.log(`[HousieEngine] [DEBUG] Skipping stale update for ${gameCode} (Incoming: ${targetTime} < Existing: ${existing.scheduledFor})`);
+            return;
+        }
+    }
+    
+    // If incoming is null and we have a timer, it's a locking state or pause.
+    if (!targetTime && status === 'active' && callingMode === 'auto' && !isPaused) {
+        console.log(`[HousieEngine] [DEBUG] ${gameCode} is locking. Keeping state alive.`);
+        gameEngines.set(gameCode, { 
+            ...existing,
+            timer: existing?.timer || null, 
+            version: (existing?.version || 0), 
+            scheduledFor: null,
+            lastStatus: status,
+            lastPaused: isPaused,
+            lastCallingMode: callingMode
+        });
         return;
     }
 
     // 2. Clear existing timer
     if (existing?.timer) {
-        console.log(`[HousieEngine] [DEBUG] Clearing existing timer for ${gameCode}`);
+        console.log(`[HousieEngine] [DEBUG] Clearing existing timer for ${gameCode} to re-schedule.`);
         clearTimeout(existing.timer);
     }
 
     const version = (existing?.version || 0) + 1;
-    const status = gameData.status;
-    const settings = gameData.settings || {};
-    const callingMode = settings.callingMode || 'manual';
-    const isPaused = settings.isPaused || false;
 
     // 3. Handle 'starting' countdown
     if (status === 'starting' && gameData.activation_at) {
@@ -299,14 +333,14 @@ export const manageGameTimer = (gameCode: string, gameData: any) => {
         console.log(`[HousieEngine] [DEBUG] Scheduling ACTIVATION for ${gameCode} in ${delay}ms (v:${version})`);
         const timer = setTimeout(async () => {
             const state = gameEngines.get(gameCode);
-            if (!state || state.version !== version) {
-                console.log(`[HousieEngine] [DEBUG] Activation timer fired for ${gameCode} but version mismatch (v:${version})`);
-                return;
-            }
+            if (!state || state.version !== version) return;
             await runActivation(gameCode);
         }, delay);
-
-        gameEngines.set(gameCode, { timer, version, scheduledFor: gameData.activation_at });
+        
+        gameEngines.set(gameCode, { 
+            timer, version, scheduledFor: gameData.activation_at,
+            lastStatus: status, lastPaused: isPaused, lastCallingMode: callingMode
+        });
     }
     // 4. Handle 'active' auto-calling
     else if (status === 'active' && callingMode === 'auto' && !isPaused) {
@@ -319,14 +353,11 @@ export const manageGameTimer = (gameCode: string, gameData: any) => {
                 if (!state || state.version !== version) return;
                 await runAutoCall(gameCode);
             }, delay);
-
-            gameEngines.set(gameCode, { timer, version, scheduledFor: gameData.next_call_at });
-        }
-        else {
-            // IMPORTANT: If next_call_at is missing but game is active/auto, it's likely being locked for a draw.
-            // We do NOT delete the engine here, we just wait for the next update.
-            console.log(`[HousieEngine] [DEBUG] ${gameCode} is active/auto but next_call_at is empty (likely locking). Keeping state alive.`);
-            gameEngines.set(gameCode, { timer: null, version, scheduledFor: undefined });
+            
+            gameEngines.set(gameCode, { 
+                timer, version, scheduledFor: gameData.next_call_at,
+                lastStatus: status, lastPaused: isPaused, lastCallingMode: callingMode
+            });
         }
     }
     // 5. Cleanup for ended or manual/paused games
