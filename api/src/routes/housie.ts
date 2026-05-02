@@ -505,14 +505,27 @@ router.post('/:gameCode/pause', authMiddleware, async (req: AuthRequest, res) =>
         const gameCode = (req.params.gameCode as string).toUpperCase();
         const userId = req.userId!;
 
-        const { data: game } = await supabase.from('housie_games').select('*').eq('game_code', gameCode).single();
+        const { data: game } = await supabase
+            .from('housie_games')
+            .select('*')
+            .eq('game_code', gameCode)
+            .single();
+
         if (!game) return res.status(404).json({ error: 'Game not found' });
         if (game.host_id !== userId) return res.status(403).json({ error: 'Only the host can pause the game' });
 
         const settings = { ...game.settings, isPaused: true };
-        await supabase.from('housie_games').update({ settings }).eq('game_code', gameCode);
 
-        pauseAutoHost(gameCode);
+        await supabase
+            .from('housie_games')
+            .update({ 
+                settings,
+                last_activity_at: new Date().toISOString() 
+            })
+            .eq('game_code', gameCode);
+
+        // ✅ Stop timer immediately
+        await pauseAutoHost(gameCode);
 
         // Broadcast pause
         const io = req.app.get('io');
@@ -521,24 +534,41 @@ router.post('/:gameCode/pause', authMiddleware, async (req: AuthRequest, res) =>
         }
 
         res.json({ success: true });
+
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
 });
 
+/**
+ * RESUME GAME (Auto-mode only)
+ */
 router.post('/:gameCode/resume', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const gameCode = (req.params.gameCode as string).toUpperCase();
         const userId = req.userId!;
 
-        const { data: game } = await supabase.from('housie_games').select('*').eq('game_code', gameCode).single();
+        const { data: game } = await supabase
+            .from('housie_games')
+            .select('*')
+            .eq('game_code', gameCode)
+            .single();
+
         if (!game) return res.status(404).json({ error: 'Game not found' });
         if (game.host_id !== userId) return res.status(403).json({ error: 'Only the host can resume the game' });
 
         const settings = { ...game.settings, isPaused: false };
-        await supabase.from('housie_games').update({ settings }).eq('game_code', gameCode);
 
-        resumeAutoHost(gameCode);
+        await supabase
+            .from('housie_games')
+            .update({ 
+                settings,
+                last_activity_at: new Date().toISOString() 
+            })
+            .eq('game_code', gameCode);
+
+        // ✅ Resume timer immediately
+        await resumeAutoHost(gameCode);
 
         // Broadcast resume
         const io = req.app.get('io');
@@ -547,6 +577,7 @@ router.post('/:gameCode/resume', authMiddleware, async (req: AuthRequest, res) =
         }
 
         res.json({ success: true });
+
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
