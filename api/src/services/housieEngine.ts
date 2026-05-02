@@ -218,6 +218,7 @@ const runActivation = async (gameCode: string) => {
 const runAutoCall = async (gameCode: string) => {
     try {
         const nowIso = new Date().toISOString();
+        console.log(`[HousieEngine] [DEBUG] runAutoCall triggered for ${gameCode} (Now: ${nowIso})`);
 
         // 1. Attempt to LOCK this specific time slot in the database
         // This ensures that only ONE server/timer executes this specific call.
@@ -231,20 +232,30 @@ const runAutoCall = async (gameCode: string) => {
             .single();
 
         if (lockError || !lockedGame) {
-            // Self-cleaning check: if the game was deleted or is no longer active, remove the timer
+            console.log(`[HousieEngine] [DEBUG] Lock FAILED for ${gameCode}. (Error: ${lockError?.message || 'Criteria not met'})`);
+            
             const { data: stillExists } = await supabase
                 .from('housie_games')
                 .select('status, next_call_at')
                 .eq('game_code', gameCode)
                 .single();
 
-            if (!stillExists || stillExists.status !== 'active' || (stillExists.next_call_at && new Date(stillExists.next_call_at) > new Date())) {
+            if (!stillExists) {
+                console.log(`[HousieEngine] [DEBUG] Game ${gameCode} not found in DB. Cleaning up.`);
                 gameEngines.delete(gameCode);
+            } else if (stillExists.status !== 'active') {
+                console.log(`[HousieEngine] [DEBUG] Game ${gameCode} status is ${stillExists.status} (expected active). Cleaning up.`);
+                gameEngines.delete(gameCode);
+            } else if (stillExists.next_call_at && new Date(stillExists.next_call_at) > new Date()) {
+                console.log(`[HousieEngine] [DEBUG] Game ${gameCode} next_call_at is in future (${stillExists.next_call_at}). Cleaning up stale timer.`);
+                gameEngines.delete(gameCode);
+            } else {
+                console.log(`[HousieEngine] [DEBUG] Game ${gameCode} is still active and valid, but lock failed (likely handled by another instance).`);
             }
             return;
         }
 
-        console.log(`[HousieEngine] Executing auto-call for ${gameCode} via timer`);
+        console.log(`[HousieEngine] [DEBUG] Lock ACQUIRED for ${gameCode}. Executing draw...`);
         await executeAutoCall(lockedGame);
 
         // The executeAutoCall will call setNextCallTime, 
@@ -286,7 +297,7 @@ export const manageGameTimer = (gameCode: string, gameData: any) => {
             if (!state || state.version !== version) return;
             await runActivation(gameCode);
         }, delay);
-        
+
         gameEngines.set(gameCode, { timer, version, scheduledFor: gameData.activation_at });
     }
     // 4. Handle 'active' auto-calling
@@ -299,9 +310,9 @@ export const manageGameTimer = (gameCode: string, gameData: any) => {
                 if (!state || state.version !== version) return;
                 await runAutoCall(gameCode);
             }, delay);
-            
+
             gameEngines.set(gameCode, { timer, version, scheduledFor: gameData.next_call_at });
-        } 
+        }
         else {
             gameEngines.delete(gameCode);
         }

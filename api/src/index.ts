@@ -70,15 +70,15 @@ initHousieEngine();
 const onlineUsers = new Map<string, string>(); // userId -> socketId
 
 // Memory Monitor
-setInterval(() => {
-    const used = process.memoryUsage();
-    console.log(`[SYS]
-    RSS=${Math.round(used.rss / 1024 / 1024)}MB
-    HeapUsed=${Math.round(used.heapUsed / 1024 / 1024)}MB
-    HeapTotal=${Math.round(used.heapTotal / 1024 / 1024)}MB
-    External=${Math.round(used.external / 1024 / 1024)}MB
-    Online=${onlineUsers.size}`);
-}, 10000);
+// setInterval(() => {
+//     const used = process.memoryUsage();
+//     console.log(`[SYS]
+//     RSS=${Math.round(used.rss / 1024 / 1024)}MB
+//     HeapUsed=${Math.round(used.heapUsed / 1024 / 1024)}MB
+//     HeapTotal=${Math.round(used.heapTotal / 1024 / 1024)}MB
+//     External=${Math.round(used.external / 1024 / 1024)}MB
+//     Online=${onlineUsers.size}`);
+// }, 10000);
 
 // Socket.io Connection Logic
 io.on('connection', async (socket) => {
@@ -142,28 +142,28 @@ io.on('connection', async (socket) => {
             }).eq('id', userId).then(async ({ error }) => {
                 if (!error) {
                     io.emit('online_status', { userId, status: false });
-                    
+
                     // Cleanup: Remove any "pre_claim" virtual locks for this user from active games
                     try {
                         const { data: games } = await supabase
                             .from('housie_games')
                             .select('game_code, winners')
                             .eq('status', 'active');
-                        
+
                         if (games) {
                             for (const game of games) {
                                 const winners = game.winners || {};
                                 const pending = winners['__pending'] || [];
-                                
+
                                 const updatedPending = pending.filter(
                                     (p: any) => !(p.userId === userId && p.type === 'pre_claim')
                                 );
-                                
+
                                 if (updatedPending.length !== pending.length) {
                                     console.log(`[Socket] Cleaning up zombie pre_claim for user ${userId} in game ${game.game_code}`);
                                     await supabase
                                         .from('housie_games')
-                                        .update({ 
+                                        .update({
                                             winners: { ...winners, __pending: updatedPending },
                                             last_activity_at: new Date().toISOString()
                                         })

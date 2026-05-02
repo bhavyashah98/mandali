@@ -22,30 +22,39 @@ export const useSocketRoom = (
         if (!socket || !identifier) return;
 
         const joinRoom = () => {
+            console.log(`[SocketRoom] 📡 Joining ${event} for: ${identifier} (Socket ID: ${socket.id})`);
             socket.emit(event, identifier);
-            // Also trigger sync on reconnection to ensure data is fresh
+            // Trigger sync on reconnection to ensure data is fresh
             onSync?.();
         };
 
+        // Initial join if already connected
         if (socket.connected) {
             joinRoom();
         }
 
+        // Listen for connection events (handles both initial and reconnections)
         socket.on('connect', joinRoom);
+        socket.on('reconnect', joinRoom);
 
         // Handle background -> foreground transition
         const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
             if (nextAppState === 'active') {
-                onSync?.();
-                // Re-emit join in case socket state is inconsistent
+                console.log(`[SocketRoom] 📱 App foregrounded. Re-syncing ${identifier}...`);
+                
+                // Re-emit join in case socket state is inconsistent after backgrounding
                 if (socket.connected) {
                     socket.emit(event, identifier);
                 }
+                
+                // Always sync data on foreground return
+                onSync?.();
             }
         });
 
         return () => {
             socket.off('connect', joinRoom);
+            socket.off('reconnect', joinRoom);
             subscription.remove();
         };
     }, [socket, event, identifier, onSync]);

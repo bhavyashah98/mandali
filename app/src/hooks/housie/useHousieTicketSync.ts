@@ -27,19 +27,18 @@ export const useHousieTicketSync = ({
     const socket = useSocket();
     const queryClient = useQueryClient();
 
-    useSocketRoom('join_game', gameCode);
+    useSocketRoom('join_game', gameCode, () => {
+        // Force refetch on reconnection/foreground to ensure we didn't miss numbers
+        queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
+    });
 
     useEffect(() => {
         if (!gameCode || gameCode.length < 6 || !socket) return;
 
         const onNumberCalled = (data: any) => {
-            const numbers = data.calledNumbers || [];
-            const latest = numbers[numbers.length - 1];
-
-            if (latest) {
-                announceHousieNumber(latest);
-            }
-
+            // Voice announcement is now handled reactively in the Screen component
+            // to be resilient against backgrounding/missed socket events.
+            
             queryClient.setQueryData(['housieGame', gameCode], (old: any) => ({
                 ...old,
                 called_numbers: data.calledNumbers,

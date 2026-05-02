@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, ActivityIndicator, FlatList } from 'react-native';
+import { announceHousieNumber } from '../../utils/housieVoice';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 
@@ -134,7 +135,25 @@ const HousieTicketScreen = () => {
         return participant?.name || 'Player';
     }, [game?.participants]);
 
-    // 8. Handle ended state if missed socket event
+    // 8. Handle Voice Announcement & Ended state
+    const lastAnnouncedRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        if (!game || game.status !== 'active') return;
+        
+        const numbers = game.called_numbers || [];
+        const latest = numbers[numbers.length - 1];
+
+        if (latest !== undefined && latest !== null && latest !== lastAnnouncedRef.current) {
+            // Only announce if we've already initialized the ref (to avoid announcing on first load)
+            // or if the game just started and this is the very first number.
+            if (lastAnnouncedRef.current !== null) {
+                announceHousieNumber(latest);
+            }
+            lastAnnouncedRef.current = latest;
+        }
+    }, [game?.called_numbers, game?.status]);
+
     useEffect(() => {
         if (game?.status === 'ended') {
             navigation.replace('HousieResults', { gameCode, groupId });
