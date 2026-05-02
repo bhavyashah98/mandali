@@ -272,13 +272,17 @@ export const manageGameTimer = (gameCode: string, gameData: any) => {
     const existing = gameEngines.get(gameCode);
     const targetTime = gameData.next_call_at || gameData.activation_at;
 
+    console.log(`[HousieEngine] [DEBUG] manageGameTimer for ${gameCode} (Status: ${gameData.status}, Target: ${targetTime})`);
+
     // 1. Optimization: If already scheduled for this exact timestamp, skip
     if (existing?.scheduledFor && existing.scheduledFor === targetTime) {
+        console.log(`[HousieEngine] [DEBUG] Skipping ${gameCode} - already scheduled for this time.`);
         return;
     }
 
     // 2. Clear existing timer
     if (existing?.timer) {
+        console.log(`[HousieEngine] [DEBUG] Clearing existing timer for ${gameCode}`);
         clearTimeout(existing.timer);
     }
 
@@ -292,9 +296,13 @@ export const manageGameTimer = (gameCode: string, gameData: any) => {
     if (status === 'starting' && gameData.activation_at) {
         const delay = Math.max(0, new Date(gameData.activation_at).getTime() - Date.now());
 
+        console.log(`[HousieEngine] [DEBUG] Scheduling ACTIVATION for ${gameCode} in ${delay}ms (v:${version})`);
         const timer = setTimeout(async () => {
             const state = gameEngines.get(gameCode);
-            if (!state || state.version !== version) return;
+            if (!state || state.version !== version) {
+                console.log(`[HousieEngine] [DEBUG] Activation timer fired for ${gameCode} but version mismatch (v:${version})`);
+                return;
+            }
             await runActivation(gameCode);
         }, delay);
 
@@ -305,20 +313,26 @@ export const manageGameTimer = (gameCode: string, gameData: any) => {
         if (gameData.next_call_at) {
             const delay = Math.max(0, new Date(gameData.next_call_at).getTime() - Date.now());
 
+            console.log(`[HousieEngine] [DEBUG] Scheduling NEXT_CALL for ${gameCode} in ${delay}ms (v:${version})`);
             const timer = setTimeout(async () => {
                 const state = gameEngines.get(gameCode);
-                if (!state || state.version !== version) return;
+                if (!state || state.version !== version) {
+                    console.log(`[HousieEngine] [DEBUG] Call timer fired for ${gameCode} but version mismatch (v:${version})`);
+                    return;
+                }
                 await runAutoCall(gameCode);
             }, delay);
 
             gameEngines.set(gameCode, { timer, version, scheduledFor: gameData.next_call_at });
         }
         else {
+            console.log(`[HousieEngine] [DEBUG] No next_call_at for active game ${gameCode}, cleaning up.`);
             gameEngines.delete(gameCode);
         }
     }
     // 5. Cleanup for ended or manual/paused games
     else {
+        console.log(`[HousieEngine] [DEBUG] Game ${gameCode} is in status ${status} or paused/manual. Removing engine.`);
         gameEngines.delete(gameCode);
     }
 };
@@ -348,6 +362,7 @@ export const initHousieEngine = async () => {
             table: 'housie_games',
             schema: 'public'
         }, (payload) => {
+            console.log(`[HousieEngine] [REALTIME] Received UPDATE for ${(payload.new as any).game_code}`);
             const gameData = payload.new as any;
             if (gameData && gameData.game_code) {
                 // Whenever a game is updated (call scheduled, paused, status change), 
@@ -358,6 +373,8 @@ export const initHousieEngine = async () => {
         .subscribe((status) => {
             if (status === 'SUBSCRIBED') {
                 console.log('[HousieEngine] Reactive monitor subscribed (UPDATE only)');
+            } else {
+                console.log(`[HousieEngine] Reactive monitor status: ${status}`);
             }
         });
 };
