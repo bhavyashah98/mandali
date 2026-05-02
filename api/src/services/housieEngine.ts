@@ -119,9 +119,11 @@ export const executeAutoCall = async (game: any) => {
                 lastActivityAt: updatedGame.last_activity_at
             });
 
-            // 7. Handle 90th number (stop calling, but don't end)
+            // 7. Handle 90th number (Wait one last interval for final claims before ending)
             if (isLastNumber) {
-                console.log(`[AutoHost] All 90 numbers called for ${gameCode}. Waiting for host to end game.`);
+                const interval = game.settings?.autoCallSeconds || 7;
+                console.log(`[AutoHost] 90th number called for ${gameCode}. Scheduling final check before end in ${interval}s`);
+                await setNextCallTime(gameCode, interval);
                 return;
             }
         }
@@ -141,195 +143,210 @@ export const executeAutoCall = async (game: any) => {
 };
 
 /**
- * Background worker that manages game state transitions and time-based events.
- * Currently handles:
- * 1. Activating games that are in 'starting' state once countdown expires.
- * 2. Triggering automatic number calls for active games based on next_call_at.
+ * IN-MEMORY STATE MANAGEMENT
+ * We maintain local timers for performance, but the source of truth
+ * and locking mechanism remains the Supabase database.
  */
-let engineInterval: NodeJS.Timeout | null = null;
+const gameEngines = new Map<string, {
+    timer: NodeJS.Timeout | null;
+    version: number;
+    scheduledFor?: string;
+}>();
 
 /**
- * Core iteration logic for the background worker.
+ * Core activation logic (starting -> active)
  */
-const runWorkerIteration = async () => {
+const runActivation = async (gameCode: string) => {
     try {
-        const now = new Date();
-        const nowIso = now.toISOString();
+        const nowIso = new Date().toISOString();
 
-        // 1. Process 'starting' -> 'active' transitions
-        const { data: startingGames, error: fetchStartingError } = await supabase
+        // Atomic update to flip status and lock the transition
+        const { data: updatedGame, error: updateError } = await supabase
             .from('housie_games')
-            .select('game_code, activation_at, settings')
+            .update({
+                status: 'active',
+                last_activity_at: nowIso
+            })
+            .eq('game_code', gameCode)
             .eq('status', 'starting')
-            .lte('activation_at', nowIso);
+            .lte('activation_at', nowIso)
+            .select()
+            .single();
 
-        if (fetchStartingError) {
-            console.error('[HousieEngine] Error fetching starting games:', fetchStartingError.message);
-        }
+        if (updateError || !updatedGame) {
+            // If the game is no longer 'starting', or was deleted, stop tracking it
+            const { data: stillExists } = await supabase
+                .from('housie_games')
+                .select('status')
+                .eq('game_code', gameCode)
+                .single();
 
-        if (startingGames && startingGames.length > 0) {
-            console.log(`[HousieEngine] Found ${startingGames.length} games to activate`);
-            for (const game of startingGames) {
-                console.log(`[HousieEngine] Attempting to activate game ${game.game_code} (Activation time: ${game.activation_at})`);
-
-                // Atomic update to flip status and lock the transition
-                const { data: updatedGame, error: updateError } = await supabase
-                    .from('housie_games')
-                    .update({
-                        status: 'active',
-                        last_activity_at: nowIso
-                    })
-                    .eq('game_code', game.game_code)
-                    .eq('status', 'starting')
-                    .lte('activation_at', nowIso)
-                    .select()
-                    .single();
-
-                if (updateError) {
-                    console.error(`[HousieEngine] Activation update failed for ${game.game_code}:`, updateError.message);
-                    continue;
-                }
-
-                if (!updatedGame) {
-                    console.log(`[HousieEngine] Game ${game.game_code} already activated by another worker`);
-                    continue;
-                }
-
-                console.log(`[HousieEngine] Game ${game.game_code} activated successfully`);
-
-                // Notify clients via socket
-                if (io) {
-                    io.to(game.game_code).emit('game_activated', {
-                        gameCode: game.game_code,
-                        status: 'active',
-                        game: updatedGame
-                    });
-                }
-
-                // Start auto host if mode is auto and not paused
-                const callingMode = updatedGame.settings?.callingMode || 'manual';
-                const isPaused = updatedGame.settings?.isPaused || false;
-
-                if (callingMode === 'auto' && !isPaused) {
-                    const interval = updatedGame.settings?.autoCallSeconds || 7;
-                    console.log(`[HousieEngine] Initializing auto-call for ${game.game_code} in ${interval + 3}s`);
-                    await setNextCallTime(game.game_code, interval + 3);
-                }
+            if (!stillExists || stillExists.status !== 'starting') {
+                gameEngines.delete(gameCode);
             }
+            return;
         }
 
-        // 2. Process automatic number calls for active games
-        const { data: activeGames, error: fetchActiveError } = await supabase
-            .from('housie_games')
-            .select('game_code, next_call_at, settings')
-            .eq('status', 'active')
-            .not('next_call_at', 'is', null)
-            .lte('next_call_at', nowIso);
+        console.log(`[HousieEngine] Game ${gameCode} activated successfully via timer`);
 
-        if (fetchActiveError) {
-            console.error('[HousieEngine] Error fetching active games:', fetchActiveError.message);
+        // Notify clients
+        if (io) {
+            io.to(gameCode).emit('game_activated', {
+                gameCode,
+                status: 'active',
+                game: updatedGame
+            });
         }
 
-        if (activeGames && activeGames.length > 0) {
-            console.log(`[HousieEngine] Found ${activeGames.length} games scheduled for call`);
-            for (const game of activeGames) {
-                console.log(`[HousieEngine] Attempting to lock game ${game.game_code} for call (Scheduled: ${game.next_call_at})`);
+        // START the auto-calling sequence if mode is auto and not paused
+        const callingMode = updatedGame.settings?.callingMode || 'manual';
+        const isPaused = updatedGame.settings?.isPaused || false;
 
-                // Only process if it's auto-calling mode and not paused
-                const { data: lockedGame, error: lockError } = await supabase
-                    .from('housie_games')
-                    .update({ next_call_at: null })
-                    .eq('game_code', game.game_code)
-                    .lte('next_call_at', nowIso)
-                    .select()
-                    .single();
-
-                if (lockError) {
-                    console.error(`[HousieEngine] Lock update failed for ${game.game_code}:`, lockError.message);
-                    continue;
-                }
-
-                if (!lockedGame) {
-                    console.log(`[HousieEngine] Game ${game.game_code} already locked by another worker`);
-                    continue;
-                }
-
-                // Defensive check on settings after lock
-                const callingMode = lockedGame.settings?.callingMode || 'manual';
-                const isPaused = lockedGame.settings?.isPaused || false;
-
-                if (callingMode !== 'auto' || isPaused) {
-                    console.log(`[HousieEngine] Game ${game.game_code} call skipped (Mode: ${callingMode}, Paused: ${isPaused})`);
-                    continue;
-                }
-
-                console.log(`[HousieEngine] Executing auto-call for ${game.game_code}`);
-                await executeAutoCall(lockedGame);
-            }
-        } else if (Math.random() < 0.1) {
-            // Occasional heartbeat log when idle
-            console.log(`[HousieEngine] Heartbeat: Worker is polling... (Active Games Selected: ${activeGames?.length || 0})`);
+        if (callingMode === 'auto' && !isPaused) {
+            const interval = updatedGame.settings?.autoCallSeconds || 7;
+            console.log(`[HousieEngine] Initializing first call for ${gameCode} in ${interval + 3}s`);
+            await setNextCallTime(gameCode, interval + 3);
         }
-
     } catch (err) {
-        console.error('[HousieEngine] Critical worker loop error:', err);
+        console.error(`[HousieEngine] Activation failed for ${gameCode}:`, err);
     }
 };
 
 /**
- * Evaluates whether the engine should be running and starts/stops it accordingly.
+ * Core auto-call execution logic
  */
-const checkAndManageEngine = async () => {
+const runAutoCall = async (gameCode: string) => {
     try {
-        const { count, error } = await supabase
-            .from('housie_games')
-            .select('*', { count: 'exact', head: true })
-            .in('status', ['waiting', 'starting', 'active']);
+        const nowIso = new Date().toISOString();
 
-        if (error) {
-            console.error('[HousieEngine] Error checking game count:', error.message);
+        // 1. Attempt to LOCK this specific time slot in the database
+        // This ensures that only ONE server/timer executes this specific call.
+        const { data: lockedGame, error: lockError } = await supabase
+            .from('housie_games')
+            .update({ next_call_at: null })
+            .eq('game_code', gameCode)
+            .eq('status', 'active')
+            .lte('next_call_at', nowIso)
+            .select()
+            .single();
+
+        if (lockError || !lockedGame) {
+            // Self-cleaning check: if the game was deleted or is no longer active, remove the timer
+            const { data: stillExists } = await supabase
+                .from('housie_games')
+                .select('status, next_call_at')
+                .eq('game_code', gameCode)
+                .single();
+
+            if (!stillExists || stillExists.status !== 'active' || (stillExists.next_call_at && new Date(stillExists.next_call_at) > new Date())) {
+                gameEngines.delete(gameCode);
+            }
             return;
         }
 
-        const shouldRun = (count || 0) > 0;
+        console.log(`[HousieEngine] Executing auto-call for ${gameCode} via timer`);
+        await executeAutoCall(lockedGame);
 
-        if (shouldRun && !engineInterval) {
-            console.log(`[HousieEngine] ${count} game(s) in progress. Starting worker loop...`);
-            engineInterval = setInterval(runWorkerIteration, 1000);
-        } else if (!shouldRun && engineInterval) {
-            console.log('[HousieEngine] No games in progress. Stopping worker loop (idle mode).');
-            clearInterval(engineInterval);
-            engineInterval = null;
-        }
+        // The executeAutoCall will call setNextCallTime, 
+        // which updates the DB and triggers Realtime to schedule the NEXT local timer.
     } catch (err) {
-        console.error('[HousieEngine] Failed to manage engine state:', err);
+        console.error(`[HousieEngine] Auto-call failed for ${gameCode}:`, err);
     }
-}
+};
 
 /**
- * Background worker that manages game state transitions and time-based events.
- * Listens for Supabase Realtime changes to start/stop the worker loop only when needed.
+ * Manages the in-memory timer for a specific game based on its latest state.
  */
-export const initHousieEngine = () => {
-    console.log('[HousieEngine] Initializing background worker with Realtime monitor...');
+export const manageGameTimer = (gameCode: string, gameData: any) => {
+    const existing = gameEngines.get(gameCode);
+    const targetTime = gameData.next_call_at || gameData.activation_at;
 
-    // 1. Initial check on startup
-    checkAndManageEngine();
+    // 1. Optimization: If already scheduled for this exact timestamp, skip
+    if (existing?.scheduledFor && existing.scheduledFor === targetTime) {
+        return;
+    }
 
-    // 2. Listen for any status changes in the housie_games table to wake up or sleep the worker
+    // 2. Clear existing timer
+    if (existing?.timer) {
+        clearTimeout(existing.timer);
+    }
+
+    const version = (existing?.version || 0) + 1;
+    const status = gameData.status;
+    const settings = gameData.settings || {};
+    const callingMode = settings.callingMode || 'manual';
+    const isPaused = settings.isPaused || false;
+
+    // 3. Handle 'starting' countdown
+    if (status === 'starting' && gameData.activation_at) {
+        const delay = Math.max(0, new Date(gameData.activation_at).getTime() - Date.now());
+
+        const timer = setTimeout(async () => {
+            const state = gameEngines.get(gameCode);
+            if (!state || state.version !== version) return;
+            await runActivation(gameCode);
+        }, delay);
+        
+        gameEngines.set(gameCode, { timer, version, scheduledFor: gameData.activation_at });
+    }
+    // 4. Handle 'active' auto-calling
+    else if (status === 'active' && callingMode === 'auto' && !isPaused) {
+        if (gameData.next_call_at) {
+            const delay = Math.max(0, new Date(gameData.next_call_at).getTime() - Date.now());
+
+            const timer = setTimeout(async () => {
+                const state = gameEngines.get(gameCode);
+                if (!state || state.version !== version) return;
+                await runAutoCall(gameCode);
+            }, delay);
+            
+            gameEngines.set(gameCode, { timer, version, scheduledFor: gameData.next_call_at });
+        } 
+        else {
+            gameEngines.delete(gameCode);
+        }
+    }
+    // 5. Cleanup for ended or manual/paused games
+    else {
+        gameEngines.delete(gameCode);
+    }
+};
+
+/**
+ * Initializes the reactive background engine.
+ */
+export const initHousieEngine = async () => {
+    console.log('[HousieEngine] Initializing reactive in-memory engine...');
+
+    // 1. Initial Sync: Fetch all non-ended games and initialize their timers
+    const { data: activeGames } = await supabase
+        .from('housie_games')
+        .select('*')
+        .in('status', ['starting', 'active']);
+
+    if (activeGames) {
+        console.log(`[HousieEngine] Bootstrapping ${activeGames.length} games...`);
+        activeGames.forEach(game => manageGameTimer(game.game_code, game));
+    }
+
+    // 2. Realtime Monitor: minimalist UPDATE-only subscription
     supabase
-        .channel('housie_engine_monitor')
+        .channel('housie_engine_sync')
         .on('postgres_changes', {
-            event: '*',
+            event: 'UPDATE',
             table: 'housie_games',
             schema: 'public'
         }, (payload) => {
-            // Whenever a game's status might have changed, re-evaluate the engine
-            checkAndManageEngine();
+            const gameData = payload.new as any;
+            if (gameData && gameData.game_code) {
+                // Whenever a game is updated (call scheduled, paused, status change), 
+                // we re-evaluate its local timer.
+                manageGameTimer(gameData.game_code, gameData);
+            }
         })
         .subscribe((status) => {
             if (status === 'SUBSCRIBED') {
-                console.log('[HousieEngine] Realtime monitor subscribed successfully');
+                console.log('[HousieEngine] Reactive monitor subscribed (UPDATE only)');
             }
         });
 };
