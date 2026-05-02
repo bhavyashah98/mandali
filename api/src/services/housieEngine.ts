@@ -150,7 +150,10 @@ export const executeAutoCall = async (game: any) => {
 const gameEngines = new Map<string, {
     timer: NodeJS.Timeout | null;
     version: number;
-    scheduledFor?: string;
+    scheduledFor?: string | null;
+    lastStatus?: string;
+    lastPaused?: boolean;
+    lastCallingMode?: string;
 }>();
 
 /**
