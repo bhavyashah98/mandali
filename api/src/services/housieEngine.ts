@@ -233,7 +233,7 @@ const runAutoCall = async (gameCode: string) => {
 
         if (lockError || !lockedGame) {
             console.log(`[HousieEngine] [DEBUG] Lock FAILED for ${gameCode}. (Error: ${lockError?.message || 'Criteria not met'})`);
-            
+
             const { data: stillExists } = await supabase
                 .from('housie_games')
                 .select('status, next_call_at')
@@ -316,23 +316,22 @@ export const manageGameTimer = (gameCode: string, gameData: any) => {
             console.log(`[HousieEngine] [DEBUG] Scheduling NEXT_CALL for ${gameCode} in ${delay}ms (v:${version})`);
             const timer = setTimeout(async () => {
                 const state = gameEngines.get(gameCode);
-                if (!state || state.version !== version) {
-                    console.log(`[HousieEngine] [DEBUG] Call timer fired for ${gameCode} but version mismatch (v:${version})`);
-                    return;
-                }
+                if (!state || state.version !== version) return;
                 await runAutoCall(gameCode);
             }, delay);
 
             gameEngines.set(gameCode, { timer, version, scheduledFor: gameData.next_call_at });
         }
         else {
-            console.log(`[HousieEngine] [DEBUG] No next_call_at for active game ${gameCode}, cleaning up.`);
-            gameEngines.delete(gameCode);
+            // IMPORTANT: If next_call_at is missing but game is active/auto, it's likely being locked for a draw.
+            // We do NOT delete the engine here, we just wait for the next update.
+            console.log(`[HousieEngine] [DEBUG] ${gameCode} is active/auto but next_call_at is empty (likely locking). Keeping state alive.`);
+            gameEngines.set(gameCode, { timer: null, version, scheduledFor: undefined });
         }
     }
     // 5. Cleanup for ended or manual/paused games
     else {
-        console.log(`[HousieEngine] [DEBUG] Game ${gameCode} is in status ${status} or paused/manual. Removing engine.`);
+        console.log(`[HousieEngine] [DEBUG] Game ${gameCode} is in status ${status}, mode ${callingMode}, or paused (${isPaused}). Removing engine.`);
         gameEngines.delete(gameCode);
     }
 };
