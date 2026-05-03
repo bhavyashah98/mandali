@@ -33,7 +33,7 @@ function debounce(func: Function, wait: number) {
 /**
  * Updates the database with the next scheduled call time.
  */
-const setNextCallInDb = async (gameCode: string, seconds: number) => {
+export const setNextCallTime = async (gameCode: string, seconds: number) => {
     try {
         const nextTime = new Date(Date.now() + seconds * 1000).toISOString();
         const { error } = await supabase
@@ -73,13 +73,13 @@ async function processGameCall(game: any) {
 
         if (game.winners?.['__pending']?.length > 0) {
             log(gameCode, `Pending claims detected. Postponing draw.`);
-            return setNextCallInDb(gameCode, 2);
+            return setNextCallTime(gameCode, 2);
         }
 
         const nextNumber = sequence[called.length];
         if (nextNumber === undefined || nextNumber === null) {
             logError(gameCode, `Draw sequence error. Retrying.`);
-            return setNextCallInDb(gameCode, 5);
+            return setNextCallTime(gameCode, 5);
         }
 
         const updatedNumbers = [...called, nextNumber];
@@ -102,12 +102,12 @@ async function processGameCall(game: any) {
             calledCount: updatedNumbers.length
         });
 
-        await setNextCallInDb(gameCode, interval);
+        await setNextCallTime(gameCode, interval);
         log(gameCode, `Called number ${nextNumber}`);
 
     } catch (err) {
         logError(gameCode, `Execution failure`, err);
-        await setNextCallInDb(gameCode, 5);
+        await setNextCallTime(gameCode, 5);
     }
 }
 
@@ -150,7 +150,7 @@ async function tick() {
             for (const g of gamesToActivate) {
                 io?.to(g.game_code).emit('game_activated', { gameCode: g.game_code, status: 'active', game: g });
                 if (g.settings?.callingMode === 'auto' && !g.settings?.isPaused) {
-                    await setNextCallInDb(g.game_code, (g.settings?.autoCallSeconds || 7) + 2);
+                    await setNextCallTime(g.game_code, (g.settings?.autoCallSeconds || 7) + 2);
                 }
             }
         }
@@ -169,7 +169,7 @@ async function tick() {
 
             if (stalledGames && stalledGames.length > 0) {
                 log('SYSTEM', `Stall Recovery: Kick-starting ${stalledGames.length} stuck games.`);
-                stalledGames.forEach(g => setNextCallInDb(g.game_code, 2));
+                stalledGames.forEach(g => setNextCallTime(g.game_code, 2));
             }
         }
 
