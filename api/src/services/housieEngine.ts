@@ -2,412 +2,231 @@ import { supabase } from '../lib/supabase';
 import { io } from '../index';
 
 /**
- * Updates the database with the timestamp for the next automatic number call.
+ * BULLETPROOF TICKER ENGINE (Production Optimized)
+ * A stateless, self-healing worker for Housie.
  */
-export const setNextCallTime = async (gameCode: string, intervalSeconds: number) => {
-    const nextCallAt = new Date(Date.now() + intervalSeconds * 1000);
 
-    const { error } = await supabase
-        .from('housie_games')
-        .update({
-            next_call_at: nextCallAt.toISOString(),
-            last_activity_at: new Date().toISOString()
-        })
-        .eq('game_code', gameCode);
+let workerInterval: NodeJS.Timeout | null = null;
+let lastStallCheck = 0;
 
-    if (error) {
-        console.error(`[HousieEngine] Failed to set next_call_at for ${gameCode}:`, error);
-    } else {
-        console.log(`[HousieEngine] Next call for ${gameCode} scheduled at ${nextCallAt.toISOString()}`);
+const log = (gameCode: string, message: string) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[HousieEngine] [${timestamp}] [${gameCode}] ${message}`);
+};
+
+const logError = (gameCode: string, message: string, err?: any) => {
+    const timestamp = new Date().toISOString();
+    console.error(`[HousieEngine] [ERROR] [${timestamp}] [${gameCode}] ${message}`, err);
+};
+
+/**
+ * Simple Debounce Helper to prevent hammering the DB during rapid updates.
+ */
+function debounce(func: Function, wait: number) {
+    let timeout: NodeJS.Timeout;
+    return (...args: any[]) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), wait);
+    };
+}
+
+/**
+ * Updates the database with the next scheduled call time.
+ */
+const setNextCallInDb = async (gameCode: string, seconds: number) => {
+    try {
+        const nextTime = new Date(Date.now() + seconds * 1000).toISOString();
+        const { error } = await supabase
+            .from('housie_games')
+            .update({
+                next_call_at: nextTime,
+                last_activity_at: new Date().toISOString()
+            })
+            .eq('game_code', gameCode);
+
+        if (error) throw error;
+    } catch (err) {
+        logError(gameCode, `Failed to update next_call_at`, err);
     }
 };
 
 /**
- * Fully worker-driven, atomic auto call execution.
- * Uses the pre-fetched 'lockedGame' from the engine to perform the call.
+ * Executes the logic for drawing a number.
  */
-export const executeAutoCall = async (game: any) => {
+async function processGameCall(game: any) {
+    const gameCode = game.game_code;
     try {
-        const gameCode = game.game_code;
-        const now = new Date().toISOString();
+        const called = game.called_numbers || [];
+        const sequence = game.draw_sequence || [];
+        const interval = game.settings?.autoCallSeconds || 7;
 
-        // 1. Validate state (defensive)
-        if (game.status !== 'active') return;
-
-        if (
-            game.settings?.callingMode !== 'auto' ||
-            game.settings?.isPaused
-        ) {
-            return;
-        }
-
-        // 2. Handle pending claims
-        const winners = game.winners || {};
-        const pending = winners['__pending'] || [];
-
-        if (pending.length > 0) {
-            console.log(`[AutoHost] Pending claims for ${gameCode}, rescheduling...`);
-            // Only schedule if not already scheduled
-            if (!game.next_call_at) {
-                await setNextCallTime(gameCode, 2);
-            }
-            return;
-        }
-
-        const calledNumbers: number[] = game.called_numbers || [];
-
-        // 3. End condition
-        if (calledNumbers.length >= 90) {
+        if (called.length >= 90) {
+            log(gameCode, `Game reached 90 numbers. Ending game.`);
             await supabase
                 .from('housie_games')
-                .update({
-                    status: 'ended',
-                    last_activity_at: now
-                })
+                .update({ status: 'ended', last_activity_at: new Date().toISOString() })
                 .eq('game_code', gameCode);
 
-            if (io) {
-                io.to(gameCode).emit('game_ended', {
-                    gameCode,
-                    status: 'ended'
-                });
-            }
+            io?.to(gameCode).emit('game_ended', { gameCode, status: 'ended' });
             return;
         }
 
-        // 4. Get next number safely
-        const drawSequence: number[] = game.draw_sequence || [];
-        const nextNumber = drawSequence[calledNumbers.length];
+        if (game.winners?.['__pending']?.length > 0) {
+            log(gameCode, `Pending claims detected. Postponing draw.`);
+            return setNextCallInDb(gameCode, 2);
+        }
 
+        const nextNumber = sequence[called.length];
         if (nextNumber === undefined || nextNumber === null) {
-            console.error(`[AutoHost] Invalid draw sequence or out of bounds for ${gameCode}. Called: ${calledNumbers.length}, Sequence: ${drawSequence.length}`);
-            return;
+            logError(gameCode, `Draw sequence error. Retrying.`);
+            return setNextCallInDb(gameCode, 5);
         }
 
-        const updatedNumbers = [...calledNumbers, nextNumber];
-        const isLastNumber = updatedNumbers.length === 90;
+        const updatedNumbers = [...called, nextNumber];
 
-        // 5. ATOMIC update
-        // We already have a lock from the engine (next_call_at was set to null), 
-        // so we don't strictly need a second atomic check on called_numbers here,
-        // which can be finicky with JSONB array comparisons.
-        const { data: updatedGame, error: updateError } = await supabase
+        const { data: updateData, error: updateError } = await supabase
             .from('housie_games')
             .update({
                 called_numbers: updatedNumbers,
-                last_activity_at: now
+                last_activity_at: new Date().toISOString()
             })
             .eq('game_code', gameCode)
-            .select()
-            .single();
+            .select();
 
-        if (updateError || !updatedGame) {
-            console.error(`[AutoHost] Update failed for ${gameCode}:`, updateError?.message);
-            // Fallback: Reschedule so the game doesn't stall if this was a transient DB error
-            await setNextCallTime(gameCode, 5);
-            return;
-        }
+        if (updateError || !updateData?.length) throw new Error('DB Update failed');
 
-        // 6. Emit minimal payload
-        if (io) {
-            io.to(gameCode).emit('number_called', {
-                gameCode,
-                nextNumber,
-                calledNumbers: updatedNumbers,
-                calledCount: updatedNumbers.length,
-                remainingCount: 90 - updatedNumbers.length,
-                lastActivityAt: updatedGame.last_activity_at
-            });
+        io?.to(gameCode).emit('number_called', {
+            gameCode,
+            nextNumber,
+            calledNumbers: updatedNumbers,
+            calledCount: updatedNumbers.length
+        });
 
-            // 7. Handle 90th number (Wait one last interval for final claims before ending)
-            if (isLastNumber) {
-                const interval = game.settings?.autoCallSeconds || 7;
-                console.log(`[AutoHost] 90th number called for ${gameCode}. Scheduling final check before end in ${interval}s`);
-                await setNextCallTime(gameCode, interval);
-                return;
-            }
-        }
-
-        // 8. Schedule next call via DB
-        const interval = game.settings?.autoCallSeconds || 7;
-        await setNextCallTime(gameCode, interval);
+        await setNextCallInDb(gameCode, interval);
+        log(gameCode, `Called number ${nextNumber}`);
 
     } catch (err) {
-        console.error(`[AutoHost] Critical failure in executeAutoCall for ${game?.game_code}:`, err);
-
-        // Retry fallback
-        if (game?.game_code) {
-            await setNextCallTime(game.game_code, 5);
-        }
+        logError(gameCode, `Execution failure`, err);
+        await setNextCallInDb(gameCode, 5);
     }
-};
+}
 
 /**
- * IN-MEMORY STATE MANAGEMENT
- * We maintain local timers for performance, but the source of truth
- * and locking mechanism remains the Supabase database.
+ * The 1-second worker tick.
  */
-const gameEngines = new Map<string, {
-    timer: NodeJS.Timeout | null;
-    version: number;
-    scheduledFor?: string | null;
-    lastStatus?: string;
-    lastPaused?: boolean;
-    lastCallingMode?: string;
-}>();
-
-/**
- * Core activation logic (starting -> active)
- */
-const runActivation = async (gameCode: string) => {
+async function tick() {
     try {
-        const nowIso = new Date().toISOString();
+        const now = new Date();
+        const nowIso = now.toISOString();
+        const lockWindow = new Date(now.getTime() + 1000).toISOString();
 
-        // Atomic update to flip status and lock the transition
-        const { data: updatedGame, error: updateError } = await supabase
-            .from('housie_games')
-            .update({
-                status: 'active',
-                last_activity_at: nowIso
-            })
-            .eq('game_code', gameCode)
-            .eq('status', 'starting')
-            .lte('activation_at', nowIso)
-            .select()
-            .single();
-
-        if (updateError || !updatedGame) {
-            // If the game is no longer 'starting', or was deleted, stop tracking it
-            const { data: stillExists } = await supabase
-                .from('housie_games')
-                .select('status')
-                .eq('game_code', gameCode)
-                .single();
-
-            if (!stillExists || stillExists.status !== 'starting') {
-                gameEngines.delete(gameCode);
-            }
-            return;
-        }
-
-        console.log(`[HousieEngine] Game ${gameCode} activated successfully via timer`);
-
-        // Notify clients
-        if (io) {
-            io.to(gameCode).emit('game_activated', {
-                gameCode,
-                status: 'active',
-                game: updatedGame
-            });
-        }
-
-        // START the auto-calling sequence if mode is auto and not paused
-        const callingMode = updatedGame.settings?.callingMode || 'manual';
-        const isPaused = updatedGame.settings?.isPaused || false;
-
-        if (callingMode === 'auto' && !isPaused) {
-            const interval = updatedGame.settings?.autoCallSeconds || 7;
-            console.log(`[HousieEngine] Initializing first call for ${gameCode} in ${interval + 3}s`);
-            await setNextCallTime(gameCode, interval + 3);
-        }
-    } catch (err) {
-        console.error(`[HousieEngine] Activation failed for ${gameCode}:`, err);
-    }
-};
-
-/**
- * Core auto-call execution logic
- */
-const runAutoCall = async (gameCode: string) => {
-    try {
-        const nowIso = new Date().toISOString();
-        console.log(`[HousieEngine] [DEBUG] runAutoCall triggered for ${gameCode} (Now: ${nowIso})`);
-
-        // 1. Attempt to LOCK this specific time slot in the database
-        // This ensures that only ONE server/timer executes this specific call.
-        const { data: lockedGame, error: lockError } = await supabase
+        // 1. PROCESS AUTO-CALLS (Atomic Lock & Fetch)
+        const { data: gamesToCall, error: callError } = await supabase
             .from('housie_games')
             .update({ next_call_at: null })
-            .eq('game_code', gameCode)
             .eq('status', 'active')
-            .lte('next_call_at', nowIso)
-            .select()
-            .single();
+            .lte('next_call_at', lockWindow)
+            .select();
 
-        if (lockError || !lockedGame) {
-            console.log(`[HousieEngine] [DEBUG] Lock FAILED for ${gameCode}. (Error: ${lockError?.message || 'Criteria not met'})`);
+        if (callError) throw callError;
 
-            const { data: stillExists } = await supabase
+        if (gamesToCall?.length) {
+            log('SYSTEM', `Tick: Handling ${gamesToCall.length} auto-calls.`);
+            await Promise.all(gamesToCall.map(game => processGameCall(game)));
+        }
+
+        // 2. PROCESS ACTIVATIONS
+        const { data: gamesToActivate, error: activateError } = await supabase
+            .from('housie_games')
+            .update({ status: 'active', last_activity_at: nowIso })
+            .eq('status', 'starting')
+            .lte('activation_at', nowIso)
+            .select();
+
+        if (activateError) throw activateError;
+
+        if (gamesToActivate?.length) {
+            log('SYSTEM', `Tick: Activating ${gamesToActivate.length} games.`);
+            for (const g of gamesToActivate) {
+                io?.to(g.game_code).emit('game_activated', { gameCode: g.game_code, status: 'active', game: g });
+                if (g.settings?.callingMode === 'auto' && !g.settings?.isPaused) {
+                    await setNextCallInDb(g.game_code, (g.settings?.autoCallSeconds || 7) + 2);
+                }
+            }
+        }
+
+        // 3. STALL RECOVERY
+        if (Date.now() - lastStallCheck > 30000) {
+            lastStallCheck = Date.now();
+            const staleTime = new Date(Date.now() - 30000).toISOString();
+
+            const { data: stalledGames } = await supabase
                 .from('housie_games')
-                .select('status, next_call_at')
-                .eq('game_code', gameCode)
-                .single();
+                .select('*')
+                .eq('status', 'active')
+                .is('next_call_at', null)
+                .lte('last_activity_at', staleTime);
 
-            if (!stillExists) {
-                console.log(`[HousieEngine] [DEBUG] Game ${gameCode} not found in DB. Cleaning up.`);
-                gameEngines.delete(gameCode);
-            } else if (stillExists.status !== 'active') {
-                console.log(`[HousieEngine] [DEBUG] Game ${gameCode} status is ${stillExists.status} (expected active). Cleaning up.`);
-                gameEngines.delete(gameCode);
-            } else if (stillExists.next_call_at && new Date(stillExists.next_call_at) > new Date()) {
-                console.log(`[HousieEngine] [DEBUG] Game ${gameCode} next_call_at is in future (${stillExists.next_call_at}). Cleaning up stale timer.`);
-                gameEngines.delete(gameCode);
-            } else {
-                console.log(`[HousieEngine] [DEBUG] Game ${gameCode} is still active and valid, but lock failed (likely handled by another instance).`);
+            if (stalledGames && stalledGames.length > 0) {
+                log('SYSTEM', `Stall Recovery: Kick-starting ${stalledGames.length} stuck games.`);
+                stalledGames.forEach(g => setNextCallInDb(g.game_code, 2));
             }
-            return;
         }
 
-        console.log(`[HousieEngine] [DEBUG] Lock ACQUIRED for ${gameCode}. Executing draw...`);
-        await executeAutoCall(lockedGame);
-
-        // The executeAutoCall will call setNextCallTime, 
-        // which updates the DB and triggers Realtime to schedule the NEXT local timer.
     } catch (err) {
-        console.error(`[HousieEngine] Auto-call failed for ${gameCode}:`, err);
+        logError('SYSTEM', `Worker tick failure`, err);
     }
-};
+}
 
 /**
- * Manages the in-memory timer for a specific game based on its latest state.
+ * Manages the Ticker lifecycle (Wake/Sleep)
  */
-export const manageGameTimer = (gameCode: string, gameData: any) => {
-    const existing = gameEngines.get(gameCode);
-    const targetTime = gameData.next_call_at || gameData.activation_at;
-    
-    const settings = gameData.settings || {};
-    const callingMode = settings.callingMode || 'manual';
-    const isPaused = settings.isPaused || false;
-    const status = gameData.status;
+async function checkEngineStatus() {
+    try {
+        const { count, error } = await supabase
+            .from('housie_games')
+            .select('*', { count: 'exact', head: true })
+            .in('status', ['starting', 'active']);
 
-    console.log(`[HousieEngine] [DEBUG] manageGameTimer for ${gameCode} (Status: ${status}, Target: ${targetTime})`);
+        if (error) throw error;
 
-    // --- SIGNIFICANT CHANGE FILTER ---
-    // We only care about updates to status, next_call_at, isPaused, or callingMode.
-    // This ignores "noise" like last_activity_at or spectator counts.
-    const hasTimestampChanged = existing?.scheduledFor !== targetTime;
-    const hasStatusChanged = existing?.lastStatus !== status;
-    const hasPausedChanged = existing?.lastPaused !== isPaused;
-    const hasModeChanged = existing?.lastCallingMode !== callingMode;
+        const shouldRun = (count || 0) > 0;
 
-    if (!hasTimestampChanged && !hasStatusChanged && !hasPausedChanged && !hasModeChanged) {
-        console.log(`[HousieEngine] [DEBUG] Skipping ${gameCode} - no significant changes detected.`);
-        return;
-    }
-
-    // --- STALE EVENT GUARD ---
-    if (existing && existing.scheduledFor && targetTime) {
-        const existingTime = new Date(existing.scheduledFor).getTime();
-        const incomingTime = new Date(targetTime).getTime();
-
-        if (incomingTime < existingTime) {
-            console.log(`[HousieEngine] [DEBUG] Skipping stale update for ${gameCode} (Incoming: ${targetTime} < Existing: ${existing.scheduledFor})`);
-            return;
+        if (shouldRun && !workerInterval) {
+            log('SYSTEM', `Ticker WAKE-UP (${count} active).`);
+            workerInterval = setInterval(tick, 1000);
+        } else if (!shouldRun && workerInterval) {
+            log('SYSTEM', `Ticker HIBERNATION.`);
+            clearInterval(workerInterval);
+            workerInterval = null;
         }
+    } catch (err) {
+        logError('SYSTEM', `Status check failure`, err);
     }
-    
-    // If incoming is null and we have a timer, it's a locking state or pause.
-    if (!targetTime && status === 'active' && callingMode === 'auto' && !isPaused) {
-        console.log(`[HousieEngine] [DEBUG] ${gameCode} is locking. Keeping state alive.`);
-        gameEngines.set(gameCode, { 
-            ...existing,
-            timer: existing?.timer || null, 
-            version: (existing?.version || 0), 
-            scheduledFor: null,
-            lastStatus: status,
-            lastPaused: isPaused,
-            lastCallingMode: callingMode
-        });
-        return;
-    }
+}
 
-    // 2. Clear existing timer
-    if (existing?.timer) {
-        console.log(`[HousieEngine] [DEBUG] Clearing existing timer for ${gameCode} to re-schedule.`);
-        clearTimeout(existing.timer);
-    }
-
-    const version = (existing?.version || 0) + 1;
-
-    // 3. Handle 'starting' countdown
-    if (status === 'starting' && gameData.activation_at) {
-        const delay = Math.max(0, new Date(gameData.activation_at).getTime() - Date.now());
-
-        console.log(`[HousieEngine] [DEBUG] Scheduling ACTIVATION for ${gameCode} in ${delay}ms (v:${version})`);
-        const timer = setTimeout(async () => {
-            const state = gameEngines.get(gameCode);
-            if (!state || state.version !== version) return;
-            await runActivation(gameCode);
-        }, delay);
-        
-        gameEngines.set(gameCode, { 
-            timer, version, scheduledFor: gameData.activation_at,
-            lastStatus: status, lastPaused: isPaused, lastCallingMode: callingMode
-        });
-    }
-    // 4. Handle 'active' auto-calling
-    else if (status === 'active' && callingMode === 'auto' && !isPaused) {
-        if (gameData.next_call_at) {
-            const delay = Math.max(0, new Date(gameData.next_call_at).getTime() - Date.now());
-
-            console.log(`[HousieEngine] [DEBUG] Scheduling NEXT_CALL for ${gameCode} in ${delay}ms (v:${version})`);
-            const timer = setTimeout(async () => {
-                const state = gameEngines.get(gameCode);
-                if (!state || state.version !== version) return;
-                await runAutoCall(gameCode);
-            }, delay);
-            
-            gameEngines.set(gameCode, { 
-                timer, version, scheduledFor: gameData.next_call_at,
-                lastStatus: status, lastPaused: isPaused, lastCallingMode: callingMode
-            });
-        }
-    }
-    // 5. Cleanup for ended or manual/paused games
-    else {
-        console.log(`[HousieEngine] [DEBUG] Game ${gameCode} is in status ${status}, mode ${callingMode}, or paused (${isPaused}). Removing engine.`);
-        gameEngines.delete(gameCode);
-    }
-};
+// Debounced check for production noise reduction
+const debouncedCheck = debounce(() => checkEngineStatus(), 2000);
 
 /**
- * Initializes the reactive background engine.
+ * Initialization
  */
-export const initHousieEngine = async () => {
-    console.log('[HousieEngine] Initializing reactive in-memory engine...');
+export const initHousieEngine = () => {
+    log('SYSTEM', 'Initializing Optimized Ticker Engine...');
 
-    // 1. Initial Sync: Fetch all non-ended games and initialize their timers
-    const { data: activeGames } = await supabase
-        .from('housie_games')
-        .select('*')
-        .in('status', ['starting', 'active']);
+    checkEngineStatus();
 
-    if (activeGames) {
-        console.log(`[HousieEngine] Bootstrapping ${activeGames.length} games...`);
-        activeGames.forEach(game => manageGameTimer(game.game_code, game));
-    }
-
-    // 2. Realtime Monitor: minimalist UPDATE-only subscription
+    // Monitor for status changes only to save Egress/CPU
     supabase
-        .channel('housie_engine_sync')
-        .on('postgres_changes', {
-            event: 'UPDATE',
-            table: 'housie_games',
-            schema: 'public'
-        }, (payload) => {
-            console.log(`[HousieEngine] [REALTIME] Received UPDATE for ${(payload.new as any).game_code}`);
-            const gameData = payload.new as any;
-            if (gameData && gameData.game_code) {
-                // Whenever a game is updated (call scheduled, paused, status change), 
-                // we re-evaluate its local timer.
-                manageGameTimer(gameData.game_code, gameData);
+        .channel('housie_engine_monitor')
+        .on('postgres_changes',
+            { event: 'UPDATE', table: 'housie_games', schema: 'public' },
+            (payload) => {
+                const status = (payload.new as any)?.status;
+                if (['starting', 'active', 'ended'].includes(status)) {
+                    debouncedCheck();
+                }
             }
-        })
-        .subscribe((status) => {
-            if (status === 'SUBSCRIBED') {
-                console.log('[HousieEngine] Reactive monitor subscribed (UPDATE only)');
-            } else {
-                console.log(`[HousieEngine] Reactive monitor status: ${status}`);
-            }
-        });
+        )
+        .subscribe();
 };
