@@ -10,8 +10,11 @@ let workerInterval: NodeJS.Timeout | null = null;
 let lastStallCheck = 0;
 
 const log = (gameCode: string, message: string) => {
-    const timestamp = new Date().toISOString();
-    console.log(`[HousieEngine] [${timestamp}] [${gameCode}] ${message}`);
+    const istTimestamp = new Date().toLocaleString('en-IN', { 
+        timeZone: 'Asia/Kolkata',
+        hour12: false
+    });
+    console.log(`[HousieEngine] [${istTimestamp}] [${gameCode}] ${message}`);
 };
 
 const logError = (gameCode: string, message: string, err?: any) => {
@@ -120,6 +123,30 @@ async function tick() {
         const nowIso = now.toISOString();
         const lockWindow = new Date(now.getTime() + 1000).toISOString();
 
+        // 0. PROCESS SCHEDULED GAMES (Scheduled -> Starting)
+        const { data: gamesToStart, error: scheduleError } = await supabase
+            .from('housie_games')
+            .update({ 
+                status: 'starting', 
+                activation_at: new Date(now.getTime() + 60000).toISOString(), // Automatically start in 60s
+                last_activity_at: nowIso 
+            })
+            .eq('status', 'scheduled')
+            .lte('scheduled_at', nowIso)
+            .select();
+
+        if (scheduleError) throw scheduleError;
+
+        if (gamesToStart?.length) {
+            log('SYSTEM', `Tick: Moving ${gamesToStart.length} games from Scheduled to Starting.`);
+            for (const g of gamesToStart) {
+                io?.to(`group_${g.group_id}`).emit('game_opened', { 
+                    gameCode: g.game_code, 
+                    title: g.title || 'New Game' 
+                });
+            }
+        }
+
         // 1. PROCESS AUTO-CALLS (Atomic Lock & Fetch)
         const { data: gamesToCall, error: callError } = await supabase
             .from('housie_games')
@@ -155,21 +182,30 @@ async function tick() {
             }
         }
 
-        // 3. STALL RECOVERY
+        // 3. STALL RECOVERY (Self-Healing)
         if (Date.now() - lastStallCheck > 30000) {
             lastStallCheck = Date.now();
-            const staleTime = new Date(Date.now() - 30000).toISOString();
-
+            
+            // Only recover games that are active, have no timer, 
+            // AND are not intentionally paused by claims or the host.
             const { data: stalledGames } = await supabase
                 .from('housie_games')
-                .select('*')
+                .select('game_code, settings, winners')
                 .eq('status', 'active')
-                .is('next_call_at', null)
-                .lte('last_activity_at', staleTime);
+                .is('next_call_at', null);
 
-            if (stalledGames && stalledGames.length > 0) {
-                log('SYSTEM', `Stall Recovery: Kick-starting ${stalledGames.length} stuck games.`);
-                stalledGames.forEach(g => setNextCallTime(g.game_code, 2));
+            if (stalledGames?.length) {
+                for (const g of stalledGames) {
+                    const winners = g.winners || {};
+                    const pending = winners['__pending'] || [];
+                    const isPaused = g.settings?.isPaused || false;
+
+                    // If it's truly stalled (no claims, not paused), restart it.
+                    if (pending.length === 0 && !isPaused) {
+                        log(g.game_code, "RECOVERY: Game was stalled with null timer. Restarting in 5s...");
+                        await setNextCallTime(g.game_code, 5);
+                    }
+                }
             }
         }
 
@@ -186,7 +222,7 @@ async function checkEngineStatus() {
         const { count, error } = await supabase
             .from('housie_games')
             .select('*', { count: 'exact', head: true })
-            .in('status', ['starting', 'active']);
+            .in('status', ['scheduled', 'starting', 'active']);
 
         if (error) throw error;
 

@@ -80,11 +80,11 @@ const generateGameCode = (): string => {
  */
 router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const { groupId, ticketPrice, settings } = req.body;
+        const { groupId, ticketPrice, settings, title, scheduledAt } = req.body;
         const userId = req.userId!;
         const gameCode = generateGameCode();
 
-        console.log(`[Housie] Create attempt: Group=${groupId}, Price=${ticketPrice}, User=${userId}, Settings=${JSON.stringify(settings)}`);
+        console.log(`[Housie] Create attempt: Group=${groupId}, Title=${title}, Scheduled=${scheduledAt}, User=${userId}`);
 
         // 1. Verify user is a MEMBER of the group
         const { data: membership } = await supabase
@@ -98,36 +98,24 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
             return res.status(403).json({ error: 'You must be a member of the group to start a game' });
         }
 
-        // 2. CHECK FOR EXISTING ACTIVE GAME: Prevent multiple live games in one group
-        const { data: existingGame } = await supabase
-            .from('housie_games')
-            .select('id, game_code, status')
-            .eq('group_id', groupId)
-            .neq('status', 'ended')
-            .limit(1)
-            .maybeSingle();
-
-        if (existingGame) {
-            return res.status(400).json({
-                error: 'An active game already exists for this group.',
-                gameCode: existingGame.game_code,
-                status: existingGame.status
-            });
-        }
-
-        // 3. Pre-generate the full draw sequence for this game (fair, no repeats)
+        // 2. Pre-generate the full draw sequence
         const drawSequence: number[] = tambola.getDrawSequence();
 
-        // 4. Create the game in waiting state directly
+        // 3. Determine initial status
+        const initialStatus = scheduledAt ? 'scheduled' : 'waiting';
+
+        // 4. Create the game
         const { data, error } = await supabase
             .from('housie_games')
             .insert({
                 game_code: gameCode,
                 group_id: groupId,
                 host_id: userId,
+                title: title || 'Housie Game',
                 called_numbers: [],
                 draw_sequence: drawSequence,
-                status: 'waiting',
+                status: initialStatus,
+                scheduled_at: scheduledAt || null,
                 ticket_price: ticketPrice || 100,
                 settings: settings || null,
                 last_activity_at: new Date().toISOString()
@@ -216,6 +204,55 @@ router.get('/active/:groupId', authMiddleware, async (req: AuthRequest, res) => 
         }
 
         res.json({ activeGame: activeGameWithHost, lastGame });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * LIST ALL GAMES FOR A GROUP (Lobby List)
+ * Returns scheduled, waiting, and active games
+ */
+router.get('/group/:groupId/list', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const { groupId } = req.params;
+        const userId = req.userId!;
+
+        // 1. Fetch all non-ended games
+        const { data: games, error } = await supabase
+            .from('housie_games')
+            .select(`
+                *,
+                host:users!host_id(name, avatar_url)
+            `)
+            .eq('group_id', groupId)
+            .neq('status', 'ended')
+            .order('scheduled_at', { ascending: true, nullsFirst: true })
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // 2. Fetch user's ticket counts for these games
+        const gameIds = (games || []).map(g => g.id);
+        const { data: myTickets } = await supabase
+            .from('housie_tickets')
+            .select('game_id')
+            .eq('user_id', userId)
+            .in('game_id', gameIds);
+
+        // 3. Map ticket counts to games
+        const ticketCounts: Record<string, number> = {};
+        (myTickets || []).forEach(t => {
+            ticketCounts[t.game_id] = (ticketCounts[t.game_id] || 0) + 1;
+        });
+
+        const gameList = (games || []).map(g => ({
+            ...g,
+            hostName: g.host?.name || 'Host',
+            myTicketCount: ticketCounts[g.id] || 0
+        }));
+
+        res.json({ games: gameList });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
