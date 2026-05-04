@@ -145,8 +145,8 @@ export const getDrawSequence = (): number[] => {
  */
 
 /** Check if all non-zero numbers in a set are present in calledNumbers */
-const allPresent = (numbers: number[], called: number[]) => {
-  const targets = numbers.filter(n => n > 0);
+export const allPresent = (numbers: any[], called: number[]): boolean => {
+  const targets = numbers.map(n => Number(n)).filter(n => n > 0);
   if (targets.length === 0) return false;
   return targets.every(n => called.includes(n));
 };
@@ -162,16 +162,16 @@ export const isFullHouse = (ticket: number[][], called: number[]): boolean => {
 };
 
 /** Early 5 or Early 7: Any X numbers marked */
-export const isEarly = (ticket: number[][], count: number, called: number[]): boolean => {
-  const flatNumbers = ticket.flat().filter(n => n > 0);
+export const isEarly = (ticket: any[][], count: number, called: number[]): boolean => {
+  const flatNumbers = ticket.flat().map(n => Number(n)).filter(n => n > 0);
   const markedCount = flatNumbers.filter(n => called.includes(n)).length;
   return markedCount >= count;
 };
 
 /** Four Corners: 1st and last of top row, 1st and last of bottom row */
-export const isFourCorners = (ticket: number[][], called: number[]): boolean => {
-  const topRow = ticket[0].filter(n => n > 0);
-  const bottomRow = ticket[2].filter(n => n > 0);
+export const isFourCorners = (ticket: any[][], called: number[]): boolean => {
+  const topRow = ticket[0].map(n => Number(n)).filter(n => n > 0);
+  const bottomRow = ticket[2].map(n => Number(n)).filter(n => n > 0);
 
   const corners = [
     topRow[0],
@@ -184,33 +184,33 @@ export const isFourCorners = (ticket: number[][], called: number[]): boolean => 
 };
 
 /** Star: Four Corners + Center Number */
-export const isStar = (ticket: number[][], called: number[]): boolean => {
+export const isStar = (ticket: any[][], called: number[]): boolean => {
   if (!isFourCorners(ticket, called)) return false;
 
-  const midRow = ticket[1].filter(n => n > 0);
+  const midRow = ticket[1].map(n => Number(n)).filter(n => n > 0);
   const centerNum = midRow[2]; // Middle of 5 numbers
 
   return called.includes(centerNum);
 };
 
 /** Six Corners: 1st and last of all three rows */
-export const isSixCorners = (ticket: number[][], called: number[]): boolean => {
+export const isSixCorners = (ticket: any[][], called: number[]): boolean => {
   const corners = ticket.flatMap(row => {
-    const nums = row.filter(n => n > 0);
+    const nums = row.map(n => Number(n)).filter(n => n > 0);
     return [nums[0], nums[nums.length - 1]];
   });
   return corners.every(n => called.includes(n));
 };
 
 /** Center (Laddu): Middle number of the middle row */
-export const isCenter = (ticket: number[][], called: number[]): boolean => {
-  const midRow = ticket[1].filter(n => n > 0);
+export const isCenter = (ticket: any[][], called: number[]): boolean => {
+  const midRow = ticket[1].map(n => Number(n)).filter(n => n > 0);
   return called.includes(midRow[2]);
 };
 
 /** Odd/Even: All odd or all even numbers marked */
-export const isOddEven = (ticket: number[][], called: number[]): { won: boolean; type?: 'odd' | 'even' } => {
-  const flatNumbers = ticket.flat().filter(n => n > 0);
+export const isOddEven = (ticket: any[][], called: number[]): { won: boolean; type?: 'odd' | 'even' } => {
+  const flatNumbers = ticket.flat().map(n => Number(n)).filter(n => n > 0);
   const oddNumbers = flatNumbers.filter(n => n % 2 !== 0);
   const evenNumbers = flatNumbers.filter(n => n % 2 === 0);
 
@@ -221,10 +221,10 @@ export const isOddEven = (ticket: number[][], called: number[]): { won: boolean;
 };
 
 /** Pyramid Pattern */
-export const isPyramid = (ticket: number[][], called: number[]): boolean => {
-  const row0 = ticket[0].filter(n => n > 0);
-  const row1 = ticket[1].filter(n => n > 0);
-  const row2 = ticket[2].filter(n => n > 0);
+export const isPyramid = (ticket: any[][], called: number[]): boolean => {
+  const row0 = ticket[0].map(n => Number(n)).filter(n => n > 0);
+  const row1 = ticket[1].map(n => Number(n)).filter(n => n > 0);
+  const row2 = ticket[2].map(n => Number(n)).filter(n => n > 0);
 
   const pyramidNums = [
     row0[2],           // Top: 3rd
@@ -236,8 +236,8 @@ export const isPyramid = (ticket: number[][], called: number[]): boolean => {
 };
 
 /** BP (Blood Pressure) / Temperature: Highest and Lowest numbers on ticket */
-export const isBP = (ticket: number[][], called: number[]): boolean => {
-  const flatNumbers = ticket.flat().filter(n => n > 0);
+export const isBP = (ticket: any[][], called: number[]): boolean => {
+  const flatNumbers = ticket.flat().map(n => Number(n)).filter(n => n > 0);
   const min = Math.min(...flatNumbers);
   const max = Math.max(...flatNumbers);
 
@@ -256,7 +256,8 @@ export const checkPrize = (prizeId: string, ticket: number[][], called: number[]
   /**
    * Transforms a called number into the number a player is allowed to mark.
    */
-  const transform = (n: number): number => {
+  const transform = (rawN: any): number => {
+    const n = Number(rawN);
     if (gameMode === 'plus_one') return n + 1 > 90 ? 1 : n + 1;
     if (gameMode === 'minus_one') return n - 1 < 1 ? 90 : n - 1;
     if (gameMode === 'reverse') {
@@ -274,24 +275,26 @@ export const checkPrize = (prizeId: string, ticket: number[][], called: number[]
   if (lastEffective < 1 || lastEffective > 90) return false;
 
   // The last called number MUST be part of the ticket's marked numbers for this prize
-  const flatTicket = ticket.flat().filter(n => n > 0);
+  const flatTicket = ticket.flat().map(n => Number(n)).filter(n => n > 0);
   if (!flatTicket.includes(lastEffective)) return false;
 
   // All called numbers transformed
-  const effectiveCalled = called.map(transform).filter(n => n >= 1 && n <= 90);
+  const effectiveCalled = (called || []).map(n => transform(n)).filter(n => n >= 1 && n <= 90);
 
   // Helper to check if a specific set of numbers includes the winning trigger
   const includesTrigger = (nums: number[]) => nums.includes(lastEffective);
 
+  if (prizeId === 'top_line') {
+    return isLine(ticket, 0, effectiveCalled) && includesTrigger(ticket[0]);
+  } else if (prizeId === 'middle_line') {
+    return isLine(ticket, 1, effectiveCalled) && includesTrigger(ticket[1]);
+  } else if (prizeId === 'bottom_line') {
+    return isLine(ticket, 2, effectiveCalled) && includesTrigger(ticket[2]);
+  } else if (prizeId.startsWith('full_house')) {
+    return isFullHouse(ticket, effectiveCalled) && includesTrigger(flatTicket);
+  }
+
   switch (prizeId) {
-    case 'top_line':
-      return isLine(ticket, 0, effectiveCalled) && includesTrigger(ticket[0]);
-    case 'middle_line':
-      return isLine(ticket, 1, effectiveCalled) && includesTrigger(ticket[1]);
-    case 'bottom_line':
-      return isLine(ticket, 2, effectiveCalled) && includesTrigger(ticket[2]);
-    case 'full_house':
-      return isFullHouse(ticket, effectiveCalled) && includesTrigger(flatTicket);
     case 'early_5':
       return isEarly(ticket, 5, effectiveCalled) && includesTrigger(flatTicket);
     case 'early_7':

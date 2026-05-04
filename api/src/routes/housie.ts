@@ -14,21 +14,21 @@ const router = Router();
 // Bonus prizes are only available in manual mode (host oversees judging).
 const PRIZE_CATALOGUE = [
     // ── Standard row prizes ──────────────────────────────────────────────────
-    { id: 'top_line', name: 'Top Line', description: 'First row of the ticket', icon: 'horizontal-rule', category: 'standard', repeatable: false, order: 1 },
-    { id: 'middle_line', name: 'Middle Line', description: 'Middle row of the ticket', icon: 'horizontal-rule', category: 'standard', repeatable: false, order: 2 },
-    { id: 'bottom_line', name: 'Bottom Line', description: 'Last row of the ticket', icon: 'horizontal-rule', category: 'standard', repeatable: false, order: 3 },
+    { id: 'top_line', name: 'Top Line', description: 'First row of the ticket', icon: 'horizontal-rule', category: 'standard', repeatable: false, order: 1, weightage: 5 },
+    { id: 'middle_line', name: 'Middle Line', description: 'Middle row of the ticket', icon: 'horizontal-rule', category: 'standard', repeatable: false, order: 2, weightage: 5 },
+    { id: 'bottom_line', name: 'Bottom Line', description: 'Last row of the ticket', icon: 'horizontal-rule', category: 'standard', repeatable: false, order: 3, weightage: 5 },
     // ── Full House (repeatable) ──────────────────────────────────────────────
-    { id: 'full_house', name: 'Full House', description: 'All numbers on the ticket marked', icon: 'grid-view', category: 'fullhouse', repeatable: true, order: 4 },
+    { id: 'full_house', name: 'Full House', description: 'All numbers on the ticket marked', icon: 'grid-view', category: 'fullhouse', repeatable: true, order: 4, weightage: 15 },
     // ── Bonus prizes — manual mode only ─────────────────────────────────────
-    { id: 'four_corners', name: 'Four Corners', description: 'All 4 corner numbers on ticket', icon: 'crop-free', category: 'bonus', repeatable: false, order: 7 },
-    { id: 'six_corners', name: 'Six Corners', description: 'First and last numbers of all lines', icon: 'filter-6', category: 'bonus', repeatable: false, order: 8 },
-    { id: 'star', name: 'Star', description: 'Cross + centre pattern on ticket', icon: 'star-outline', category: 'bonus', repeatable: false, order: 9 },
-    { id: 'center', name: 'Center (Laddu)', description: 'Middle number of middle row', icon: 'adjust', category: 'bonus', repeatable: false, order: 10 },
-    { id: 'pyramid', name: 'Pyramid', description: 'A pyramid shape of numbers', icon: 'change-history', category: 'bonus', repeatable: false, order: 11 },
-    { id: 'odd_even', name: 'Odd/Even', description: 'All odd or all even numbers marked', icon: 'exposure', category: 'bonus', repeatable: false, order: 12 },
-    { id: 'early_5', name: 'Early 5', description: 'First to mark any 5 numbers', icon: 'looks-5', category: 'bonus', repeatable: false, order: 13 },
-    { id: 'early_7', name: 'Early 7', description: 'First to mark any 7 numbers', icon: 'filter-7', category: 'bonus', repeatable: false, order: 14 },
-    { id: 'bp', name: 'BP / Temperature', description: 'Highest and lowest numbers on ticket', icon: 'thermostat', category: 'bonus', repeatable: false, order: 15 },
+    { id: 'four_corners', name: 'Four Corners', description: 'All 4 corner numbers on ticket', icon: 'crop-free', category: 'bonus', repeatable: false, order: 7, weightage: 4 },
+    { id: 'six_corners', name: 'Six Corners', description: 'First and last numbers of all lines', icon: 'filter-6', category: 'bonus', repeatable: false, order: 8, weightage: 6 },
+    { id: 'star', name: 'Star', description: 'Cross + centre pattern on ticket', icon: 'star-outline', category: 'bonus', repeatable: false, order: 9, weightage: 5 },
+    { id: 'center', name: 'Center (Laddu)', description: 'Middle number of middle row', icon: 'adjust', category: 'bonus', repeatable: false, order: 10, weightage: 1 },
+    { id: 'pyramid', name: 'Pyramid', description: 'A pyramid shape of numbers', icon: 'change-history', category: 'bonus', repeatable: false, order: 11, weightage: 5 },
+    { id: 'odd_even', name: 'Odd/Even', description: 'All odd or all even numbers marked', icon: 'exposure', category: 'bonus', repeatable: false, order: 12, weightage: 7 }, // ~7.5 avg
+    { id: 'early_5', name: 'Early 5', description: 'First to mark any 5 numbers', icon: 'looks-5', category: 'bonus', repeatable: false, order: 13, weightage: 5 },
+    { id: 'early_7', name: 'Early 7', description: 'First to mark any 7 numbers', icon: 'filter-7', category: 'bonus', repeatable: false, order: 14, weightage: 7 },
+    { id: 'bp', name: 'BP / Temperature', description: 'Highest and lowest numbers on ticket', icon: 'thermostat', category: 'bonus', repeatable: false, order: 15, weightage: 2 },
 ];
 
 const GAME_STYLES = [
@@ -80,7 +80,7 @@ const generateGameCode = (): string => {
  */
 router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const { groupId, ticketPrice, settings, title, scheduledAt } = req.body;
+        const { groupId, ticketPrice, settings, title, scheduledAt, prizes } = req.body;
         const userId = req.userId!;
         const gameCode = generateGameCode();
 
@@ -118,6 +118,7 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
                 scheduled_at: scheduledAt || null,
                 ticket_price: ticketPrice || 100,
                 settings: settings || null,
+                prizes: prizes || [],
                 last_activity_at: new Date().toISOString()
             })
             .select()
@@ -268,22 +269,37 @@ router.patch('/:gameCode/activate', authMiddleware, async (req: AuthRequest, res
 
         const { data: game, error: fetchError } = await supabase
             .from('housie_games')
-            .select('host_id, group_id, settings')
+            .select('id, host_id, group_id, settings, ticket_price')
             .eq('game_code', gameCode)
             .single();
 
         if (fetchError || !game) return res.status(404).json({ error: 'Game not found' });
         if (game.host_id !== userId) return res.status(403).json({ error: 'Only the host can activate the game' });
 
+        // 1. Get total tickets bought to calculate final pool
+        const { count: ticketCount } = await supabase
+            .from('housie_tickets')
+            .select('*', { count: 'exact', head: true })
+            .eq('game_id', game.id);
+
+        const ticketPrice = game.ticket_price || 100;
+        const totalPrizePool = (ticketCount || 0) * ticketPrice;
+
         const now = new Date();
         const activationTime = new Date(now.getTime() + 15000);
-        const { prizes } = req.body // 15 seconds countdown
+        const { prizes } = req.body;
+
+        // 2. Calculate prize amounts based on percentages
+        const calculatedPrizes = (prizes || []).map((p: any) => ({
+            ...p,
+            amount: Math.floor((totalPrizePool * (p.percentage || 0)) / 100)
+        }));
 
         const { data: updatedGame, error: updateError } = await supabase
             .from('housie_games')
             .update({
                 status: 'starting',
-                prizes: prizes,
+                prizes: calculatedPrizes,
                 starting_at: now.toISOString(),
                 activation_at: activationTime.toISOString(),
                 last_activity_at: now.toISOString()

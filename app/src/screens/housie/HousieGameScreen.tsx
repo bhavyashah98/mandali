@@ -86,13 +86,23 @@ const HousieGameScreen = () => {
     const currentNumber = calledNumbers[calledNumbers.length - 1] || '--';
     const recentNumbers = [...calledNumbers].reverse().slice(1, 4);
 
+    const totalPrizePool = game?.totalPrizePool || ((game?.participants?.length || 0) * 100);
+
     const prizesArr = (game?.prizes || []).map((p: any) => {
         const winnerList = game?.winners?.[p.id];
         const winners = Array.isArray(winnerList) ? winnerList : (winnerList ? [winnerList] : []);
         const isClaimed = winners.length > 0;
-        const individualAmount = isClaimed ? (p.amount / winners.length).toFixed(0) : p.amount;
+        
+        const baseAmount = p.amount || Math.floor((totalPrizePool * (p.percentage || 0)) / 100);
+        const individualAmount = isClaimed ? (baseAmount / winners.length).toFixed(0) : baseAmount;
 
-        return { ...p, status: isClaimed ? 'CLAIMED' : 'OPEN', winners, individualAmount };
+        return { 
+            ...p, 
+            amount: baseAmount,
+            status: isClaimed ? 'CLAIMED' : 'OPEN', 
+            winners, 
+            individualAmount 
+        };
     });
 
     return (

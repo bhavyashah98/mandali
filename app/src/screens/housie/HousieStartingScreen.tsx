@@ -62,7 +62,7 @@ const HousieStartingScreen = () => {
 
     const prizes = game?.prizes || [];
     const participants = game?.participants || [];
-    const totalPrizePool = game?.totalPrizePool || 0;
+    const totalPrizePool = game?.totalPrizePool || (participants.length * 100);
 
     // Get mode details from backend
     const { data: stylesData } = useQuery({
@@ -138,7 +138,7 @@ const HousieStartingScreen = () => {
                             contentContainerStyle={{ paddingHorizontal: isTablet ? 32 : 24, paddingVertical: 24, paddingBottom: 100 }}
                         >
                             {activeTab === 'prizes' ? (
-                                <BountiesList prizes={prizes} isTablet={isTablet} />
+                                <BountiesList prizes={prizes} isTablet={isTablet} totalPrizePool={totalPrizePool} />
                             ) : (
                                 <ParticipantsList participants={participants} />
                             )}

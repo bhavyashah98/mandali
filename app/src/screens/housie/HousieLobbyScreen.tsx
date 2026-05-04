@@ -1,172 +1,65 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Hooks
 import { useIsTablet } from '../../hooks/useIsTablet';
-import { useQueryClient } from '@tanstack/react-query';
-import { useHousieLobbyData } from '../../hooks/useHousieLobbyData';
+import { useHousieGroupLobby } from '../../hooks/housie/useHousieGroupLobby';
 import { useHousieLobbySync } from '../../hooks/housie/useHousieLobbySync';
 
-// Store
-import { useAuthStore } from '../../stores/authStore';
-
-// API
-import { cancelHousieGame } from '../../lib/api';
-
 // Components
-import LobbyHeaderCard from '../../components/housie/lobby/LobbyHeaderCard';
-import LobbyActionButton from '../../components/housie/lobby/LobbyActionButton';
-import ActiveGameCard from '../../components/housie/lobby/ActiveGameCard';
-import StuckGameAlert from '../../components/housie/lobby/StuckGameAlert';
+import { LobbyTabSwitcher } from '../../components/housie/lobby/LobbyTabSwitcher';
+import { LobbyGameCard } from '../../components/housie/lobby/LobbyGameCard';
+import { LobbyScheduledCard } from '../../components/housie/lobby/LobbyScheduledCard';
+import { LobbyEmptyState } from '../../components/housie/lobby/LobbyEmptyState';
 
 const HousieLobbyScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute();
     const { groupId } = (route.params as { groupId: string }) || {};
-    const [isCancelling, setIsCancelling] = useState(false);
-    const { user } = useAuthStore();
     const isTablet = useIsTablet();
-    const queryClient = useQueryClient();
+
+    const [activeTab, setActiveTab] = useState<'active' | 'scheduled'>('active');
 
     const {
-        activeGame,
-        lastGame,
         groupName,
-        hasTickets,
-        isHostOfActiveGame,
-        showCancelCTA,
+        activeGames,
+        scheduledGames,
         isGroupLoading,
-        isGameLoading
-    } = useHousieLobbyData(groupId);
+        isGamesLoading,
+        isGamesFetching,
+        refetchGames,
+        userId
+    } = useHousieGroupLobby(groupId);
 
-    // Manage socket listeners and focus invalidation
+    // Sync listeners
     useHousieLobbySync(groupId);
 
-    const handleAction = useCallback(() => {
-        if (isCancelling || isGameLoading) return;
+    const handleGameAction = (game: any) => {
+        const { game_code, status, myTicketCount, host_id } = game;
+        const isHost = host_id === userId;
 
-        if (!activeGame) {
-            navigation.navigate('HousieHostSettings', { groupId });
-            return;
-        }
-
-        const gameCode = activeGame.game_code;
-        const status = activeGame.status;
-
-        if (isHostOfActiveGame) {
-            switch (status) {
-                case 'waiting':
-                    navigation.navigate('HousieWaitingRoom', { gameCode, groupId });
-                    break;
-                case 'starting':
-                    navigation.navigate('HousieStarting', { gameCode, groupId });
-                    break;
-                case 'active':
-                    if (activeGame.settings?.callingMode === 'auto') {
-                        if (hasTickets) {
-                            navigation.navigate('HousieTicket', { gameCode, groupId });
-                        } else {
-                            navigation.navigate('HousieSpectator', { gameCode, groupId });
-                        }
-                    } else {
-                        navigation.navigate('HousieGame', { gameCode, groupId });
-                    }
-                    break;
-                default:
-                    navigation.navigate('HousieWaitingRoom', { gameCode, groupId });
+        if (status === 'waiting') {
+            if (myTicketCount > 0 || isHost) {
+                navigation.navigate('HousieWaitingRoom', { gameCode: game_code, groupId });
+            } else {
+                navigation.navigate('HousieJoinGame', { gameCode: game_code, groupId });
             }
-        } else {
-            switch (status) {
-                case 'waiting':
-                    if (hasTickets) {
-                        navigation.navigate('HousieWaitingRoom', { gameCode, groupId });
-                    } else {
-                        navigation.navigate('HousieJoinGame', { gameCode, groupId });
-                    }
-                    break;
-                case 'starting':
-                    navigation.navigate('HousieStarting', { gameCode, groupId });
-                    break;
-                case 'active':
-                    if (hasTickets) {
-                        navigation.navigate('HousieTicket', { gameCode, groupId });
-                    } else {
-                        navigation.navigate('HousieSpectator', { gameCode, groupId });
-                    }
-                    break;
-                default:
-                    navigation.navigate('HousieJoinGame', { groupId });
+        } else if (status === 'starting') {
+            navigation.navigate('HousieStarting', { gameCode: game_code, groupId });
+        } else if (status === 'active') {
+            if (myTicketCount > 0) {
+                navigation.navigate('HousieTicket', { gameCode: game_code, groupId });
+            } else {
+                navigation.navigate('HousieSpectator', { gameCode: game_code, groupId });
             }
         }
-    }, [activeGame, isCancelling, isGameLoading, isHostOfActiveGame, hasTickets, navigation, groupId]);
+    };
 
-    const handleCancelStuckGame = useCallback(() => {
-        if (!activeGame?.game_code) return;
-
-        Alert.alert(
-            'Cancel This Game?',
-            'The host seems unavailable. Cancelling will end the game so anyone can host a new one.',
-            [
-                { text: 'Keep Waiting', style: 'cancel' },
-                {
-                    text: 'Cancel Game',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            setIsCancelling(true);
-                            await cancelHousieGame(activeGame.game_code);
-                            queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
-                        } catch (err: any) {
-                            Alert.alert('Error', err?.response?.data?.error || 'Could not cancel game.');
-                        } finally {
-                            setIsCancelling(false);
-                        }
-                    }
-                }
-            ]
-        );
-    }, [activeGame?.game_code, queryClient, groupId]);
-
-    const joinConfig = useMemo(() => {
-        if (!activeGame) {
-            return {
-                label: 'Host a Game',
-                icon: 'play',
-                disabled: false,
-                isPrimary: true
-            };
-        }
-
-        if (isHostOfActiveGame) {
-            switch (activeGame.status) {
-                case 'waiting': return { label: 'Manage Game', icon: 'settings', disabled: false, isPrimary: true };
-                case 'starting': return { label: 'Start Game', icon: 'play', disabled: false, isPrimary: true };
-                case 'active': return { label: 'Resume Hosting', icon: 'play-forward', disabled: false, isPrimary: true };
-                default: return { label: 'Manage Game', icon: 'settings', disabled: false, isPrimary: true };
-            }
-        }
-
-        if (hasTickets) {
-            switch (activeGame.status) {
-                case 'waiting': return { label: 'View Tickets', icon: 'ticket', disabled: false, isPrimary: true };
-                case 'starting': return { label: 'Start Game', icon: 'play', disabled: false, isPrimary: true };
-                case 'active': return { label: 'Play Game', icon: 'play', disabled: false, isPrimary: true };
-                default: return { label: 'Play Game', icon: 'play', disabled: false, isPrimary: true };
-            }
-        } else {
-            switch (activeGame.status) {
-                case 'waiting': return { label: 'Join Game', icon: 'ticket', disabled: false, isPrimary: true };
-                case 'starting': return { label: 'Start Game', icon: 'play', disabled: false, isPrimary: true };
-                case 'active': return { label: 'Watch Live', icon: 'eye', disabled: false, isPrimary: false };
-                default: return { label: 'Join Game', icon: 'confirmation-number', disabled: false, isPrimary: false };
-            }
-        }
-    }, [activeGame, isHostOfActiveGame, hasTickets]);
-
-    if (!user || isGroupLoading) {
+    if (isGroupLoading || (isGamesLoading && !isGamesFetching)) {
         return (
             <SafeAreaView className="flex-1 bg-[#fdf9f3] items-center justify-center">
                 <ActivityIndicator size="large" color="#b30069" />
@@ -174,97 +67,91 @@ const HousieLobbyScreen = () => {
         );
     }
 
+    const currentGames = activeTab === 'active' ? activeGames : scheduledGames;
+
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
-            <ScrollView
-                contentContainerStyle={{
-                    flexGrow: 1,
-                    justifyContent: 'center',
-                    paddingHorizontal: isTablet ? 60 : 24,
-                    paddingVertical: isTablet ? 60 : 24
-                }}
-                showsVerticalScrollIndicator={false}
-            >
-                <View
-                    style={{
-                        backgroundColor: 'white',
-                        elevation: 12,
-                        shadowColor: 'black',
-                        shadowOffset: { width: 0, height: 10 },
-                        shadowOpacity: 0.05,
-                        shadowRadius: 20,
-                        borderColor: 'rgba(0,0,0,0.05)'
-                    }}
-                    className={`rounded-[40px] w-full items-center border ${isTablet ? 'p-16' : 'p-8'}`}
-                >
-                    <LobbyHeaderCard groupName={groupName} isTablet={isTablet} />
-
-                    <View className="w-full gap-4">
-                        <LobbyActionButton
-                            label={joinConfig.label}
-                            icon={joinConfig.icon}
-                            onPress={handleAction}
-                            isLoading={isCancelling || isGameLoading}
-                            disabled={joinConfig.disabled}
-                            isPrimary={joinConfig.isPrimary}
-                            isTablet={isTablet}
-                        />
-
-                        {lastGame && (
-                            <TouchableOpacity
-                                onPress={() => navigation.navigate('HousieResults', { gameCode: lastGame.game_code, groupId })}
-                                style={{
-                                    backgroundColor: 'rgba(179, 0, 105, 0.05)',
-                                    borderColor: 'rgba(179, 0, 105, 0.2)',
-                                    height: isTablet ? 96 : 64
-                                }}
-                                className={`rounded-[24px] flex-row items-center justify-center border`}
-                            >
-                                <Ionicons name="trophy" size={isTablet ? 36 : 24} color="#b30069" />
-                                <View className="ml-4">
-                                    <Text className={`text-primary font-headline-bold leading-tight ${isTablet ? 'text-2xl' : 'text-lg'}`}>Last Results</Text>
-                                    <Text
-                                        style={{ color: 'rgba(179, 0, 105, 0.6)' }}
-                                        className={`font-body-bold uppercase tracking-wider ${isTablet ? 'text-base mt-1' : 'text-[10px]'}`}
-                                    >{lastGame.game_code}</Text>
-                                </View>
-                            </TouchableOpacity>
-                        )}
-                    </View>
+            {/* Minimalist Top Header - Synchronized with MemoryScreen */}
+            <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
+                <View style={{ width: isTablet ? 64 : 44 }}>
+                    <TouchableOpacity
+                        onPress={() => navigation.goBack()}
+                        className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                    >
+                        <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />
+                    </TouchableOpacity>
                 </View>
 
-                {activeGame && activeGame.status !== 'ended' && (
-                    <ActiveGameCard
-                        gameCode={activeGame.game_code}
-                        hostName={activeGame.hostName}
-                        isTablet={isTablet}
-                    />
-                )}
+                <View className="flex-1 items-center">
+                    <Text className="font-headline-bold text-[#1c1c18] text-center" style={{ fontSize: isTablet ? 28 : 18 }} numberOfLines={1} adjustsFontSizeToFit>
+                        {groupName || 'Game Lobby'}
+                    </Text>
+                </View>
 
-                {showCancelCTA && (
-                    <StuckGameAlert
-                        onCancel={handleCancelStuckGame}
-                        isLoading={isCancelling}
-                        isTablet={isTablet}
-                    />
-                )}
+                <View style={{ width: isTablet ? 64 : 44 }} className="items-end">
+                    <TouchableOpacity
+                        onPress={() => navigation.navigate('HousieLeaderboard', { groupId, groupName })}
+                        className={`items-center justify-center rounded-full bg-[#b30069] shadow-md ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                    >
+                        <Ionicons name="trophy" size={isTablet ? 28 : 20} color="white" />
+                    </TouchableOpacity>
+                </View>
+            </View>
 
-                <TouchableOpacity
-                    onPress={() => navigation.navigate('HousieLeaderboard', { groupId, groupName })}
-                    className={`mt-10 flex-row items-center justify-center p-6 ${isTablet ? 'mb-10' : ''}`}
-                >
-                    <MaterialIcons name="emoji-events" size={isTablet ? 36 : 20} color="#b30069" />
-                    <Text className={`text-primary font-headline-bold ml-3 ${isTablet ? 'text-3xl' : 'text-lg'}`}>All-Time Leaderboard</Text>
-                </TouchableOpacity>
-            </ScrollView>
-
-            <TouchableOpacity
-                onPress={() => navigation.goBack()}
-                style={{ elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}
-                className={`absolute left-8 items-center justify-center bg-white rounded-full z-10 border border-stone-50 ${isTablet ? 'top-20 w-16 h-16' : 'top-16 w-12 h-12'}`}
+            <ScrollView
+                className="flex-1"
+                contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 10, paddingBottom: 100 }}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={isGamesFetching} onRefresh={refetchGames} color="#b30069" />
+                }
             >
-                <MaterialIcons name="arrow-back" size={isTablet ? 36 : 28} color="#31302d" />
-            </TouchableOpacity>
+
+
+                {/* MATCHED HERO: HOST ROOM (GroupDetail Style) */}
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('HousieHostSettings', { groupId })}
+                    activeOpacity={0.9}
+                    style={{ height: isTablet ? 180 : 84 }}
+                    className="w-full mt-4 mb-10 bg-[#b30069] rounded-[32px] flex-row items-center px-6 shadow-lg shadow-[#b30069]/25"
+                >
+                    <View className={`bg-white rounded-[24px] items-center justify-center mr-6 ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}>
+                        <MaterialIcons name="add" size={isTablet ? 48 : 28} color="#b30069" />
+                    </View>
+                    <View className="flex-1">
+                        <Text
+                            className="font-headline-bold text-white"
+                            style={{ fontSize: isTablet ? 36 : 18 }}
+                            adjustsFontSizeToFit
+                            numberOfLines={1}
+                        >Host a Room</Text>
+                        <Text className={`text-white/60 font-body-medium ${isTablet ? 'text-xl mt-1.5' : 'text-xs'}`}>
+                            Start a live game or schedule for later
+                        </Text>
+                    </View>
+                    <MaterialIcons name="chevron-right" size={isTablet ? 42 : 20} color="white" style={{ opacity: 0.6 }} />
+                </TouchableOpacity>
+
+                {/* Tab Switcher - Now gets more focus */}
+                <LobbyTabSwitcher
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    activeCount={activeGames.length}
+                />
+
+                {/* List View - Full height focus */}
+                <View className="w-full">
+                    {currentGames.length > 0 ? (
+                        currentGames.map(game => (
+                            activeTab === 'active'
+                                ? <LobbyGameCard key={game.id} game={game} onPress={handleGameAction} />
+                                : <LobbyScheduledCard key={game.id} game={game} onPress={handleGameAction} />
+                        ))
+                    ) : (
+                        <LobbyEmptyState type={activeTab} />
+                    )}
+                </View>
+            </ScrollView>
         </SafeAreaView>
     );
 };

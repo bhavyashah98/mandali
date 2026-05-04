@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSocket } from '../useSocket';
 import { useSocketRoom } from '../useSocketRoom';
 
@@ -8,35 +8,38 @@ export const useHousieLobbySync = (groupId: string | undefined) => {
     const socket = useSocket();
     const queryClient = useQueryClient();
 
-    const invalidate = useCallback(() => {
+    const invalidateGamesList = useCallback(() => {
         if (groupId) {
-            queryClient.invalidateQueries({ queryKey: ['activeHousieGame', groupId] });
+            queryClient.invalidateQueries({ queryKey: ['housieGroupGames', groupId] });
         }
     }, [groupId, queryClient]);
 
-    // useSocketRoom now handles both room joining and AppState-based sync
-    useSocketRoom('join_group', groupId, invalidate);
+    // Refresh when the screen comes into focus (e.g. coming back from waiting room or settings)
+    useFocusEffect(
+        useCallback(() => {
+            invalidateGamesList();
+        }, [invalidateGamesList])
+    );
+
+    // useSocketRoom handles room joining and AppState-based sync automatically
+    useSocketRoom('join_group', groupId, invalidateGamesList);
 
     useEffect(() => {
         if (!groupId || !socket) return;
 
-        socket.on('game_created', invalidate);
-        socket.on('game_starting', invalidate);
-        socket.on('game_activated', invalidate);
-        socket.on('game_ended', invalidate);
+        // Listen for events that change the lobby list status
+        const events = [
+            'game_created',
+            'game_scheduled',
+            'game_starting',
+            'game_activated',
+            'game_ended'
+        ];
+
+        events.forEach(event => socket.on(event, invalidateGamesList));
 
         return () => {
-            socket.off('game_created', invalidate);
-            socket.off('game_starting', invalidate);
-            socket.off('game_activated', invalidate);
-            socket.off('game_ended', invalidate);
+            events.forEach(event => socket.off(event, invalidateGamesList));
         };
-    }, [groupId, socket, invalidate]);
-
-    // Handle screen focus (navigation)
-    useFocusEffect(
-        useCallback(() => {
-            invalidate();
-        }, [invalidate])
-    );
+    }, [groupId, socket, invalidateGamesList]);
 };

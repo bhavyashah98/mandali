@@ -156,11 +156,21 @@ export interface HousieSettings {
     hostTickets: number;
     ticketDifficulty: string;
     gameStyle: string;
+    prizes?: any[];
 }
 
-export const createHousieGame = async (groupId: string, settings?: HousieSettings): Promise<any> => {
+export const createHousieGame = async (groupId: string, settings?: HousieSettings, title?: string, scheduledAt?: string, ticketPrice: number = 100): Promise<any> => {
     const headers = await getAuthHeaders();
-    const response = await axios.post(`${API_URL}/housie/create`, { groupId, settings }, { headers });
+    // Move prizes out of settings to the top level for the backend to handle specifically if needed
+    const { prizes, ...otherSettings } = settings || {};
+    const response = await axios.post(`${API_URL}/housie/create`, { 
+        groupId, 
+        settings: otherSettings, 
+        prizes, 
+        title, 
+        scheduledAt,
+        ticketPrice
+    }, { headers });
     return response.data;
 };
 
@@ -191,6 +201,12 @@ export const fetchTicketById = async (ticketId: string) => {
 export const fetchActiveHousieGame = async (groupId: string): Promise<{ activeGame: any, lastGame: any }> => {
     const headers = await getAuthHeaders();
     const response = await axios.get(`${API_URL}/housie/active/${groupId}`, { headers });
+    return response.data;
+};
+
+export const fetchHousieGroupGames = async (groupId: string): Promise<{ games: any[] }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/housie/group/${groupId}/list`, { headers });
     return response.data;
 };
 
