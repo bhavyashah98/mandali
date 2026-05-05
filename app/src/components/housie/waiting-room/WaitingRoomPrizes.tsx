@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
+import MandaliCoin from '../../MandaliCoin';
+
 interface Props {
     prizes: any[];
     ticketPrice: number;
@@ -19,7 +21,7 @@ const WaitingRoomPrizes: React.FC<Props> = ({ prizes, ticketPrice, totalTickets,
             {prizes.map((prize, index) => {
                 const amount = Math.floor((totalPool * (prize.percentage || 0)) / 100);
                 return (
-                    <View 
+                    <View
                         key={prize.id || index}
                         style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
                         className={`flex-row items-center bg-white border border-stone-100 mb-4 ${isTablet ? 'rounded-3xl p-8' : 'rounded-2xl p-4'}`}
@@ -34,9 +36,12 @@ const WaitingRoomPrizes: React.FC<Props> = ({ prizes, ticketPrice, totalTickets,
                             </Text>
                         </View>
                         <View className="items-end">
-                            <Text className={`font-headline-bold text-[#b30069] ${isTablet ? 'text-4xl' : 'text-xl'}`}>
-                                ₹{amount}
-                            </Text>
+                            <View className="flex-row items-center">
+                                <Text className={`font-headline-bold text-[#b30069] ${isTablet ? 'text-4xl' : 'text-xl'}`}>
+                                    {amount}
+                                </Text>
+                                <MandaliCoin size={isTablet ? 28 : 16} style={{ marginLeft: 4 }} />
+                            </View>
                             <Text className="text-stone-400 font-body-bold text-2xs uppercase">Est. Prize</Text>
                         </View>
                     </View>

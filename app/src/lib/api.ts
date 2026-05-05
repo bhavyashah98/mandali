@@ -174,11 +174,6 @@ export const createHousieGame = async (groupId: string, settings?: HousieSetting
     return response.data;
 };
 
-export const setupHousieGame = async (gameCode: string, ticketPrice: number): Promise<any> => {
-    const headers = await getAuthHeaders();
-    const response = await axios.patch(`${API_URL}/housie/${gameCode}/setup`, { ticketPrice }, { headers });
-    return response.data;
-};
 
 export const fetchHousieGame = async (gameCode: string): Promise<any> => {
     const headers = await getAuthHeaders();
