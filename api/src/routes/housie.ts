@@ -746,7 +746,12 @@ router.post('/:gameCode/join', authMiddleware, async (req: AuthRequest, res) => 
             .single();
 
         if (gameError || !game) return res.status(404).json({ error: 'Game not found' });
-        if (game.status !== 'waiting') return res.status(400).json({ error: 'Joining is closed for this game' });
+        
+        // Allow joining only if game is in waiting or scheduled state
+        if (game.status !== 'waiting' && game.status !== 'scheduled') {
+            return res.status(400).json({ error: 'Joining is closed for this game as it has already started or ended' });
+        }
+
 
         // Check current ticket count for this user
         const { count: existingCount } = await supabase
