@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSocket } from '../useSocket';
 import { useSocketRoom } from '../useSocketRoom';
-import { announceHousieNumber } from '../../utils/housieVoice';
 import { resetSessionClaims } from '../../utils/housieValidator';
 
 interface SyncProps {
@@ -27,10 +27,22 @@ export const useHousieTicketSync = ({
     const socket = useSocket();
     const queryClient = useQueryClient();
 
+    // 1. AppState/Socket Room Management (Handles Background -> Foreground)
     useSocketRoom('join_game', gameCode, () => {
         // Force refetch on reconnection/foreground to ensure we didn't miss numbers
         queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
+        queryClient.invalidateQueries({ queryKey: ['housieTickets', gameCode] });
     });
+
+    // 2. Navigation Focus Management (Handles Screen -> Screen navigation)
+    useFocusEffect(
+        useCallback(() => {
+            if (gameCode) {
+                queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
+                queryClient.invalidateQueries({ queryKey: ['housieTickets', gameCode] });
+            }
+        }, [gameCode, queryClient])
+    );
 
     useEffect(() => {
         if (!gameCode || gameCode.length < 6 || !socket) return;
@@ -55,6 +67,7 @@ export const useHousieTicketSync = ({
 
         const onTicketsBought = () => {
             queryClient.invalidateQueries({ queryKey: ['housieParticipants', gameCode] });
+            queryClient.invalidateQueries({ queryKey: ['housieTickets', gameCode] });
         };
 
         const onGameStarting = () => {

@@ -4,6 +4,8 @@ import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { io } from '../index';
 import tambola from '../utils/tambola';
 import { sendGroupPushNotification } from '../lib/push';
+import { checkPrize } from '../utils/tambola';
+
 import { startAutoHost, pauseAutoHost, resumeAutoHost, stopAutoHost } from '../services/housieAutoHost';
 
 const router = Router();
@@ -507,6 +509,9 @@ router.post('/:gameCode/call', authMiddleware, async (req: AuthRequest, res) => 
         const updatedNumbers = [...calledNumbers, nextNumber];
         const isLastNumber = updatedNumbers.length === 90;
 
+        // Audit Log
+        console.log(`[Housie] [ManualCall] Game ${gameCode}: Draw index ${calledNumbers.length} (Number ${nextNumber}).`);
+
         const { data, error: updateError } = await supabase
             .from('housie_games')
             .update({
@@ -1007,6 +1012,78 @@ router.get('/group/:groupId/leaderboard', authMiddleware, async (req: AuthReques
             .sort((a, b) => b.totalWon - a.totalWon);
 
         res.json({ leaderboard });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * UPDATE TICKET COUNT (SET TOTAL)
+ * Allows users to add or remove tickets from waiting room
+ */
+router.patch('/:gameCode/tickets/update', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const gameCode = (req.params.gameCode as string).toUpperCase();
+        const { newCount } = req.body;
+        const userId = req.userId!;
+
+        if (typeof newCount !== 'number' || newCount < 0 || newCount > 6) {
+            return res.status(400).json({ error: 'Ticket count must be between 0 and 6' });
+        }
+
+        // 1. Get game
+        const { data: game, error: gameError } = await supabase
+            .from('housie_games')
+            .select('id, status')
+            .eq('game_code', gameCode)
+            .single();
+
+        if (gameError || !game) return res.status(404).json({ error: 'Game not found' });
+        if (game.status !== 'waiting' && game.status !== 'scheduled') {
+            return res.status(400).json({ error: 'Cannot change tickets after game has started' });
+        }
+
+        // 2. Get current tickets
+        const { data: currentTickets } = await supabase
+            .from('housie_tickets')
+            .select('id')
+            .eq('game_id', game.id)
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        const currentCount = currentTickets?.length || 0;
+
+        if (newCount > currentCount) {
+            // Add more
+            const ticketsToCreate = [];
+            for (let i = 0; i < (newCount - currentCount); i++) {
+                ticketsToCreate.push({
+                    game_id: game.id,
+                    user_id: userId,
+                    ticket_data: tambola.generateTicket()
+                });
+            }
+            const { error: insertError } = await supabase.from('housie_tickets').insert(ticketsToCreate);
+            if (insertError) throw insertError;
+        } else if (newCount < currentCount) {
+            // Remove some (remove the newest ones)
+            const countToRemove = currentCount - newCount;
+            const idsToRemove = currentTickets!.slice(0, countToRemove).map(t => t.id);
+            const { error: deleteError } = await supabase.from('housie_tickets').delete().in('id', idsToRemove);
+            if (deleteError) throw deleteError;
+        }
+
+        // 3. Broadcast update
+        const ioInstance = req.app.get('io');
+        if (ioInstance) {
+            ioInstance.to(gameCode).emit('tickets_bought', {
+                gameCode,
+                userId,
+                ticketCount: newCount
+            });
+        }
+
+        res.json({ success: true, newCount });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

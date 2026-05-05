@@ -1,46 +1,53 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSocket } from '../useSocket';
 
-export const useHousieMarking = (tickets: any[]) => {
-    const [markedTickets, setMarkedTickets] = useState<Record<string, number[]>>({});
+export const useHousieMarking = (tickets: any[], gameCode: string) => {
     const socket = useSocket();
+    const queryClient = useQueryClient();
 
-    // Initialize marks from server data
-    useEffect(() => {
-        if (tickets) {
-            setMarkedTickets(prev => {
-                const next = { ...prev };
-                tickets.forEach((t: any) => {
-                    if (!(t.id in next)) {
-                        next[t.id] = t.marked_numbers || [];
-                    }
-                });
-                return next;
-            });
-        }
+    // Derived marked tickets directly from server data (which is kept updated via optimistic updates)
+    const markedTickets = useMemo(() => {
+        const result: Record<string, number[]> = {};
+        if (!tickets) return result;
+
+        tickets.forEach((t: any) => {
+            result[t.id] = t.marked_numbers || [];
+        });
+        return result;
     }, [tickets]);
 
     const toggleMark = useCallback((ticketId: string, num: number, isGameEnded: boolean) => {
-        if (isGameEnded) return;
+        if (isGameEnded || !gameCode) return;
 
-        setMarkedTickets(prev => {
-            const currentMarks = prev[ticketId] || [];
-            const newMarks = currentMarks.includes(num)
-                ? currentMarks.filter(n => n !== num)
-                : [...currentMarks, num];
+        // Optimistically update the cache
+        queryClient.setQueryData(['housieTickets', gameCode], (old: any) => {
+            if (!old || !old.tickets) return old;
             
-            const next = { ...prev, [ticketId]: newMarks };
-
-            if (socket) {
-                socket.emit('sync_marks', {
-                    ticketId,
-                    markedNumbers: newMarks
-                });
-            }
-
-            return next;
+            return {
+                ...old,
+                tickets: old.tickets.map((t: any) => {
+                    if (t.id === ticketId) {
+                        const currentMarks = t.marked_numbers || [];
+                        const newMarks = currentMarks.includes(num)
+                            ? currentMarks.filter((n: number) => n !== num)
+                            : [...currentMarks, num];
+                        
+                        // Emit sync to server
+                        if (socket) {
+                            socket.emit('sync_marks', {
+                                ticketId,
+                                markedNumbers: newMarks
+                            });
+                        }
+                        
+                        return { ...t, marked_numbers: newMarks };
+                    }
+                    return t;
+                })
+            };
         });
-    }, [socket]);
+    }, [gameCode, socket, queryClient]);
 
     return {
         markedTickets,

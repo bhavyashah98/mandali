@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -42,7 +42,7 @@ const HousieLobbyScreen = () => {
         const { game_code, status, myTicketCount, host_id } = game;
         const isHost = host_id === userId;
 
-        if (status === 'waiting') {
+        if (status === 'waiting' || status === 'scheduled') {
             if (myTicketCount > 0 || isHost) {
                 navigation.navigate('HousieWaitingRoom', { gameCode: game_code, groupId });
             } else {
@@ -53,7 +53,10 @@ const HousieLobbyScreen = () => {
         } else if (status === 'active') {
             if (myTicketCount > 0) {
                 navigation.navigate('HousieTicket', { gameCode: game_code, groupId });
-            } else {
+            } else if (isHost) {
+                navigation.navigate('HousieGame', { gameCode: game_code, groupId });
+            }
+            else {
                 navigation.navigate('HousieSpectator', { gameCode: game_code, groupId });
             }
         }
@@ -67,7 +70,7 @@ const HousieLobbyScreen = () => {
         );
     }
 
-    const currentGames = activeTab === 'active' ? activeGames : scheduledGames;
+    const currentGames = useMemo(() => activeTab === 'active' ? activeGames : scheduledGames, [activeTab, activeGames, scheduledGames]);
 
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
@@ -103,7 +106,7 @@ const HousieLobbyScreen = () => {
                 contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 10, paddingBottom: 100 }}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
-                    <RefreshControl refreshing={isGamesFetching} onRefresh={refetchGames} color="#b30069" />
+                    <RefreshControl refreshing={isGamesFetching} onRefresh={refetchGames} tintColor="#b30069" />
                 }
             >
 

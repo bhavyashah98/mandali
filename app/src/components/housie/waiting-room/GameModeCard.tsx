@@ -43,7 +43,7 @@ const GameModeCard: React.FC<GameModeCardProps> = ({ gameCode, settings, isTable
                 shadowOpacity: 0.2, 
                 shadowRadius: 20 
             }}
-            className={`rounded-[48px] items-center mb-6 ${isTablet ? 'p-12' : 'p-8'}`}
+            className={`rounded-3xl items-center mb-6 ${isTablet ? 'p-12' : 'p-8'}`}
         >
             <View className="items-center mb-6">
                 <Text

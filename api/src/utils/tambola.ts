@@ -158,13 +158,28 @@ export const isLine = (ticket: number[][], rowIdx: number, called: number[]): bo
 
 /** Full House: All 15 numbers */
 export const isFullHouse = (ticket: number[][], called: number[]): boolean => {
-  return ticket.every(row => allPresent(row, called));
+  const flatNumbers = ticket.flat().map(n => Number(n)).filter(n => n > 0);
+  const missing = flatNumbers.filter(n => !called.includes(n));
+  
+  if (missing.length > 0) {
+    console.log(`[Validation] ❌ Full House failed. Missing numbers: ${missing.join(', ')}`);
+    return false;
+  }
+  
+  console.log(`[Validation] ✅ Full House verified!`);
+  return true;
 };
 
 /** Early 5 or Early 7: Any X numbers marked */
 export const isEarly = (ticket: any[][], count: number, called: number[]): boolean => {
   const flatNumbers = ticket.flat().map(n => Number(n)).filter(n => n > 0);
-  const markedCount = flatNumbers.filter(n => called.includes(n)).length;
+  const markedNumbers = flatNumbers.filter(n => called.includes(n));
+  const markedCount = markedNumbers.length;
+  
+  if (markedCount < count) {
+    console.log(`[Validation] ❌ Early ${count} failed. Only ${markedCount} marked: ${markedNumbers.join(', ')}`);
+  }
+  
   return markedCount >= count;
 };
 
@@ -180,7 +195,13 @@ export const isFourCorners = (ticket: any[][], called: number[]): boolean => {
     bottomRow[bottomRow.length - 1]
   ];
 
-  return corners.every(n => called.includes(n));
+  const missing = corners.filter(n => !called.includes(n));
+  if (missing.length > 0) {
+    console.log(`[Validation] ❌ Four Corners failed. Missing: ${missing.join(', ')}`);
+    return false;
+  }
+
+  return true;
 };
 
 /** Star: Four Corners + Center Number */
@@ -190,7 +211,12 @@ export const isStar = (ticket: any[][], called: number[]): boolean => {
   const midRow = ticket[1].map(n => Number(n)).filter(n => n > 0);
   const centerNum = midRow[2]; // Middle of 5 numbers
 
-  return called.includes(centerNum);
+  if (!called.includes(centerNum)) {
+    console.log(`[Validation] ❌ Star failed. Center number ${centerNum} missing.`);
+    return false;
+  }
+
+  return true;
 };
 
 /** Six Corners: 1st and last of all three rows */
@@ -199,13 +225,23 @@ export const isSixCorners = (ticket: any[][], called: number[]): boolean => {
     const nums = row.map(n => Number(n)).filter(n => n > 0);
     return [nums[0], nums[nums.length - 1]];
   });
-  return corners.every(n => called.includes(n));
+  const missing = corners.filter(n => !called.includes(n));
+  if (missing.length > 0) {
+    console.log(`[Validation] ❌ Six Corners failed. Missing: ${missing.join(', ')}`);
+    return false;
+  }
+  return true;
 };
 
 /** Center (Laddu): Middle number of the middle row */
 export const isCenter = (ticket: any[][], called: number[]): boolean => {
   const midRow = ticket[1].map(n => Number(n)).filter(n => n > 0);
-  return called.includes(midRow[2]);
+  const centerNum = midRow[2];
+  if (!called.includes(centerNum)) {
+    console.log(`[Validation] ❌ Center failed. Number ${centerNum} missing.`);
+    return false;
+  }
+  return true;
 };
 
 /** Odd/Even: All odd or all even numbers marked */
@@ -217,6 +253,7 @@ export const isOddEven = (ticket: any[][], called: number[]): { won: boolean; ty
   if (oddNumbers.every(n => called.includes(n))) return { won: true, type: 'odd' };
   if (evenNumbers.every(n => called.includes(n))) return { won: true, type: 'even' };
 
+  console.log(`[Validation] ❌ Odd/Even failed.`);
   return { won: false };
 };
 
@@ -232,7 +269,12 @@ export const isPyramid = (ticket: any[][], called: number[]): boolean => {
     row2[0], row2[2], row2[4] // Bottom: 1st, 3rd & 5th
   ];
 
-  return pyramidNums.every(n => called.includes(n));
+  const missing = pyramidNums.filter(n => !called.includes(n));
+  if (missing.length > 0) {
+    console.log(`[Validation] ❌ Pyramid failed. Missing: ${missing.join(', ')}`);
+    return false;
+  }
+  return true;
 };
 
 /** BP (Blood Pressure) / Temperature: Highest and Lowest numbers on ticket */
@@ -241,7 +283,12 @@ export const isBP = (ticket: any[][], called: number[]): boolean => {
   const min = Math.min(...flatNumbers);
   const max = Math.max(...flatNumbers);
 
-  return called.includes(min) && called.includes(max);
+  const missing = [min, max].filter(n => !called.includes(n));
+  if (missing.length > 0) {
+    console.log(`[Validation] ❌ BP failed. Missing: ${missing.join(', ')}`);
+    return false;
+  }
+  return true;
 };
 
 /** 
@@ -270,13 +317,21 @@ export const checkPrize = (prizeId: string, ticket: number[][], called: number[]
   };
 
   const lastEffective = transform(lastRaw);
+  console.log(`[Validation] 🔍 Checking ${prizeId} for Mode: ${gameMode}`);
+  console.log(`[Validation] 📍 Last called: ${lastRaw} -> Effective: ${lastEffective}`);
 
   // If the transformed last number is invalid, no claim can be made on it
-  if (lastEffective < 1 || lastEffective > 90) return false;
+  if (lastEffective < 1 || lastEffective > 90) {
+    console.log(`[Validation] ❌ Invalid effective number.`);
+    return false;
+  }
 
   // The last called number MUST be part of the ticket's marked numbers for this prize
   const flatTicket = ticket.flat().map(n => Number(n)).filter(n => n > 0);
-  if (!flatTicket.includes(lastEffective)) return false;
+  if (!flatTicket.includes(lastEffective)) {
+    console.log(`[Validation] ❌ Effective number ${lastEffective} not in ticket numbers: ${flatTicket.join(', ')}`);
+    return false;
+  }
 
   // All called numbers transformed
   const effectiveCalled = (called || []).map(n => transform(n)).filter(n => n >= 1 && n <= 90);
@@ -285,11 +340,17 @@ export const checkPrize = (prizeId: string, ticket: number[][], called: number[]
   const includesTrigger = (nums: number[]) => nums.includes(lastEffective);
 
   if (prizeId === 'top_line') {
-    return isLine(ticket, 0, effectiveCalled) && includesTrigger(ticket[0]);
+    const res = isLine(ticket, 0, effectiveCalled) && includesTrigger(ticket[0]);
+    if (!res) console.log(`[Validation] ❌ Top Line failed.`);
+    return res;
   } else if (prizeId === 'middle_line') {
-    return isLine(ticket, 1, effectiveCalled) && includesTrigger(ticket[1]);
+    const res = isLine(ticket, 1, effectiveCalled) && includesTrigger(ticket[1]);
+    if (!res) console.log(`[Validation] ❌ Middle Line failed.`);
+    return res;
   } else if (prizeId === 'bottom_line') {
-    return isLine(ticket, 2, effectiveCalled) && includesTrigger(ticket[2]);
+    const res = isLine(ticket, 2, effectiveCalled) && includesTrigger(ticket[2]);
+    if (!res) console.log(`[Validation] ❌ Bottom Line failed.`);
+    return res;
   } else if (prizeId.startsWith('full_house')) {
     return isFullHouse(ticket, effectiveCalled) && includesTrigger(flatTicket);
   }

@@ -25,6 +25,7 @@ export const RoomDetailsSection = ({ title, setTitle }: RoomDetailsSectionProps)
                 value={title}
                 onChangeText={setTitle}
                 placeholderTextColor="#a09d96"
+                maxLength={30}
             />
         </View>
     );

@@ -22,7 +22,7 @@ const HousieHostSettingsScreen = () => {
     const isTablet = useIsTablet();
 
     // Basic Info
-    const [title, setTitle] = useState('');
+    const [title, setTitle] = useState('Housie Gathering');
     const [isScheduled, setIsScheduled] = useState(false);
     const [scheduledAt, setScheduledAt] = useState(new Date(Date.now() + 3600000));
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -78,6 +78,11 @@ const HousieHostSettingsScreen = () => {
     const handleContinue = useCallback(async () => {
         if (!groupId) {
             Alert.alert('Error', 'Group ID is missing.');
+            return;
+        }
+
+        if (!title.trim()) {
+            Alert.alert('Required Info', 'Please give your Housie room a title.');
             return;
         }
 

@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSocket } from '../useSocket';
 import { useSocketRoom } from '../useSocketRoom';
@@ -10,13 +10,15 @@ interface UseHousieWaitingRoomSyncProps {
     gameCode: string;
     groupId: string;
     isHost: boolean;
+    hasTickets: boolean;
 }
 
 export const useHousieWaitingRoomSync = ({
     game,
     gameCode,
     groupId,
-    isHost
+    isHost,
+    hasTickets
 }: UseHousieWaitingRoomSyncProps) => {
     const navigation = useNavigation<any>();
     const queryClient = useQueryClient();
@@ -32,21 +34,27 @@ export const useHousieWaitingRoomSync = ({
     // useSocketRoom handles background/foreground sync and reconnection
     useSocketRoom('join_game', gameCode, invalidate);
 
+    // Refresh data when screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            invalidate();
+        }, [invalidate])
+    );
+
     // Socket listeners for real-time transitions
     useEffect(() => {
         if (!socket || !gameCode) return;
 
         const onTicketsBought = () => {
-            queryClient.invalidateQueries({ queryKey: ['housieParticipants', gameCode] });
+            invalidate();
         };
 
         const onGameStarting = () => {
-            // Only invalidate, let the status useEffect handle navigation
             invalidate();
         };
 
         const onGameEnded = () => {
-            navigation.goBack();
+            invalidate();
         };
 
         socket.on('tickets_bought', onTicketsBought);
@@ -67,17 +75,16 @@ export const useHousieWaitingRoomSync = ({
         if (game.status === 'starting') {
             navigation.replace('HousieStarting', { gameCode, groupId });
         } else if (game.status === 'active') {
-            if (isHost) {
-                navigation.replace('HousieGame', { gameCode, groupId });
-            } else {
+            if (hasTickets) {
                 navigation.replace('HousieTicket', { gameCode, groupId });
+            } else if (isHost) {
+                navigation.navigate('HousieGame', { gameCode, groupId });
+            } else {
+                navigation.navigate('HousieTicket', { gameCode, groupId });
             }
         } else if (game.status === 'ended') {
             Alert.alert('Game Over', 'This game has already ended.');
-            navigation.reset({
-                index: 0,
-                routes: [{ name: 'HousieLobby', params: { groupId } }],
-            });
+            navigation.goBack();
         }
     }, [game?.status, isHost, navigation, gameCode, groupId]);
 };

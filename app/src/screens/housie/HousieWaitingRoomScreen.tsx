@@ -21,11 +21,16 @@ import ParticipantItem from '../../components/housie/waiting-room/ParticipantIte
 import WaitingRoomFooter from '../../components/housie/waiting-room/WaitingRoomFooter';
 import WaitingRoomPrizes from '../../components/housie/waiting-room/WaitingRoomPrizes';
 
+import TicketUpdateModal from '../../components/housie/waiting-room/TicketUpdateModal';
+
 const HousieWaitingRoomScreen = ({ navigation, route }: any) => {
     const isTablet = useIsTablet();
     const insets = useSafeAreaInsets();
     const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};
     const { user } = useAuthStore();
+
+    const [activeTab, setActiveTab] = React.useState<'players' | 'prizes'>('players');
+    const [isEditModalVisible, setIsEditModalVisible] = React.useState(false);
 
     const {
         game,
@@ -35,14 +40,17 @@ const HousieWaitingRoomScreen = ({ navigation, route }: any) => {
         isLoading
     } = useHousieWaitingRoomData(gameCode, groupId);
 
-    const [activeTab, setActiveTab] = React.useState<'players' | 'prizes'>('players');
+    const hasTickets = stats?.participants?.some(p => p.id === user?.id && p.ticketCount > 0) || false;
+    const currentUserStats = stats?.participants?.find(p => p.id === user?.id);
+    const userTicketCount = currentUserStats?.ticketCount || 0;
 
     // Handle background/foreground sync and real-time transitions
     useHousieWaitingRoomSync({
         game,
         gameCode: gameCode || '',
         groupId: groupId || '',
-        isHost
+        isHost,
+        hasTickets
     });
 
     const handleStartGame = useCallback(async () => {
@@ -53,13 +61,7 @@ const HousieWaitingRoomScreen = ({ navigation, route }: any) => {
         }
     }, [gameCode, game?.prizes]);
 
-    const renderParticipant = useCallback(({ item }: { item: any }) => (
-        <ParticipantItem
-            participant={item}
-            hostId={game?.host_id}
-            isTablet={isTablet}
-        />
-    ), [game?.host_id, isTablet]);
+    const horizontalPadding = isTablet ? 64 : 24;
 
     if (!user || (isLoading && !game)) {
         return (
@@ -68,8 +70,6 @@ const HousieWaitingRoomScreen = ({ navigation, route }: any) => {
             </SafeAreaView>
         );
     }
-
-    const horizontalPadding = isTablet ? 64 : 24;
 
     return (
         <View className="flex-1 bg-[#fdf9f3]" style={{ paddingTop: insets.top }}>
@@ -104,10 +104,10 @@ const HousieWaitingRoomScreen = ({ navigation, route }: any) => {
 
                 {/* Premium Tabs */}
                 <View className="mt-8 mb-6" style={{ paddingHorizontal: horizontalPadding }}>
-                    <View className="flex-row bg-stone-100 p-2 rounded-[24px]">
+                    <View className="flex-row bg-stone-100 p-2 rounded-2xl">
                         <TouchableOpacity
                             onPress={() => setActiveTab('players')}
-                            className={`flex-1 py-3 rounded-[20px] items-center ${activeTab === 'players' ? 'bg-white shadow-sm' : ''}`}
+                            className={`flex-1 py-3 rounded-2xl items-center ${activeTab === 'players' ? 'bg-white' : ''}`}
                         >
                             <Text className={`font-headline-bold ${activeTab === 'players' ? 'text-primary' : 'text-stone-400'}`}>
                                 Players ({stats?.participants?.length || 0})
@@ -115,7 +115,7 @@ const HousieWaitingRoomScreen = ({ navigation, route }: any) => {
                         </TouchableOpacity>
                         <TouchableOpacity
                             onPress={() => setActiveTab('prizes')}
-                            className={`flex-1 py-3 rounded-[20px] items-center ${activeTab === 'prizes' ? 'bg-white shadow-sm' : ''}`}
+                            className={`flex-1 py-3 rounded-2xl items-center ${activeTab === 'prizes' ? 'bg-white' : ''}`}
                         >
                             <Text className={`font-headline-bold ${activeTab === 'prizes' ? 'text-primary' : 'text-stone-400'}`}>
                                 Prizes ({game?.prizes?.length || 0})
@@ -126,18 +126,6 @@ const HousieWaitingRoomScreen = ({ navigation, route }: any) => {
 
                 {activeTab === 'players' ? (
                     <View style={{ paddingHorizontal: horizontalPadding }}>
-                        {game?.status === 'scheduled' && (
-                            <View className="bg-white p-6 rounded-[32px] mb-8 items-center border border-stone-100 shadow-sm">
-                                <Ionicons name="time-outline" size={24} color="#b30069" />
-                                <Text className="text-stone-800 font-headline-bold text-center mt-2">
-                                    Scheduled For:
-                                </Text>
-                                <Text className="text-primary font-headline-bold text-xl">
-                                    {new Date(game.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </Text>
-                            </View>
-                        )}
-
                         {(stats?.participants || []).length > 0 ? (
                             (stats?.participants || []).map(participant => (
                                 <ParticipantItem
@@ -145,6 +133,8 @@ const HousieWaitingRoomScreen = ({ navigation, route }: any) => {
                                     participant={participant}
                                     hostId={game?.host_id}
                                     isTablet={isTablet}
+                                    isCurrentUser={participant.id === user?.id}
+                                    onEdit={() => setIsEditModalVisible(true)}
                                 />
                             ))
                         ) : (
@@ -172,7 +162,17 @@ const HousieWaitingRoomScreen = ({ navigation, route }: any) => {
                 isHost={isHost}
                 onStart={handleStartGame}
                 totalTickets={stats?.totalTickets || 0}
+                userTicketCount={userTicketCount}
                 isTablet={isTablet}
+                gameStatus={game?.status}
+                scheduledAt={game?.scheduled_at}
+            />
+
+            <TicketUpdateModal
+                visible={isEditModalVisible}
+                onClose={() => setIsEditModalVisible(false)}
+                currentCount={userTicketCount}
+                gameCode={gameCode || ''}
             />
         </View>
     );

@@ -22,7 +22,7 @@ const WaitingRoomPrizes: React.FC<Props> = ({ prizes, ticketPrice, totalTickets,
                     <View 
                         key={prize.id || index}
                         style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
-                        className={`flex-row items-center bg-white border border-stone-100 mb-4 ${isTablet ? 'rounded-[32px] p-8' : 'rounded-[24px] p-4'}`}
+                        className={`flex-row items-center bg-white border border-stone-100 mb-4 ${isTablet ? 'rounded-3xl p-8' : 'rounded-2xl p-4'}`}
                     >
                         <View className={`rounded-full bg-stone-50 items-center justify-center border border-stone-100 ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}>
                             <MaterialIcons name={prize.icon || 'stars'} size={isTablet ? 36 : 24} color="#b30069" />
@@ -37,7 +37,7 @@ const WaitingRoomPrizes: React.FC<Props> = ({ prizes, ticketPrice, totalTickets,
                             <Text className={`font-headline-bold text-[#b30069] ${isTablet ? 'text-4xl' : 'text-xl'}`}>
                                 ₹{amount}
                             </Text>
-                            <Text className="text-stone-400 font-body-bold text-[10px] uppercase">Est. Prize</Text>
+                            <Text className="text-stone-400 font-body-bold text-2xs uppercase">Est. Prize</Text>
                         </View>
                     </View>
                 );

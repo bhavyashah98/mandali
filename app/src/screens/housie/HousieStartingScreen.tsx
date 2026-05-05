@@ -83,7 +83,7 @@ const HousieStartingScreen = () => {
                 <FontAwesome5 name="dice" size={300} color="#b30069" />
             </View>
 
-            {(!game && isLoading) ? (
+            {(!game && isLoading) || secondsLeft === null ? (
                 <View className="flex-1 items-center justify-center">
                     <ActivityIndicator color="#b30069" size="large" />
                     <Text className="text-stone-400 font-headline-bold mt-6 tracking-[4px] uppercase text-[10px]">Preparing Room...</Text>

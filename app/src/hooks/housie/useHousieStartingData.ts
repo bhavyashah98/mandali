@@ -3,11 +3,9 @@ import { Animated } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchHousieGame } from '../../lib/api';
 
-const TIMER_DURATION = 15;
-
 export const useHousieStartingData = (gameCode: string) => {
     const queryClient = useQueryClient();
-    const [secondsLeft, setSecondsLeft] = useState(TIMER_DURATION);
+    const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
     const progressAnim = useRef(new Animated.Value(1)).current;
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -18,19 +16,21 @@ export const useHousieStartingData = (gameCode: string) => {
     });
 
     useEffect(() => {
-        if (!game?.last_activity_at || game.status !== 'starting') return;
+        if (!game?.activation_at || game.status !== 'starting') return;
 
-        const startTime = new Date(game.last_activity_at).getTime();
+        const activationTime = new Date(game.activation_at).getTime();
 
         const syncTimer = () => {
             const now = Date.now();
-            const elapsed = Math.floor((now - startTime) / 1000);
-            const remaining = Math.max(0, TIMER_DURATION - elapsed);
+            const remaining = Math.max(0, Math.floor((activationTime - now) / 1000));
+            
+            // Total duration for the progress bar (usually 60s, but dynamic if they join late)
+            const totalDuration = 60; 
 
             setSecondsLeft(remaining);
 
             Animated.timing(progressAnim, {
-                toValue: remaining / TIMER_DURATION,
+                toValue: Math.min(1, remaining / totalDuration),
                 duration: 300,
                 useNativeDriver: false,
             }).start();
@@ -47,7 +47,7 @@ export const useHousieStartingData = (gameCode: string) => {
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
-    }, [game?.last_activity_at, game?.status, gameCode, queryClient]);
+    }, [game?.activation_at, game?.status, gameCode, queryClient]);
 
     return {
         game,

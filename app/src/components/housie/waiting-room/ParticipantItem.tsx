@@ -1,20 +1,30 @@
 import React from 'react';
-import { View, Text, Image } from 'react-native';
+import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { getOptimizedImageUrl } from '../../../lib/api';
+
+import { Ionicons } from '@expo/vector-icons';
 
 interface ParticipantItemProps {
     participant: any;
     hostId: string;
     isTablet: boolean;
+    isCurrentUser?: boolean;
+    onEdit?: () => void;
 }
 
-const ParticipantItem: React.FC<ParticipantItemProps> = ({ participant, hostId, isTablet }) => {
+const ParticipantItem: React.FC<ParticipantItemProps> = ({
+    participant,
+    hostId,
+    isTablet,
+    isCurrentUser,
+    onEdit
+}) => {
     const isParticipantHost = participant.id === hostId;
 
     return (
-        <View 
+        <View
             style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
-            className={`flex-row items-center bg-white border border-stone-100 mb-4 ${isTablet ? 'rounded-[32px] p-8' : 'rounded-[24px] p-4'}`}
+            className={`flex-row items-center bg-white border border-stone-100 mb-4 ${isTablet ? 'rounded-3xl p-8' : 'rounded-2xl p-4'}`}
         >
             <View className={`rounded-full bg-stone-50 items-center justify-center overflow-hidden border border-stone-100 ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}>
                 {participant.avatar ? (
@@ -27,11 +37,11 @@ const ParticipantItem: React.FC<ParticipantItemProps> = ({ participant, hostId, 
                 <View className="flex-row items-center">
                     <Text className={`font-headline-bold text-[#594048] ${isTablet ? 'text-3xl' : 'text-base'}`}>{participant.name}</Text>
                     {isParticipantHost && (
-                        <View 
+                        <View
                             style={{ backgroundColor: 'rgba(179, 0, 105, 0.1)' }}
                             className="px-2 py-0.5 rounded-md ml-2"
                         >
-                            <Text className="text-primary font-body-bold text-[10px] uppercase">Host</Text>
+                            <Text className="text-primary font-body-bold text-2xs uppercase">Host</Text>
                         </View>
                     )}
                 </View>
@@ -39,8 +49,17 @@ const ParticipantItem: React.FC<ParticipantItemProps> = ({ participant, hostId, 
                     {participant.ticketCount} {participant.ticketCount === 1 ? 'Ticket' : 'Tickets'} Bought
                 </Text>
             </View>
+
+            {isCurrentUser && (
+                <TouchableOpacity
+                    onPress={onEdit}
+                    className="w-10 h-10 rounded-full bg-stone-50 items-center justify-center border border-stone-100"
+                >
+                    <Ionicons name="pencil" size={18} color="#b30069" />
+                </TouchableOpacity>
+            )}
         </View>
     );
 };
 
-export default React.memo(ParticipantItem);
+export default ParticipantItem;

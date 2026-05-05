@@ -54,7 +54,7 @@ const HousieTicketScreen = () => {
     } = useHousieTicketData(gameCode);
 
     // 3. Marking Logic Hook
-    const { markedTickets, toggleMark } = useHousieMarking(tickets);
+    const { markedTickets, toggleMark } = useHousieMarking(tickets, gameCode);
 
     // 4. Claiming Logic Hook
     const {

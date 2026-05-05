@@ -1,13 +1,15 @@
 import { supabase } from '../lib/supabase';
 import { io } from '../index';
+import { sendGroupPushNotification } from '../lib/push';
 
 /**
  * BULLETPROOF TICKER ENGINE (Production Optimized)
- * A stateless, self-healing worker for Housie.
  */
 
 let workerInterval: NodeJS.Timeout | null = null;
 let lastStallCheck = 0;
+const activeTimers = new Map<string, NodeJS.Timeout>();
+const reminderTimers = new Map<string, NodeJS.Timeout>();
 
 const log = (gameCode: string, message: string) => {
     const istTimestamp = new Date().toLocaleString('en-IN', { 
@@ -23,7 +25,85 @@ const logError = (gameCode: string, message: string, err?: any) => {
 };
 
 /**
- * Simple Debounce Helper to prevent hammering the DB during rapid updates.
+ * Schedules a game to move from 'scheduled' to 'starting' at the right time.
+ * Also handles the 5-minute pre-game reminder.
+ */
+export const scheduleGameStart = (gameCode: string, scheduledAt: string, groupId: string, hostId: string, title?: string) => {
+    if (!scheduledAt) return;
+
+    // 1. Clear existing timers if any
+    if (activeTimers.has(gameCode)) {
+        clearTimeout(activeTimers.get(gameCode));
+        activeTimers.delete(gameCode);
+    }
+    if (reminderTimers.has(gameCode)) {
+        clearTimeout(reminderTimers.get(gameCode));
+        reminderTimers.delete(gameCode);
+    }
+
+    const startTime = new Date(scheduledAt).getTime();
+    const now = Date.now();
+    const delay = Math.max(0, startTime - now);
+
+    log(gameCode, `Scheduled start in ${Math.round(delay / 1000 / 60)} mins.`);
+
+    // 2. Set the 5-minute reminder if applicable
+    const fiveMinInMs = 5 * 60 * 1000;
+    if (delay > fiveMinInMs) {
+        const reminderDelay = delay - fiveMinInMs;
+        const rTimer = setTimeout(async () => {
+            log(gameCode, `Sending 5-minute pre-game reminder.`);
+            sendGroupPushNotification(
+                groupId,
+                hostId,
+                '🕒 5 Minutes Left!',
+                `The Housie game "${title || 'Housie'}" is starting in 5 minutes. Join now to get your tickets!`,
+                { type: 'housie', gameCode, groupId }
+            ).catch(err => logError(gameCode, 'Failed to send reminder', err));
+            reminderTimers.delete(gameCode);
+        }, reminderDelay);
+        reminderTimers.set(gameCode, rTimer);
+    }
+
+    // 3. Set the actual start timer
+    const timer = setTimeout(async () => {
+        try {
+            log(gameCode, `Transitioning from Scheduled to Starting.`);
+            
+            const { data: updated, error } = await supabase
+                .from('housie_games')
+                .update({ 
+                    status: 'starting', 
+                    activation_at: new Date(Date.now() + 60000).toISOString(),
+                    last_activity_at: new Date().toISOString() 
+                })
+                .eq('game_code', gameCode)
+                .eq('status', 'scheduled')
+                .select()
+                .single();
+
+            if (error || !updated) {
+                logError(gameCode, `Transition failed (Already started?).`, error);
+                return;
+            }
+
+            io?.to(`group_${groupId}`).emit('game_opened', { 
+                gameCode: gameCode, 
+                title: updated.title || 'New Game' 
+            });
+
+            checkEngineStatus();
+            activeTimers.delete(gameCode);
+        } catch (err) {
+            logError(gameCode, `Error in start timer execution`, err);
+        }
+    }, delay);
+
+    activeTimers.set(gameCode, timer);
+};
+
+/**
+ * Simple Debounce Helper
  */
 function debounce(func: Function, wait: number) {
     let timeout: NodeJS.Timeout;
@@ -64,7 +144,7 @@ async function processGameCall(game: any) {
         const interval = game.settings?.autoCallSeconds || 7;
 
         if (called.length >= 90) {
-            log(gameCode, `Game reached 90 numbers. Ending game.`);
+            log(gameCode, `Game reached 90 numbers. Ending.`);
             await supabase
                 .from('housie_games')
                 .update({ status: 'ended', last_activity_at: new Date().toISOString() })
@@ -75,13 +155,13 @@ async function processGameCall(game: any) {
         }
 
         if (game.winners?.['__pending']?.length > 0) {
-            log(gameCode, `Pending claims detected. Postponing draw.`);
+            log(gameCode, `Pending claims. Postponing draw.`);
             return setNextCallTime(gameCode, 2);
         }
 
         const nextNumber = sequence[called.length];
         if (nextNumber === undefined || nextNumber === null) {
-            logError(gameCode, `Draw sequence error. Retrying.`);
+            logError(gameCode, `Draw sequence error (index ${called.length}). Retrying.`);
             return setNextCallTime(gameCode, 5);
         }
 
@@ -106,7 +186,7 @@ async function processGameCall(game: any) {
         });
 
         await setNextCallTime(gameCode, interval);
-        log(gameCode, `Called number ${nextNumber}`);
+        log(gameCode, `Called number ${nextNumber} (Total: ${updatedNumbers.length})`);
 
     } catch (err) {
         logError(gameCode, `Execution failure`, err);
@@ -123,31 +203,7 @@ async function tick() {
         const nowIso = now.toISOString();
         const lockWindow = new Date(now.getTime() + 1000).toISOString();
 
-        // 0. PROCESS SCHEDULED GAMES (Scheduled -> Starting)
-        const { data: gamesToStart, error: scheduleError } = await supabase
-            .from('housie_games')
-            .update({ 
-                status: 'starting', 
-                activation_at: new Date(now.getTime() + 60000).toISOString(), // Automatically start in 60s
-                last_activity_at: nowIso 
-            })
-            .eq('status', 'scheduled')
-            .lte('scheduled_at', nowIso)
-            .select();
-
-        if (scheduleError) throw scheduleError;
-
-        if (gamesToStart?.length) {
-            log('SYSTEM', `Tick: Moving ${gamesToStart.length} games from Scheduled to Starting.`);
-            for (const g of gamesToStart) {
-                io?.to(`group_${g.group_id}`).emit('game_opened', { 
-                    gameCode: g.game_code, 
-                    title: g.title || 'New Game' 
-                });
-            }
-        }
-
-        // 1. PROCESS AUTO-CALLS (Atomic Lock & Fetch)
+        // 1. PROCESS AUTO-CALLS (Active)
         const { data: gamesToCall, error: callError } = await supabase
             .from('housie_games')
             .update({ next_call_at: null })
@@ -156,13 +212,12 @@ async function tick() {
             .select();
 
         if (callError) throw callError;
-
         if (gamesToCall?.length) {
-            log('SYSTEM', `Tick: Handling ${gamesToCall.length} auto-calls.`);
+            log('SYSTEM', `Handling ${gamesToCall.length} auto-calls.`);
             await Promise.all(gamesToCall.map(game => processGameCall(game)));
         }
 
-        // 2. PROCESS ACTIVATIONS
+        // 2. PROCESS ACTIVATIONS (Starting -> Active)
         const { data: gamesToActivate, error: activateError } = await supabase
             .from('housie_games')
             .update({ status: 'active', last_activity_at: nowIso })
@@ -171,9 +226,8 @@ async function tick() {
             .select();
 
         if (activateError) throw activateError;
-
         if (gamesToActivate?.length) {
-            log('SYSTEM', `Tick: Activating ${gamesToActivate.length} games.`);
+            log('SYSTEM', `Activating ${gamesToActivate.length} games.`);
             for (const g of gamesToActivate) {
                 io?.to(g.game_code).emit('game_activated', { gameCode: g.game_code, status: 'active', game: g });
                 if (g.settings?.callingMode === 'auto' && !g.settings?.isPaused) {
@@ -185,9 +239,6 @@ async function tick() {
         // 3. STALL RECOVERY (Self-Healing)
         if (Date.now() - lastStallCheck > 30000) {
             lastStallCheck = Date.now();
-            
-            // Only recover games that are active, have no timer, 
-            // AND are not intentionally paused by claims or the host.
             const { data: stalledGames } = await supabase
                 .from('housie_games')
                 .select('game_code, settings, winners')
@@ -199,10 +250,8 @@ async function tick() {
                     const winners = g.winners || {};
                     const pending = winners['__pending'] || [];
                     const isPaused = g.settings?.isPaused || false;
-
-                    // If it's truly stalled (no claims, not paused), restart it.
                     if (pending.length === 0 && !isPaused) {
-                        log(g.game_code, "RECOVERY: Game was stalled with null timer. Restarting in 5s...");
+                        log(g.game_code, "RECOVERY: restarting stalled timer.");
                         await setNextCallTime(g.game_code, 5);
                     }
                 }
@@ -217,12 +266,12 @@ async function tick() {
 /**
  * Manages the Ticker lifecycle (Wake/Sleep)
  */
-async function checkEngineStatus() {
+export async function checkEngineStatus() {
     try {
         const { count, error } = await supabase
             .from('housie_games')
             .select('*', { count: 'exact', head: true })
-            .in('status', ['scheduled', 'starting', 'active']);
+            .in('status', ['starting', 'active']);
 
         if (error) throw error;
 
@@ -241,24 +290,41 @@ async function checkEngineStatus() {
     }
 }
 
-// Debounced check for production noise reduction
 const debouncedCheck = debounce(() => checkEngineStatus(), 2000);
 
 /**
  * Initialization
  */
-export const initHousieEngine = () => {
-    log('SYSTEM', 'Initializing Optimized Ticker Engine...');
+export const initHousieEngine = async () => {
+    log('SYSTEM', 'Initializing Production Housie Engine...');
 
+    // 1. Sync all scheduled games into memory timeouts
+    const { data: scheduled } = await supabase
+        .from('housie_games')
+        .select('game_code, scheduled_at, group_id, host_id, title')
+        .eq('status', 'scheduled');
+    
+    if (scheduled) {
+        scheduled.forEach(g => scheduleGameStart(g.game_code, g.scheduled_at, g.group_id, g.host_id, g.title));
+    }
+
+    // 2. Perform initial engine status check
     checkEngineStatus();
 
-    // Monitor for status changes only to save Egress/CPU
+    // 3. Monitor for status changes
     supabase
         .channel('housie_engine_monitor')
         .on('postgres_changes',
-            { event: 'UPDATE', table: 'housie_games', schema: 'public' },
+            { event: '*', table: 'housie_games', schema: 'public' },
             (payload) => {
-                const status = (payload.new as any)?.status;
+                const game = payload.new as any;
+                const status = game?.status;
+
+                // If a game becomes scheduled, track it
+                if (payload.eventType === 'INSERT' && status === 'scheduled') {
+                    scheduleGameStart(game.game_code, game.scheduled_at, game.group_id, game.host_id, game.title);
+                }
+
                 if (['starting', 'active', 'ended'].includes(status)) {
                     debouncedCheck();
                 }
