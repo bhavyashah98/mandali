@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { useSocket } from './useSocket';
 
@@ -17,6 +17,12 @@ export const useSocketRoom = (
     onSync?: () => void
 ) => {
     const socket = useSocket();
+    const onSyncRef = useRef(onSync);
+
+    // Keep ref updated with latest callback
+    useEffect(() => {
+        onSyncRef.current = onSync;
+    }, [onSync]);
 
     useEffect(() => {
         if (!socket || !identifier) return;
@@ -25,7 +31,7 @@ export const useSocketRoom = (
             console.log(`[SocketRoom] 📡 Joining ${event} for: ${identifier} (Socket ID: ${socket.id})`);
             socket.emit(event, identifier);
             // Trigger sync on reconnection to ensure data is fresh
-            onSync?.();
+            onSyncRef.current?.();
         };
 
         // Initial join if already connected
@@ -48,7 +54,7 @@ export const useSocketRoom = (
                 }
                 
                 // Always sync data on foreground return
-                onSync?.();
+                onSyncRef.current?.();
             }
         });
 
@@ -57,5 +63,5 @@ export const useSocketRoom = (
             socket.off('reconnect', joinRoom);
             subscription.remove();
         };
-    }, [socket, event, identifier, onSync]);
+    }, [socket, event, identifier]); // Removed onSync from dependencies
 };

@@ -62,6 +62,9 @@ const HousieLobbyScreen = () => {
         }
     };
 
+    const currentGames = useMemo(() => activeTab === 'active' ? activeGames : scheduledGames, [activeTab, activeGames, scheduledGames]);
+
+
     if (isGroupLoading || (isGamesLoading && !isGamesFetching)) {
         return (
             <SafeAreaView className="flex-1 bg-[#fdf9f3] items-center justify-center">
@@ -69,8 +72,6 @@ const HousieLobbyScreen = () => {
             </SafeAreaView>
         );
     }
-
-    const currentGames = useMemo(() => activeTab === 'active' ? activeGames : scheduledGames, [activeTab, activeGames, scheduledGames]);
 
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>

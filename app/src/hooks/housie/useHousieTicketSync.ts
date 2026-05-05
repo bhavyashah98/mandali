@@ -79,8 +79,25 @@ export const useHousieTicketSync = ({
             queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
         };
 
-        const onGamePaused = () => queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
-        const onGameResumed = () => queryClient.invalidateQueries({ queryKey: ['housieGame', gameCode] });
+        const onGamePaused = () => {
+            queryClient.setQueryData(['housieGame', gameCode], (old: any) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    settings: { ...old.settings, isPaused: true }
+                };
+            });
+        };
+
+        const onGameResumed = () => {
+            queryClient.setQueryData(['housieGame', gameCode], (old: any) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    settings: { ...old.settings, isPaused: false }
+                };
+            });
+        };
 
         socket.on('number_called', onNumberCalled);
         socket.on('claim_result', onClaimResultWrapped);

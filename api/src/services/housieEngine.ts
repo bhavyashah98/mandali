@@ -47,17 +47,19 @@ export const scheduleGameStart = (gameCode: string, scheduledAt: string, groupId
 
     log(gameCode, `Scheduled start in ${Math.round(delay / 1000 / 60)} mins.`);
 
-    // 2. Set the 5-minute reminder if applicable
+    // 2. Set the reminder timer
     const fiveMinInMs = 5 * 60 * 1000;
-    if (delay > fiveMinInMs) {
-        const reminderDelay = delay - fiveMinInMs;
+    const reminderDelay = Math.max(0, delay - fiveMinInMs);
+
+    // If game is starting in > 30 seconds, send a reminder
+    if (delay > 30000) {
         const rTimer = setTimeout(async () => {
-            log(gameCode, `Sending 5-minute pre-game reminder.`);
+            log(gameCode, `Sending pre-game reminder.`);
             sendGroupPushNotification(
                 groupId,
                 hostId,
-                '🕒 5 Minutes Left!',
-                `The Housie game "${title || 'Housie'}" is starting in 5 minutes. Join now to get your tickets!`,
+                delay > fiveMinInMs ? '🕒 5 Minutes Left!' : '🎟️ Game Starting Soon!',
+                `The Housie game "${title || 'Housie'}" is starting ${delay > fiveMinInMs ? 'in 5 minutes' : 'very soon'}. Join now!`,
                 { type: 'housie', gameCode, groupId }
             ).catch(err => logError(gameCode, 'Failed to send reminder', err));
             reminderTimers.delete(gameCode);
@@ -203,6 +205,7 @@ async function tick() {
         const nowIso = now.toISOString();
         const lockWindow = new Date(now.getTime() + 1000).toISOString();
 
+
         // 1. PROCESS AUTO-CALLS (Active)
         const { data: gamesToCall, error: callError } = await supabase
             .from('housie_games')
@@ -319,9 +322,13 @@ export const initHousieEngine = async () => {
             (payload) => {
                 const game = payload.new as any;
                 const status = game?.status;
+                const oldStatus = (payload.old as any)?.status;
 
-                // If a game becomes scheduled, track it
-                if (payload.eventType === 'INSERT' && status === 'scheduled') {
+                log('SYSTEM', `Monitor: [${payload.eventType}] game ${game?.game_code} (status: ${status}, oldStatus: ${oldStatus})`);
+
+                // If a game becomes scheduled (either created or updated to scheduled)
+                if ((payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') && status === 'scheduled') {
+                    log(game.game_code, `Monitor: Tracking scheduled game.`);
                     scheduleGameStart(game.game_code, game.scheduled_at, game.group_id, game.host_id, game.title);
                 }
 
