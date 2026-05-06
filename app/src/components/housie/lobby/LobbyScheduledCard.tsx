@@ -4,16 +4,18 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 
 interface LobbyScheduledCardProps {
     game: any;
+    memberCount: number;
     onPress: (game: any) => void;
 }
 
-export const LobbyScheduledCard = ({ game, onPress }: LobbyScheduledCardProps) => {
+export const LobbyScheduledCard = ({ game, memberCount, onPress }: LobbyScheduledCardProps) => {
+
     const scheduledDate = new Date(game.scheduled_at);
     const timeString = scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const dateString = scheduledDate.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' });
+    const dateString = scheduledDate.toLocaleDateString([], { weekday: 'short' });
 
     return (
-        <TouchableOpacity 
+        <TouchableOpacity
             onPress={() => onPress(game)}
             activeOpacity={0.9}
             style={{
@@ -31,7 +33,7 @@ export const LobbyScheduledCard = ({ game, onPress }: LobbyScheduledCardProps) =
                     <Text className="text-[#b30069] font-headline-bold text-lg">{scheduledDate.getDate()}</Text>
                     <Text className="text-stone-400 font-body-bold text-[10px] uppercase">{scheduledDate.toLocaleDateString([], { month: 'short' })}</Text>
                 </View>
-                
+
                 <View className="flex-1">
                     <Text className="text-stone-800 font-headline-bold text-lg mb-1" numberOfLines={1}>
                         {game.title || 'Upcoming Game'}
@@ -43,14 +45,22 @@ export const LobbyScheduledCard = ({ game, onPress }: LobbyScheduledCardProps) =
                     <Text className="text-stone-800 font-headline-bold text-md">{timeString}</Text>
                 </View>
             </View>
-            
+
             <View className="w-full h-[1px] bg-stone-50 my-4" />
-            
+
             <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center">
                     <Ionicons name="calendar-outline" size={16} color="#b30069" />
-                    <Text className="text-stone-400 font-body-bold text-xs ml-2 uppercase tracking-tighter">{dateString}</Text>
+                    <Text className="text-stone-400 font-body-bold text-xs ml-2 uppercase tracking-tighter mr-4">{dateString}</Text>
+
+                    <View className="flex-row items-center">
+                        <Ionicons name="people" size={16} color="#a09d96" />
+                        <Text className="text-stone-400 font-body-bold text-xs ml-1">
+                            {game.participantCount || 0}/{memberCount}
+                        </Text>
+                    </View>
                 </View>
+
                 <View className="flex-row items-center">
                     <Text className="text-[#b30069] font-body-bold text-sm mr-2">Pre-Join Lobby</Text>
                     <MaterialIcons name="chevron-right" size={20} color="#b30069" />

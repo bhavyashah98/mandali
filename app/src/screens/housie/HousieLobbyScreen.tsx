@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,6 +29,7 @@ const HousieLobbyScreen = () => {
         groupName,
         activeGames,
         scheduledGames,
+        memberCount,
         isGroupLoading,
         isGamesLoading,
         isGamesFetching,
@@ -38,7 +40,7 @@ const HousieLobbyScreen = () => {
     // Sync listeners
     useHousieLobbySync(groupId);
 
-    const handleGameAction = (game: any) => {
+    const handleGameAction = useCallback((game: any) => {
         const { game_code, status, myTicketCount, host_id } = game;
         const isHost = host_id === userId;
 
@@ -60,12 +62,14 @@ const HousieLobbyScreen = () => {
                 navigation.navigate('HousieSpectator', { gameCode: game_code, groupId });
             }
         }
-    };
+    }, [navigation, userId, groupId]);
 
+    const insets = useSafeAreaInsets();
     const currentGames = useMemo(() => activeTab === 'active' ? activeGames : scheduledGames, [activeTab, activeGames, scheduledGames]);
 
 
     if (isGroupLoading || (isGamesLoading && !isGamesFetching)) {
+
         return (
             <SafeAreaView className="flex-1 bg-[#fdf9f3] items-center justify-center">
                 <ActivityIndicator size="large" color="#b30069" />
@@ -79,7 +83,10 @@ const HousieLobbyScreen = () => {
             <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                 <View style={{ width: isTablet ? 64 : 44 }}>
                     <TouchableOpacity
-                        onPress={() => navigation.goBack()}
+                        onPress={() => navigation.reset({
+                            index: 0,
+                            routes: [{ name: 'HousieSelectGroup' }],
+                        })}
                         className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                     >
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />
@@ -104,7 +111,12 @@ const HousieLobbyScreen = () => {
 
             <ScrollView
                 className="flex-1"
-                contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 10, paddingBottom: 100 }}
+                contentContainerStyle={{
+                    paddingHorizontal: 24,
+                    paddingTop: 10,
+                    paddingBottom: Math.max(insets.bottom + 24, 40)
+                }}
+
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl refreshing={isGamesFetching} onRefresh={refetchGames} tintColor="#b30069" />
@@ -148,9 +160,10 @@ const HousieLobbyScreen = () => {
                     {currentGames.length > 0 ? (
                         currentGames.map(game => (
                             activeTab === 'active'
-                                ? <LobbyGameCard key={game.id} game={game} onPress={handleGameAction} />
-                                : <LobbyScheduledCard key={game.id} game={game} onPress={handleGameAction} />
+                                ? <LobbyGameCard key={game.id} game={game} memberCount={memberCount} onPress={handleGameAction} />
+                                : <LobbyScheduledCard key={game.id} game={game} memberCount={memberCount} onPress={handleGameAction} />
                         ))
+
                     ) : (
                         <LobbyEmptyState type={activeTab} />
                     )}

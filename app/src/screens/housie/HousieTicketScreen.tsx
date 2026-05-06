@@ -13,6 +13,7 @@ import { useHousieTicketData } from '../../hooks/housie/useHousieTicketData';
 import { useHousieTicketSync } from '../../hooks/housie/useHousieTicketSync';
 import { useHousieMarking } from '../../hooks/housie/useHousieMarking';
 import { useHousieClaiming } from '../../hooks/housie/useHousieClaiming';
+import { useHousieAnnouncer } from '../../hooks/housie/useHousieAnnouncer';
 
 // Components
 import TicketHeader from '../../components/housie/tickets/TicketHeader';
@@ -135,24 +136,10 @@ const HousieTicketScreen = () => {
         return participant?.name || 'Player';
     }, [game?.participants]);
 
-    // 8. Handle Voice Announcement & Ended state
-    const lastAnnouncedRef = useRef<number | null>(null);
+    // 8. Handle Voice Announcement
+    useHousieAnnouncer(game);
 
-    useEffect(() => {
-        if (!game || game.status !== 'active') return;
-        
-        const numbers = game.called_numbers || [];
-        const latest = numbers[numbers.length - 1];
 
-        if (latest !== undefined && latest !== null && latest !== lastAnnouncedRef.current) {
-            // Only announce if we've already initialized the ref (to avoid announcing on first load)
-            // or if the game just started and this is the very first number.
-            if (lastAnnouncedRef.current !== null) {
-                announceHousieNumber(latest);
-            }
-            lastAnnouncedRef.current = latest;
-        }
-    }, [game?.called_numbers, game?.status]);
 
     useEffect(() => {
         if (game?.status === 'ended') {
@@ -176,7 +163,7 @@ const HousieTicketScreen = () => {
 
     return (
         <SafeAreaView className="flex-1 bg-[#FDF9F3]" edges={['top']}>
-            <TicketHeader 
+            <TicketHeader
                 gameCode={gameCode}
                 hostName={game?.hostName || 'MANDALI'}
                 hostId={game?.host_id}
@@ -185,7 +172,7 @@ const HousieTicketScreen = () => {
                 onBack={() => navigation.goBack()}
             />
 
-            <CallingSection 
+            <CallingSection
                 latestNumber={latestNumber}
                 calledCount={calledNumbers.length}
                 remainingCount={90 - calledNumbers.length}
@@ -202,7 +189,7 @@ const HousieTicketScreen = () => {
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={{ paddingHorizontal: isTablet ? 40 : 20, paddingTop: 20, paddingBottom: 60 }}
                 renderItem={({ item }) => (
-                    <TicketItem 
+                    <TicketItem
                         ticket={item}
                         game={game}
                         markedNumbers={markedTickets[item.id] || []}
@@ -222,7 +209,7 @@ const HousieTicketScreen = () => {
                     />
                 )}
                 ListFooterComponent={() => (
-                    <RewardPoolTracker 
+                    <RewardPoolTracker
                         prizes={game?.prizes}
                         winners={game?.winners}
                         calledNumbersCount={calledNumbers.length}
@@ -233,7 +220,7 @@ const HousieTicketScreen = () => {
                 showsVerticalScrollIndicator={false}
             />
 
-            <ClaimPrizeModal 
+            <ClaimPrizeModal
                 visible={prizesModalVisible}
                 onClose={closePrizesModal}
                 game={game}
@@ -249,13 +236,13 @@ const HousieTicketScreen = () => {
             />
 
             {activeNotification && (
-                <HousieWinNotification 
-                    visible={!!activeNotification} 
-                    type={activeNotification.type} 
-                    playerName={activeNotification.playerName} 
-                    avatarUrl={activeNotification.avatarUrl} 
-                    prizeName={activeNotification.prizeName} 
-                    onComplete={() => setActiveNotification(null)} 
+                <HousieWinNotification
+                    visible={!!activeNotification}
+                    type={activeNotification.type}
+                    playerName={activeNotification.playerName}
+                    avatarUrl={activeNotification.avatarUrl}
+                    prizeName={activeNotification.prizeName}
+                    onComplete={() => setActiveNotification(null)}
                 />
             )}
         </SafeAreaView>

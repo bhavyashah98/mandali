@@ -14,14 +14,19 @@ interface HousieState {
     setGameEnded: (ended: boolean) => void;
     addClaimingPlayer: (userId: string) => void;
     removeClaimingPlayer: (userId: string) => void;
+    lastAnnouncedNumber: number | null;
+    setLastAnnouncedNumber: (num: number | null) => void;
     reset: () => void;
 }
+
 
 export const useHousieStore = create<HousieState>((set) => ({
     activeGameCode: null,
     calledNumbers: [],
     isGameEnded: false,
     claimingPlayers: new Set(),
+    lastAnnouncedNumber: null,
+
 
     setActiveGame: (gameCode) => set({ activeGameCode: gameCode }),
     setCalledNumbers: (numbers) => set({ calledNumbers: numbers }),
@@ -29,11 +34,9 @@ export const useHousieStore = create<HousieState>((set) => ({
         // Prevent duplicates
         if (state.calledNumbers.includes(num)) return state;
         
-        // Voice announcement
-        announceHousieNumber(num);
-        
         return { calledNumbers: [...state.calledNumbers, num] };
     }),
+
     setGameEnded: (ended) => set({ isGameEnded: ended }),
     addClaimingPlayer: (userId) => set((state) => {
         const next = new Set(state.claimingPlayers);
@@ -45,10 +48,13 @@ export const useHousieStore = create<HousieState>((set) => ({
         next.delete(userId);
         return { claimingPlayers: next };
     }),
+    setLastAnnouncedNumber: (num) => set({ lastAnnouncedNumber: num }),
     reset: () => set({ 
         activeGameCode: null, 
         calledNumbers: [], 
         isGameEnded: false, 
-        claimingPlayers: new Set() 
+        claimingPlayers: new Set(),
+        lastAnnouncedNumber: null
     }),
+
 }));

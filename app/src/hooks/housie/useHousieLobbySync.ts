@@ -33,8 +33,10 @@ export const useHousieLobbySync = (groupId: string | undefined) => {
             'game_scheduled',
             'game_starting',
             'game_activated',
-            'game_ended'
+            'game_ended',
+            'player_joined_game'
         ];
+
 
         events.forEach(event => socket.on(event, invalidateGamesList));
 

@@ -39,8 +39,10 @@ export const useHousieGroupLobby = (groupId: string | undefined) => {
 
     return {
         groupName: groupData?.group?.name,
+        memberCount: groupData?.members?.length || 0,
         activeGames,
         scheduledGames,
+
         isGroupLoading,
         isGamesLoading,
         isGamesFetching,

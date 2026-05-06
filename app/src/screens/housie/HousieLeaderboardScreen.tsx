@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView, ActivityIndicator, useWindowDimensions, Modal } from 'react-native';
+
 import { SafeAreaView as SafeAreaViewContext, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -7,7 +8,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { useAuthStore } from '../../stores/authStore';
 import MandaliCoin from '../../components/MandaliCoin';
+import { PlayerPrizesModal } from '../../components/housie/PlayerPrizesModal';
 import { API_URL, getAuthHeaders, getOptimizedImageUrl } from '../../lib/api';
+
 import axios from 'axios';
 
 type Period = 'all_time' | 'this_month' | 'this_year';
@@ -34,6 +37,8 @@ const HousieLeaderboardScreen = () => {
     const { groupId, groupName } = (route.params as any) || {};
     const { user } = useAuthStore();
     const [activePeriod, setActivePeriod] = useState<Period>('all_time');
+    const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
+
 
     const { data, isLoading, isError } = useQuery({
         queryKey: ['groupLeaderboard', groupId, activePeriod],
@@ -52,49 +57,44 @@ const HousieLeaderboardScreen = () => {
     const leaderboard: any[] = data?.leaderboard || [];
 
     return (
-        <SafeAreaViewContext className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
-            {/* Header */}
+        <SafeAreaViewContext className="flex-1 bg-[#fdf9f3]" edges={['top']}>
+            {/* Unified Header */}
             <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
-                <TouchableOpacity
-                    onPress={() => navigation.goBack()}
-                    style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
-                    className={`items-center justify-center rounded-full bg-white border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
-                >
-                    <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 18} color="#594048" style={{ marginLeft: isTablet ? 12 : 4 }} />
-                </TouchableOpacity>
+                <View style={{ width: isTablet ? 64 : 44 }}>
+                    <TouchableOpacity
+                        onPress={() => navigation.goBack()}
+                        style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
+                        className={`items-center justify-center rounded-full bg-white border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                    >
+                        <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 18} color="#594048" style={{ marginLeft: isTablet ? 12 : 4 }} />
+                    </TouchableOpacity>
+                </View>
+
+                <View className="flex-1 items-center">
+                    <Text
+                        className="font-headline-bold text-[#1c1c18] text-center"
+                        style={{ fontSize: isTablet ? 32 : 18 }}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                    >
+                        Leaderboard
+                    </Text>
+                    <Text 
+                        className="font-body-bold text-[#b30069] text-center uppercase tracking-widest"
+                        style={{ fontSize: isTablet ? 16 : 9, marginTop: 2 }}
+                    >
+                        {groupName || 'This Mandali'}
+                    </Text>
+                </View>
+
+                <View style={{ width: isTablet ? 64 : 44 }} />
             </View>
 
-            {/* Centered Header Section */}
-            <View 
-                className="items-center w-full"
-                style={{ 
-                    marginTop: isTablet ? 10 : 0,
-                    marginBottom: isTablet ? 24 : 12 
-                }}
-            >
-                <Text
-                    className="font-headline-bold text-[#1c1c18] text-center tracking-tight"
-                    style={{ fontSize: isTablet ? 72 : 38 }}
-                    adjustsFontSizeToFit
-                    numberOfLines={1}
-                >
-                    Leaderboard
-                </Text>
-                <Text 
-                    className="font-body-bold text-[#b30069] text-center tracking-[4px] uppercase"
-                    style={{ 
-                        fontSize: isTablet ? 20 : 12,
-                        marginTop: isTablet ? 8 : 4
-                    }}
-                >
-                    {groupName || 'This Mandali'}
-                </Text>
-            </View>
 
-            {/* Period Tabs */}
+            {/* Period Tabs (Static at top) */}
             <View 
                 style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
-                className={`flex-row bg-white border border-stone-100 ${isTablet ? 'mx-16 mb-12 p-3 rounded-[32px]' : 'mx-6 mb-6 p-1.5 rounded-[20px]'}`}
+                className={`flex-row bg-white border border-stone-100 ${isTablet ? 'mx-16 mb-6 p-3 rounded-[32px]' : 'mx-6 mb-4 p-1.5 rounded-[20px]'}`}
             >
                 {TABS.map(tab => {
                     const isActive = activePeriod === tab.key;
@@ -120,6 +120,7 @@ const HousieLeaderboardScreen = () => {
                     );
                 })}
             </View>
+
 
             {/* Content */}
             <ScrollView
@@ -161,14 +162,17 @@ const HousieLeaderboardScreen = () => {
                             const topStyle = isTop3 ? TOP_BG[index] : null;
 
                             return (
-                                <View
+                                <TouchableOpacity
                                     key={player.userId}
+                                    activeOpacity={0.8}
+                                    onPress={() => setSelectedPlayer(player)}
                                     className={`flex-row items-center rounded-[32px] border ${isTablet ? 'p-8' : 'p-4'} ${player.userId === user?.id ? 'border-[#b30069] bg-[#fdf0f7]' : ''}`}
                                     style={isTop3
                                         ? { backgroundColor: player.userId === user?.id ? '#fdf0f7' : topStyle!.bg, borderColor: player.userId === user?.id ? '#b30069' : topStyle!.border, elevation: player.userId === user?.id ? 4 : 2 }
                                         : { backgroundColor: player.userId === user?.id ? '#fdf0f7' : '#ffffff', borderColor: player.userId === user?.id ? '#b30069' : '#f1ede8', elevation: player.userId === user?.id ? 4 : 0 }
                                     }
                                 >
+
                                     {/* Rank */}
                                     <View className={`${isTablet ? 'w-16' : 'w-10'} items-center mr-4`}>
                                         {isTop3 ? (
@@ -251,24 +255,34 @@ const HousieLeaderboardScreen = () => {
                                             style={{ fontSize: isTablet ? 18 : 9 }}
                                         >total collected</Text>
                                     </View>
-                                </View>
+                                </TouchableOpacity>
                             );
                         })}
                     </View>
                 )}
             </ScrollView>
 
+            <PlayerPrizesModal
+                visible={!!selectedPlayer}
+                player={selectedPlayer}
+                onClose={() => setSelectedPlayer(null)}
+                isTablet={isTablet}
+                bottomInset={insets.bottom}
+            />
+
+
+
             {/* Bottom Done Button */}
             <View 
                 className={`px-8 pt-4 ${isTablet ? 'px-20' : ''}`}
                 style={{ 
-                    paddingBottom: Math.max(insets.bottom, isTablet ? 40 : 20),
+                    paddingBottom: Math.max(insets.bottom + 10, isTablet ? 40 : 24),
                     backgroundColor: '#fdf9f3'
                 }}
             >
                 <TouchableOpacity
                     onPress={() => navigation.goBack()}
-                    style={{ height: isTablet ? 110 : 64, elevation: 8, shadowColor: '#b30069', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 }}
+                    style={{ height: isTablet ? 100 : 60, elevation: 8, shadowColor: '#b30069', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 }}
                     className="bg-[#b30069] rounded-[32px] items-center justify-center"
                 >
                     <Text 
@@ -278,6 +292,7 @@ const HousieLeaderboardScreen = () => {
                 </TouchableOpacity>
             </View>
         </SafeAreaViewContext>
+
     );
 };
 

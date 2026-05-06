@@ -243,19 +243,34 @@ router.get('/group/:groupId/list', authMiddleware, async (req: AuthRequest, res)
             .eq('user_id', userId)
             .in('game_id', gameIds);
 
-        // 3. Map ticket counts to games
+        // 3. Fetch participant counts for these games
+        const { data: participantData } = await supabase
+            .from('housie_tickets')
+            .select('game_id, user_id')
+            .in('game_id', gameIds);
+
+        const participantCounts: Record<string, Set<string>> = {};
+        (participantData || []).forEach(t => {
+            if (!participantCounts[t.game_id]) participantCounts[t.game_id] = new Set();
+            participantCounts[t.game_id].add(t.user_id);
+        });
+
+        // 4. Map my ticket counts to games
         const ticketCounts: Record<string, number> = {};
         (myTickets || []).forEach(t => {
             ticketCounts[t.game_id] = (ticketCounts[t.game_id] || 0) + 1;
         });
 
         const gameList = (games || []).map(g => ({
+
             ...g,
             hostName: g.host?.name || 'Host',
-            myTicketCount: ticketCounts[g.id] || 0
+            myTicketCount: ticketCounts[g.id] || 0,
+            participantCount: participantCounts[g.id]?.size || 0
         }));
 
         res.json({ games: gameList });
+
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -782,15 +797,23 @@ router.post('/:gameCode/join', authMiddleware, async (req: AuthRequest, res) => 
 
         if (ticketError) throw ticketError;
 
-        // 4. Broadcast live update to waiting room
+        // 4. Broadcast live update to waiting room and group lobby
         const ioInstance = req.app.get('io');
         if (ioInstance) {
+            // Broadcast to the specific game room (for waiting room updates)
             ioInstance.to(gameCode).emit('tickets_bought', {
                 gameCode,
                 userId,
                 ticketCount: tickets.length
             });
+
+            // Broadcast to the group room (for lobby participant count updates)
+            ioInstance.to(`group_${game.group_id}`).emit('player_joined_game', {
+                gameCode,
+                groupId: game.group_id
+            });
         }
+
 
         res.json({ success: true, tickets });
     } catch (error: any) {
@@ -1005,16 +1028,27 @@ router.get('/group/:groupId/leaderboard', authMiddleware, async (req: AuthReques
                     totalWon: 0,
                     winCount: 0,
                     gamesPlayed: new Set(),
+                    prizes: [],
                 };
             }
             summary[row.user_id].totalWon += row.prize_amount;
             summary[row.user_id].winCount += 1;
             summary[row.user_id].gamesPlayed.add(row.game_id);
+            summary[row.user_id].prizes.push({
+                name: row.prize_name,
+                amount: row.prize_amount,
+                wonAt: row.won_at
+            });
         });
 
         const leaderboard = Object.values(summary)
-            .map((p: any) => ({ ...p, gamesPlayed: p.gamesPlayed.size }))
+            .map((p: any) => ({ 
+                ...p, 
+                gamesPlayed: p.gamesPlayed.size,
+                prizes: p.prizes.sort((a: any, b: any) => new Date(b.wonAt).getTime() - new Date(a.wonAt).getTime())
+            }))
             .sort((a, b) => b.totalWon - a.totalWon);
+
 
         res.json({ leaderboard });
     } catch (error: any) {

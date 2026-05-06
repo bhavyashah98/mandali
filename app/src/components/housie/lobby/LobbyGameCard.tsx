@@ -5,10 +5,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 interface LobbyGameCardProps {
     game: any;
+    memberCount: number;
     onPress: (game: any) => void;
 }
 
-export const LobbyGameCard = ({ game, onPress }: LobbyGameCardProps) => {
+export const LobbyGameCard = ({ game, memberCount, onPress }: LobbyGameCardProps) => {
+
     const isLive = game.status === 'active';
     const isStarting = game.status === 'starting';
     const hasTicket = game.myTicketCount > 0;
@@ -73,8 +75,11 @@ export const LobbyGameCard = ({ game, onPress }: LobbyGameCardProps) => {
                 <View className="flex-row items-center">
                     <View className="flex-row items-center mr-4">
                         <Ionicons name="people" size={16} color="#a09d96" />
-                        <Text className="text-stone-400 font-body-bold text-xs ml-1">Room Full</Text>
+                        <Text className="text-stone-400 font-body-bold text-xs ml-1">
+                            {game.participantCount || 0}/{memberCount}
+                        </Text>
                     </View>
+
                     {hasTicket && (
                         <Text className="text-green-600 font-body-bold text-xs">
                             {game.myTicketCount} ticket{game.myTicketCount > 1 ? 's' : ''}

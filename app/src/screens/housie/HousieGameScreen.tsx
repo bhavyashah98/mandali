@@ -10,6 +10,8 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchGroupDetail } from '../../lib/api';
 import { useHousieGameEngine } from '../../hooks/housie/useHousieGameEngine';
 import { useHousieClaimManager } from '../../hooks/housie/useHousieClaimManager';
+import { useHousieAnnouncer } from '../../hooks/housie/useHousieAnnouncer';
+
 
 // Components
 import MandaliCoin from '../../components/MandaliCoin';
@@ -46,6 +48,8 @@ const HousieGameScreen = () => {
         activeNotification,
         clearNotification
     } = useHousieClaimManager(gameCode, game);
+
+    useHousieAnnouncer(game);
 
     const [verifyingTicket, setVerifyingTicket] = useState<any>(null);
 

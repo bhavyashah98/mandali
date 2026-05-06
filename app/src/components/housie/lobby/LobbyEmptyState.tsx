@@ -8,7 +8,8 @@ interface LobbyEmptyStateProps {
 
 export const LobbyEmptyState = ({ type }: LobbyEmptyStateProps) => {
     return (
-        <View className="items-center py-20 bg-white rounded-[40px] border border-dashed border-stone-200">
+        <View className="items-center justify-center py-10 bg-white rounded-[40px] border border-dashed border-stone-200 min-h-[320px]">
+
             <View className="w-24 h-24 bg-stone-50 rounded-full items-center justify-center mb-6">
                 <Ionicons name={type === 'active' ? "game-controller" : "calendar-clear"} size={40} color="#d4d4d8" />
             </View>
