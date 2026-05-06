@@ -83,7 +83,7 @@ export const CallingModeSection: React.FC<CallingModeSectionProps> = React.memo(
                         style={{ elevation: 2 }}
                     >
                         <MaterialCommunityIcons name="crown" size={isTablet ? 14 : 10} color="#fbbf24" />
-                        <Text className="text-[8px] font-headline-bold text-[#fbbf24] uppercase ml-1 tracking-wider">Premium</Text>
+                                    <Text className="text-[8px] font-headline-bold text-[#fbbf24] uppercase ml-1 tracking-wider">Pro</Text>
                     </View>
 
                     <MaterialCommunityIcons
@@ -123,7 +123,7 @@ export const CallingModeSection: React.FC<CallingModeSectionProps> = React.memo(
                             {autoCallSeconds !== 7 && (
                                 <View className="bg-[#31302d] rounded-full px-2 py-1 mr-2 flex-row items-center shadow-sm">
                                     <MaterialCommunityIcons name="crown" size={10} color="#fbbf24" />
-                                    <Text className="text-[8px] font-headline-bold text-[#fbbf24] uppercase ml-1">Premium</Text>
+                                    <Text className="text-[8px] font-headline-bold text-[#fbbf24] uppercase ml-1">Pro</Text>
                                 </View>
                             )}
                             <View

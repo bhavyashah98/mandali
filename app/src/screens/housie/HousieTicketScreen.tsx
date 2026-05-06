@@ -164,6 +164,9 @@ const HousieTicketScreen = () => {
     return (
         <SafeAreaView className="flex-1 bg-[#FDF9F3]" edges={['top']}>
             <TicketHeader
+                gameTitle={game?.title}
+
+                gameSettings={game?.settings}
                 gameCode={gameCode}
                 hostName={game?.hostName || 'MANDALI'}
                 hostId={game?.host_id}
@@ -171,6 +174,7 @@ const HousieTicketScreen = () => {
                 isTablet={isTablet}
                 onBack={() => navigation.goBack()}
             />
+
 
             <CallingSection
                 latestNumber={latestNumber}

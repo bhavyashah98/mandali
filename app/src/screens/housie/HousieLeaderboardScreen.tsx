@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, ActivityIndicator, useWindowDimensions, Modal } from 'react-native';
-
 import { SafeAreaView as SafeAreaViewContext, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -10,14 +9,13 @@ import { useAuthStore } from '../../stores/authStore';
 import MandaliCoin from '../../components/MandaliCoin';
 import { PlayerPrizesModal } from '../../components/housie/PlayerPrizesModal';
 import { API_URL, getAuthHeaders, getOptimizedImageUrl } from '../../lib/api';
-
 import axios from 'axios';
 
 type Period = 'all_time' | 'this_month' | 'this_year';
 
 const TABS: { key: Period; label: string; icon: string }[] = [
-    { key: 'all_time',   label: 'All Time',   icon: 'emoji-events' },
-    { key: 'this_year',  label: 'This Year',  icon: 'calendar-today' },
+    { key: 'all_time', label: 'All Time', icon: 'emoji-events' },
+    { key: 'this_year', label: 'This Year', icon: 'calendar-today' },
     { key: 'this_month', label: 'This Month', icon: 'date-range' },
 ];
 
@@ -39,7 +37,6 @@ const HousieLeaderboardScreen = () => {
     const [activePeriod, setActivePeriod] = useState<Period>('all_time');
     const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
 
-
     const { data, isLoading, isError } = useQuery({
         queryKey: ['groupLeaderboard', groupId, activePeriod],
         queryFn: async () => {
@@ -58,7 +55,6 @@ const HousieLeaderboardScreen = () => {
 
     return (
         <SafeAreaViewContext className="flex-1 bg-[#fdf9f3]" edges={['top']}>
-            {/* Unified Header */}
             <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                 <View style={{ width: isTablet ? 64 : 44 }}>
                     <TouchableOpacity
@@ -79,7 +75,7 @@ const HousieLeaderboardScreen = () => {
                     >
                         Leaderboard
                     </Text>
-                    <Text 
+                    <Text
                         className="font-body-bold text-[#b30069] text-center uppercase tracking-widest"
                         style={{ fontSize: isTablet ? 16 : 9, marginTop: 2 }}
                     >
@@ -89,10 +85,8 @@ const HousieLeaderboardScreen = () => {
 
                 <View style={{ width: isTablet ? 64 : 44 }} />
             </View>
-
-
             {/* Period Tabs (Static at top) */}
-            <View 
+            <View
                 style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
                 className={`flex-row bg-white border border-stone-100 ${isTablet ? 'mx-16 mb-6 p-3 rounded-[32px]' : 'mx-6 mb-4 p-1.5 rounded-[20px]'}`}
             >
@@ -121,7 +115,6 @@ const HousieLeaderboardScreen = () => {
                 })}
             </View>
 
-
             {/* Content */}
             <ScrollView
                 className="flex-1 px-6"
@@ -138,11 +131,11 @@ const HousieLeaderboardScreen = () => {
                     </View>
                 ) : leaderboard.length === 0 ? (
                     /* Empty State */
-                    <View 
+                    <View
                         style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
                         className="bg-white rounded-[32px] p-10 items-center border border-stone-100 mt-4"
                     >
-                        <View 
+                        <View
                             style={{ backgroundColor: 'rgba(179, 0, 105, 0.05)' }}
                             className="w-20 h-20 rounded-full items-center justify-center mb-5"
                         >
@@ -172,7 +165,6 @@ const HousieLeaderboardScreen = () => {
                                         : { backgroundColor: player.userId === user?.id ? '#fdf0f7' : '#ffffff', borderColor: player.userId === user?.id ? '#b30069' : '#f1ede8', elevation: player.userId === user?.id ? 4 : 0 }
                                     }
                                 >
-
                                     {/* Rank */}
                                     <View className={`${isTablet ? 'w-16' : 'w-10'} items-center mr-4`}>
                                         {isTop3 ? (
@@ -182,7 +174,7 @@ const HousieLeaderboardScreen = () => {
                                                 color={MEDAL_COLORS[index]}
                                             />
                                         ) : (
-                                            <Text 
+                                            <Text
                                                 className="text-stone-400 font-headline-bold text-center"
                                                 style={{ fontSize: isTablet ? 32 : 16 }}
                                             >
@@ -201,11 +193,11 @@ const HousieLeaderboardScreen = () => {
                                                 resizeMode="cover"
                                             />
                                         ) : (
-                                            <View 
+                                            <View
                                                 style={{ backgroundColor: 'rgba(179, 0, 105, 0.1)' }}
                                                 className="w-full h-full items-center justify-center"
                                             >
-                                                <Text 
+                                                <Text
                                                     className="text-primary font-headline-bold"
                                                     style={{ fontSize: isTablet ? 36 : 16 }}
                                                 >
@@ -217,8 +209,8 @@ const HousieLeaderboardScreen = () => {
 
                                     {/* Info */}
                                     <View className="flex-1 min-w-0">
-                                        <Text 
-                                            className="text-[#594048] font-headline-bold" 
+                                        <Text
+                                            className="text-[#594048] font-headline-bold"
                                             style={{ fontSize: isTablet ? 32 : 15 }}
                                             numberOfLines={1}
                                             adjustsFontSizeToFit
@@ -226,7 +218,7 @@ const HousieLeaderboardScreen = () => {
                                         >
                                             {player.name}
                                         </Text>
-                                        <Text 
+                                        <Text
                                             className="text-stone-400 font-body-medium mt-1"
                                             style={{ fontSize: isTablet ? 20 : 11 }}
                                             numberOfLines={1}
@@ -240,9 +232,9 @@ const HousieLeaderboardScreen = () => {
                                         <View className="flex-row items-center">
                                             <Text
                                                 className="font-headline-bold"
-                                                style={{ 
+                                                style={{
                                                     fontSize: isTablet ? 42 : 16,
-                                                    color: isTop3 ? '#b30069' : '#594048' 
+                                                    color: isTop3 ? '#b30069' : '#594048'
                                                 }}
                                                 numberOfLines={1}
                                             >
@@ -250,7 +242,7 @@ const HousieLeaderboardScreen = () => {
                                             </Text>
                                             <MandaliCoin size={isTablet ? 32 : 14} style={{ marginLeft: 6 }} />
                                         </View>
-                                        <Text 
+                                        <Text
                                             className="text-stone-300 font-body-medium"
                                             style={{ fontSize: isTablet ? 18 : 9 }}
                                         >total collected</Text>
@@ -270,13 +262,11 @@ const HousieLeaderboardScreen = () => {
                 bottomInset={insets.bottom}
             />
 
-
-
             {/* Bottom Done Button */}
-            <View 
+            <View
                 className={`px-8 pt-4 ${isTablet ? 'px-20' : ''}`}
-                style={{ 
-                    paddingBottom: Math.max(insets.bottom + 10, isTablet ? 40 : 24),
+                style={{
+                    paddingBottom: Math.max(insets.bottom, isTablet ? 40 : 24),
                     backgroundColor: '#fdf9f3'
                 }}
             >
@@ -285,14 +275,13 @@ const HousieLeaderboardScreen = () => {
                     style={{ height: isTablet ? 100 : 60, elevation: 8, shadowColor: '#b30069', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 }}
                     className="bg-[#b30069] rounded-[32px] items-center justify-center"
                 >
-                    <Text 
+                    <Text
                         className="text-white font-headline-bold"
                         style={{ fontSize: isTablet ? 32 : 18 }}
                     >Done</Text>
                 </TouchableOpacity>
             </View>
         </SafeAreaViewContext>
-
     );
 };
 

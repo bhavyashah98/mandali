@@ -3,12 +3,14 @@ import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface GameModeCardProps {
+    title?: string;
     gameCode: string;
     settings: any;
     isTablet: boolean;
 }
 
-const GameModeCard: React.FC<GameModeCardProps> = ({ gameCode, settings, isTablet }) => {
+const GameModeCard: React.FC<GameModeCardProps> = ({ title, gameCode, settings, isTablet }) => {
+
     const modeInfo = useMemo(() => {
         const style = settings?.gameStyle || 'classic';
         const modeMap: Record<string, { title: string; description: string }> = {
@@ -43,35 +45,60 @@ const GameModeCard: React.FC<GameModeCardProps> = ({ gameCode, settings, isTable
                 shadowOpacity: 0.2, 
                 shadowRadius: 20 
             }}
-            className={`rounded-3xl items-center mb-6 ${isTablet ? 'p-12' : 'p-8'}`}
+            className={`rounded-3xl items-center mb-6 ${isTablet ? 'p-12' : 'p-6'}`}
         >
-            <View className="items-center mb-6">
-                <Text
-                    className="text-white font-headline-bold text-center"
-                    style={{ fontSize: isTablet ? 48 : 32 }}
+            {/* 1. Game Title - Small font at top */}
+            <Text 
+                className="text-white/50 font-body-bold mb-2 uppercase tracking-[2px]"
+                style={{ fontSize: isTablet ? 16 : 9 }}
+                numberOfLines={1}
+            >
+                {title || settings?.title || 'Housie Gathering'}
+
+            </Text>
+
+            {/* 2. Mode Title */}
+            <Text
+                className="text-white font-headline-bold"
+                style={{ fontSize: isTablet ? 40 : 28 }}
+                numberOfLines={1}
+            >
+                {callingInfo.mode}
+            </Text>
+
+            {/* 3. Mode Detail */}
+            <Text
+                className="text-white/80 font-body-bold uppercase tracking-wider mb-5"
+                style={{ fontSize: isTablet ? 18 : 12 }}
+                numberOfLines={1}
+            >
+                {callingInfo.detail}
+            </Text>
+
+            {/* Divider */}
+            <View className="w-12 h-[1px] bg-white/20 mb-5" />
+
+            {/* 4. Game Twist Title */}
+            <View className="flex-row items-center mb-1">
+                <Ionicons name="sparkles" size={isTablet ? 20 : 14} color="white" />
+                <Text 
+                    className={`text-white font-headline-bold ml-2 ${isTablet ? 'text-2xl' : 'text-base'}`}
+                    numberOfLines={1}
                 >
-                    {callingInfo.mode}
-                </Text>
-                <Text
-                    className="text-white/80 font-body-bold text-center mt-1 uppercase tracking-wider"
-                    style={{ fontSize: isTablet ? 20 : 13 }}
-                >
-                    {callingInfo.detail}
+                    {modeInfo.title}
                 </Text>
             </View>
 
-            <View className="w-full pt-6 border-t border-white/20 items-center">
-                <View className="flex-row items-center mb-2">
-                    <Ionicons name="sparkles" size={isTablet ? 24 : 16} color="white" />
-                    <Text className={`text-white font-headline-bold ml-2 ${isTablet ? 'text-2xl' : 'text-base'}`}>
-                        {modeInfo.title}
-                    </Text>
-                </View>
-                <Text className={`text-white/70 font-body-medium text-center leading-relaxed ${isTablet ? 'text-lg' : 'text-xs'}`}>
-                    {modeInfo.description}
-                </Text>
-            </View>
+            {/* 5. Game Twist Description */}
+            <Text 
+                className={`text-white/70 font-body-medium ${isTablet ? 'text-lg' : 'text-[11px]'}`}
+                numberOfLines={1}
+            >
+                {modeInfo.description}
+            </Text>
         </View>
+
+
     );
 };
 

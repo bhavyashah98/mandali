@@ -9,7 +9,9 @@ import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { uploadImage, createMemory, fetchGroupDetail } from '../../lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { MandaliDatePicker } from '../../components/MandaliDatePicker';
+
+
 
 const CreateMemoryScreen = () => {
     const navigation = useNavigation<any>();
@@ -208,60 +210,21 @@ const CreateMemoryScreen = () => {
                             <MaterialIcons name="chevron-right" size={isTablet ? 32 : 20} color="#a09d96" />
                         </TouchableOpacity>
 
-                        {Platform.OS === 'ios' ? (
-                            <Modal
-                                visible={showDatePicker}
-                                transparent={true}
-                                animationType="fade"
-                                onRequestClose={() => setShowDatePicker(false)}
-                            >
-                                <View 
-                                    style={{ flex: 1, backgroundColor: 'rgba(28, 28, 24, 0.4)' }} 
-                                    className="justify-end"
-                                >
-                                    <View className="bg-white rounded-t-[40px] p-8 pb-12">
-                                        <View className="flex-row justify-between items-center mb-6">
-                                            <Text className="text-[#1c1c18] font-headline-bold text-2xl">Select Date</Text>
-                                            <TouchableOpacity 
-                                                onPress={() => setShowDatePicker(false)}
-                                                className="bg-stone-100 p-2 rounded-full"
-                                            >
-                                                <MaterialIcons name="close" size={24} color="#594048" />
-                                            </TouchableOpacity>
-                                        </View>
-                                        
-                                        <DateTimePicker
-                                            value={memoryDate}
-                                            mode="date"
-                                            display="spinner"
-                                            maximumDate={new Date()}
-                                            onChange={(event, selectedDate) => {
-                                                if (selectedDate) setMemoryDate(selectedDate);
-                                            }}
-                                            textColor="#1c1c18"
-                                        />
+                        <MandaliDatePicker
+                            visible={showDatePicker}
+                            mode="date"
+                            value={memoryDate}
+                            maximumDate={new Date()}
+                            onConfirm={(selectedDate) => {
+                                setMemoryDate(selectedDate);
+                                setShowDatePicker(false);
+                            }}
+                            onCancel={() => setShowDatePicker(false)}
+                        />
 
-                                        <TouchableOpacity
-                                            onPress={() => setShowDatePicker(false)}
-                                            className="bg-[#b30069] rounded-full h-16 items-center justify-center mt-6 shadow-lg shadow-[#b30069]/20"
-                                        >
-                                            <Text className="text-white font-headline-bold text-lg">Confirm Date</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            </Modal>
-                        ) : showDatePicker && (
-                            <DateTimePicker
-                                value={memoryDate}
-                                mode="date"
-                                display="calendar"
-                                maximumDate={new Date()}
-                                onChange={(event, selectedDate) => {
-                                    setShowDatePicker(false);
-                                    if (selectedDate) setMemoryDate(selectedDate);
-                                }}
-                            />
-                        )}
+
+
+
                     </View>
 
                     <View className="mt-12 flex-row items-center px-4">

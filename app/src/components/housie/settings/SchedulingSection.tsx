@@ -20,9 +20,8 @@ export const SchedulingSection = ({
 
     const handleScheduleClick = () => {
         setIsScheduled(true);
-        // Automatically trigger the date picker when "Schedule" is selected
-        setTimeout(() => setShowDatePicker(true), 100);
     };
+
 
     return (
         <View

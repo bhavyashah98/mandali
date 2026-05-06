@@ -43,36 +43,34 @@ const WaitingRoomFooter: React.FC<WaitingRoomFooterProps> = ({
             <View
                 className="bg-[#fdf9f3] border-t border-stone-100"
                 style={{
-                    paddingHorizontal: isTablet ? 64 : 24,
-                    paddingTop: isTablet ? 32 : 16,
-                    paddingBottom: Math.max(insets.bottom, isTablet ? 48 : 24)
+                    paddingHorizontal: isTablet ? 64 : 20,
+                    paddingTop: isTablet ? 24 : 12,
+                    paddingBottom: Math.max(insets.bottom, isTablet ? 40 : 16)
                 }}
             >
-                {renderUserTicketStatus()}
-                <View className={`rounded-[32px] p-6 border border-[#b30069]/20 bg-[#b30069]/5 items-center justify-center`}>
-                    <Ionicons name="calendar" size={isTablet ? 32 : 24} color="#b30069" />
-                    <Text className={`text-[#b30069] font-headline-bold text-center mt-2 ${isTablet ? 'text-2xl' : 'text-base'}`}>
+                <View className={`rounded-[32px] p-5 border border-[#b30069]/20 bg-[#b30069]/5 items-center justify-center`}>
+                    <Ionicons name="calendar" size={isTablet ? 32 : 20} color="#b30069" />
+                    <Text className={`text-[#b30069] font-headline-bold text-center mt-1 ${isTablet ? 'text-2xl' : 'text-sm'}`}>
                         Game is Scheduled
                     </Text>
-                    <Text className={`text-stone-500 font-body-medium text-center mt-1 ${isTablet ? 'text-xl' : 'text-xs'}`}>
-                        You can come back at {new Date(scheduledAt || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} to play directly.
+                    <Text className={`text-stone-500 font-body-medium text-center mt-0.5 ${isTablet ? 'text-xl' : 'text-[10px]'}`}>
+                        Starts at {new Date(scheduledAt || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                 </View>
             </View>
         );
     }
 
+
     return (
         <View
             className="bg-[#fdf9f3] border-t border-stone-100"
             style={{
-                paddingHorizontal: isTablet ? 64 : 24,
-                paddingTop: isTablet ? 32 : 16,
-                paddingBottom: Math.max(insets.bottom, isTablet ? 48 : 24)
+                paddingHorizontal: isTablet ? 64 : 20,
+                paddingTop: isTablet ? 24 : 12,
+                paddingBottom: Math.max(insets.bottom, isTablet ? 40 : 16)
             }}
         >
-            {renderUserTicketStatus()}
-            
             <View className="flex-row gap-3">
                 <View className="flex-1">
                     {isHost ? (
@@ -88,20 +86,21 @@ const WaitingRoomFooter: React.FC<WaitingRoomFooterProps> = ({
                                 shadowOpacity: 0.3,
                                 shadowRadius: 12
                             }}
-                            className={`rounded-[40px] flex-row items-center justify-center ${isTablet ? 'h-28' : 'h-20'}`}
+                            className={`rounded-full flex-row items-center justify-center ${isTablet ? 'h-24' : 'h-16'}`}
                         >
-                            <Ionicons name="trophy" size={isTablet ? 36 : 26} color="white" />
-                            <Text className={`text-white font-headline-bold ml-4 ${isTablet ? 'text-4xl' : 'text-2xl'}`}>Set the Stage →</Text>
+                            <Ionicons name="rocket" size={isTablet ? 32 : 22} color="white" />
+                            <Text className={`text-white font-headline-bold ml-3 ${isTablet ? 'text-3xl' : 'text-xl'}`}>Start Game →</Text>
                         </TouchableOpacity>
                     ) : (
-                        <View className={`rounded-[40px] flex-row items-center justify-center border border-stone-200 bg-stone-50 ${isTablet ? 'h-28' : 'h-20'}`}>
+                        <View className={`rounded-full flex-row items-center justify-center border border-stone-200 bg-stone-50 ${isTablet ? 'h-24' : 'h-16'}`}>
                             <ActivityIndicator color="#b30069" size={isTablet ? 'large' : 'small'} style={{ marginRight: 12 }} />
-                            <Text className={`text-stone-400 font-headline-bold ${isTablet ? 'text-3xl' : 'text-lg'}`}>Waiting for host...</Text>
+                            <Text className={`text-stone-400 font-headline-bold ${isTablet ? 'text-2xl' : 'text-base'}`}>Waiting for host...</Text>
                         </View>
                     )}
                 </View>
             </View>
         </View>
+
     );
 };
 

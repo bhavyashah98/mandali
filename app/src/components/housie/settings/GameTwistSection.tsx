@@ -59,7 +59,7 @@ export const GameTwistSection: React.FC<GameTwistSectionProps> = React.memo(({
                         {gameStyle !== 'classic' && (
                             <View className="bg-[#31302d] px-2 py-0.5 rounded-lg ml-2 flex-row items-center shadow-sm">
                                 <MaterialCommunityIcons name="crown" size={10} color="#fbbf24" />
-                                <Text className="text-[7px] font-headline-bold text-[#fbbf24] uppercase ml-1">Premium</Text>
+                                            <Text className="text-[7px] font-headline-bold text-[#fbbf24] uppercase ml-1">Pro</Text>
                             </View>
                         )}
                     </View>
@@ -100,7 +100,7 @@ export const GameTwistSection: React.FC<GameTwistSectionProps> = React.memo(({
                                     {style.id !== 'classic' && (
                                         <View className="bg-[#31302d] px-1.5 py-0.5 rounded-lg ml-2 flex-row items-center">
                                             <MaterialCommunityIcons name="crown" size={8} color="#fbbf24" />
-                                            <Text className="text-[7px] font-headline-bold text-[#fbbf24] uppercase ml-1">Premium</Text>
+                                                        <Text className="text-[7px] font-headline-bold text-[#fbbf24] uppercase ml-1">Pro</Text>
                                         </View>
                                     )}
                                 </View>

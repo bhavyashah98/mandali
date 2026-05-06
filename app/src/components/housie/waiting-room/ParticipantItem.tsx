@@ -23,9 +23,16 @@ const ParticipantItem: React.FC<ParticipantItemProps> = ({
 
     return (
         <View
-            style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
-            className={`flex-row items-center bg-white border border-stone-100 mb-4 ${isTablet ? 'rounded-3xl p-8' : 'rounded-2xl p-4'}`}
+            style={{ 
+                elevation: isCurrentUser ? 4 : 2, 
+                shadowColor: isCurrentUser ? '#b30069' : '#000', 
+                shadowOffset: { width: 0, height: isCurrentUser ? 2 : 1 }, 
+                shadowOpacity: isCurrentUser ? 0.15 : 0.05, 
+                shadowRadius: isCurrentUser ? 4 : 2 
+            }}
+            className={`flex-row items-center border mb-4 ${isTablet ? 'rounded-3xl p-8' : 'rounded-2xl p-4'} ${isCurrentUser ? 'bg-pink-50/50 border-[#b30069]/30' : 'bg-white border-stone-100'}`}
         >
+
             <View className={`rounded-full bg-stone-50 items-center justify-center overflow-hidden border border-stone-100 ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}>
                 {participant.avatar ? (
                     <Image source={{ uri: getOptimizedImageUrl(participant.avatar, 'w_150,q_auto,f_auto') }} className="w-full h-full" />
