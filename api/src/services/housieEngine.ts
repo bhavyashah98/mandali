@@ -261,7 +261,7 @@ async function tick() {
             .from('housie_games')
             .update({ next_call_at: null })
             .eq('status', 'active')
-            .eq('settings->callingMode', 'auto')
+            .eq('settings->>callingMode', 'auto')
             .lte('next_call_at', lockWindow)
             .select();
 
