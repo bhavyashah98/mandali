@@ -12,6 +12,7 @@ import { registerForPushNotificationsAsync } from '../lib/pushNotifications';
 import { fetchCurrentUser } from '../lib/api';
 import { socketService } from '../lib/socketService';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
+import { HousieGlobalNotificationsManager } from '../components/housie/notifications/HousieGlobalNotificationsManager';
 
 const Stack = createStackNavigator();
 
@@ -193,6 +194,7 @@ export const RootNavigator = () => {
                     <Stack.Screen name="Main" component={TabNavigator} />
                 )}
             </Stack.Navigator>
+            <HousieGlobalNotificationsManager />
         </NavigationContainer>
     );
 };

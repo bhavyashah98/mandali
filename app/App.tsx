@@ -22,6 +22,7 @@ import { RootNavigator } from '@/src/navigation/RootNavigator';
 
 //contexts
 import { SocketProvider } from './src/contexts/SocketContext';
+import { HousieNotificationProvider } from './src/contexts/HousieNotificationContext';
 import { useAuthStore } from './src/stores/authStore';
 
 //styles
@@ -68,8 +69,10 @@ export default function App() {
         <SafeAreaProvider>
           <GluestackUIProvider mode="light">
             <SocketProvider token={token}>
-              <RootNavigator />
-              <StatusBar style="auto" />
+              <HousieNotificationProvider>
+                <RootNavigator />
+                <StatusBar style="auto" />
+              </HousieNotificationProvider>
             </SocketProvider>
           </GluestackUIProvider>
         </SafeAreaProvider>

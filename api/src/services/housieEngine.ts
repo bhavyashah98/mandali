@@ -25,6 +25,22 @@ const logError = (gameCode: string, message: string, err?: any) => {
 };
 
 /**
+ * Cancels any existing timers for a game.
+ */
+export const cancelScheduledGame = (gameCode: string) => {
+    if (activeTimers.has(gameCode)) {
+        clearTimeout(activeTimers.get(gameCode));
+        activeTimers.delete(gameCode);
+        log(gameCode, "Cleared active start timer.");
+    }
+    if (reminderTimers.has(gameCode)) {
+        clearTimeout(reminderTimers.get(gameCode));
+        reminderTimers.delete(gameCode);
+        log(gameCode, "Cleared reminder timer.");
+    }
+};
+
+/**
  * Schedules a game to move from 'scheduled' to 'starting' at the right time.
  * Also handles the 5-minute pre-game reminder.
  */
@@ -32,14 +48,7 @@ export const scheduleGameStart = (gameCode: string, scheduledAt: string, groupId
     if (!scheduledAt) return;
 
     // 1. Clear existing timers if any
-    if (activeTimers.has(gameCode)) {
-        clearTimeout(activeTimers.get(gameCode));
-        activeTimers.delete(gameCode);
-    }
-    if (reminderTimers.has(gameCode)) {
-        clearTimeout(reminderTimers.get(gameCode));
-        reminderTimers.delete(gameCode);
-    }
+    cancelScheduledGame(gameCode);
 
     const startTime = new Date(scheduledAt).getTime();
     const now = Date.now();
@@ -93,6 +102,15 @@ export const scheduleGameStart = (gameCode: string, scheduledAt: string, groupId
                 gameCode: gameCode, 
                 title: updated.title || 'New Game' 
             });
+
+            // Notify group members that game is starting
+            sendGroupPushNotification(
+                groupId,
+                hostId,
+                '🎟️ Game Starting!',
+                `The Housie game "${updated.title || 'Housie'}" is starting now. Jump in to play!`,
+                { type: 'housie', gameCode, groupId, url: `mandali://housie/${gameCode}/${groupId}` }
+            ).catch(err => logError(gameCode, 'Failed to send start notification', err));
 
             checkEngineStatus();
             activeTimers.delete(gameCode);
@@ -323,13 +341,27 @@ export const initHousieEngine = async () => {
                 const game = payload.new as any;
                 const status = game?.status;
                 const oldStatus = (payload.old as any)?.status;
+                log('SYSTEM', `Monitor: [${payload.eventType}] game ${game?.game_code || (payload.old as any)?.game_code} (status: ${status}, oldStatus: ${oldStatus})`);
+                
+                const gameCode = game?.game_code || (payload.old as any)?.game_code;
 
-                log('SYSTEM', `Monitor: [${payload.eventType}] game ${game?.game_code} (status: ${status}, oldStatus: ${oldStatus})`);
+                // 1. Handle DELETION
+                if (payload.eventType === 'DELETE' && gameCode) {
+                    log(gameCode, `Monitor: Game deleted, clearing timers.`);
+                    cancelScheduledGame(gameCode);
+                    return;
+                }
 
-                // If a game becomes scheduled (either created or updated to scheduled)
+                // 2. Handle Status changes (if game is no longer scheduled)
+                if (payload.eventType === 'UPDATE' && oldStatus === 'scheduled' && status !== 'scheduled' && status !== 'starting') {
+                    log(gameCode, `Monitor: Game no longer scheduled (status: ${status}), clearing timers.`);
+                    cancelScheduledGame(gameCode);
+                }
+
+                // 3. If a game becomes scheduled (either created or updated to scheduled)
                 if ((payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') && status === 'scheduled') {
-                    log(game.game_code, `Monitor: Tracking scheduled game.`);
-                    scheduleGameStart(game.game_code, game.scheduled_at, game.group_id, game.host_id, game.title);
+                    log(gameCode, `Monitor: Tracking scheduled game.`);
+                    scheduleGameStart(gameCode, game.scheduled_at, game.group_id, game.host_id, game.title);
                 }
 
                 if (['starting', 'active', 'ended'].includes(status)) {

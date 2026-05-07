@@ -155,11 +155,16 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
         }
 
         // Send Push Notification advising members a game is ready to join!
+        const notificationTitle = scheduledAt ? '📅 Housie Scheduled!' : '🎟️ Housie Room Open!';
+        const notificationBody = scheduledAt 
+            ? `A new game "${title || 'Housie'}" has been scheduled for ${new Date(scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Grab your tickets now!`
+            : 'A group member is hosting a new game! Jump into the waiting room to grab your tickets before it starts.';
+
         sendGroupPushNotification(
             groupId,
             userId,
-            '🎟️ Housie Room Open!',
-            'A group member is hosting a new game! Jump into the waiting room to grab your tickets before it starts.',
+            notificationTitle,
+            notificationBody,
             { type: 'housie', gameCode: gameCode, groupId: groupId, url: `mandali://housie/${gameCode}/${groupId}` }
         ).catch((err: any) => console.error('[Push Failed]:', err));
 

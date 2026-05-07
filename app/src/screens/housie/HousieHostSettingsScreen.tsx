@@ -26,7 +26,7 @@ const HousieHostSettingsScreen = () => {
     // Basic Info
     const [title, setTitle] = useState('Housie Gathering');
     const [isScheduled, setIsScheduled] = useState(false);
-    const [scheduledAt, setScheduledAt] = useState(new Date(Date.now() + 3600000));
+    const [scheduledAt, setScheduledAt] = useState(new Date(Date.now() + 16 * 60 * 1000));
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
 
@@ -57,8 +57,6 @@ const HousieHostSettingsScreen = () => {
         setScheduledAt(newDate);
     };
 
-
-
     const handleContinue = useCallback(async () => {
         if (!groupId) {
             Alert.alert('Error', 'Group ID is missing.');
@@ -71,9 +69,11 @@ const HousieHostSettingsScreen = () => {
         }
 
         if (isScheduled) {
-            const oneHourFromNow = new Date(Date.now() + 3600000);
-            if (scheduledAt < oneHourFromNow) {
-                Alert.alert("Invalid Time", "Games must be scheduled at least 1 hour from now.");
+            const fifteenMinutesFromNow = new Date(Date.now() + 15 * 60 * 1000);
+            if (scheduledAt < fifteenMinutesFromNow) {
+                const adjustedTime = new Date(Date.now() + 16 * 60 * 1000);
+                setScheduledAt(adjustedTime);
+                Alert.alert("Invalid Time", "Games must be scheduled at least 15 minutes from now. We've adjusted the time for you.");
                 return;
             }
         }
@@ -129,11 +129,6 @@ const HousieHostSettingsScreen = () => {
                     onConfirm={handleConfirmTime}
                     onCancel={() => setShowTimePicker(false)}
                 />
-
-
-
-
-
 
                 <CallingModeSection
                     callingMode={callingMode}
