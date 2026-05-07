@@ -55,7 +55,7 @@ const HousieLobbyScreen = () => {
         } else if (status === 'active') {
             if (myTicketCount > 0) {
                 navigation.navigate('HousieTicket', { gameCode: game_code, groupId });
-            } else if (isHost) {
+            } else if (isHost && game.settings?.callingMode === 'manual') {
                 navigation.navigate('HousieGame', { gameCode: game_code, groupId });
             }
             else {

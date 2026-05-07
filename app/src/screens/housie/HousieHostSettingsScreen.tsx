@@ -26,7 +26,7 @@ const HousieHostSettingsScreen = () => {
     // Basic Info
     const [title, setTitle] = useState('Housie Gathering');
     const [isScheduled, setIsScheduled] = useState(false);
-    const [scheduledAt, setScheduledAt] = useState(new Date(Date.now() + 16 * 60 * 1000));
+    const [scheduledAt, setScheduledAt] = useState(new Date(Date.now() + 2 * 60 * 1000));
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
 
@@ -69,11 +69,11 @@ const HousieHostSettingsScreen = () => {
         }
 
         if (isScheduled) {
-            const fifteenMinutesFromNow = new Date(Date.now() + 15 * 60 * 1000);
-            if (scheduledAt < fifteenMinutesFromNow) {
-                const adjustedTime = new Date(Date.now() + 16 * 60 * 1000);
+            const oneMinuteFromNow = new Date(Date.now() + 1 * 60 * 1000);
+            if (scheduledAt < oneMinuteFromNow) {
+                const adjustedTime = new Date(Date.now() + 2 * 60 * 1000);
                 setScheduledAt(adjustedTime);
-                Alert.alert("Invalid Time", "Games must be scheduled at least 15 minutes from now. We've adjusted the time for you.");
+                Alert.alert("Invalid Time", "Games must be scheduled at least 1 minute from now. We've adjusted the time for you.");
                 return;
             }
         }

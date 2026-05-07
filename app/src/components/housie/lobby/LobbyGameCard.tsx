@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuthStore } from '../../../stores/authStore';
 
 interface LobbyGameCardProps {
     game: any;
@@ -14,7 +15,10 @@ export const LobbyGameCard = ({ game, memberCount, onPress }: LobbyGameCardProps
     const isLive = game.status === 'active';
     const isStarting = game.status === 'starting';
     const hasTicket = game.myTicketCount > 0;
-    
+    const { user } = useAuthStore();
+    const isHost = user?.id === game.host_id;
+    const isManual = game.settings?.callingMode === 'manual';
+
     let buttonLabel = 'Join Room';
     let buttonIcon: any = 'play';
 
@@ -22,12 +26,25 @@ export const LobbyGameCard = ({ game, memberCount, onPress }: LobbyGameCardProps
         buttonLabel = hasTicket ? 'Enter Lobby' : 'Get Tickets';
         buttonIcon = 'ticket-alt';
     } else if (isLive || isStarting) {
-        buttonLabel = hasTicket ? 'Play Now' : 'Spectate';
-        buttonIcon = hasTicket ? 'gamepad' : 'eye';
+        if (isHost) {
+            if (hasTicket) {
+                buttonLabel = 'Play Now';
+                buttonIcon = 'gamepad';
+            } else if (isManual) {
+                buttonLabel = 'Resume Host';
+                buttonIcon = 'play-circle';
+            } else {
+                buttonLabel = 'Spectate';
+                buttonIcon = 'eye';
+            }
+        } else {
+            buttonLabel = hasTicket ? 'Play Now' : 'Spectate';
+            buttonIcon = hasTicket ? 'gamepad' : 'eye';
+        }
     }
 
     return (
-        <TouchableOpacity 
+        <TouchableOpacity
             onPress={() => onPress(game)}
             activeOpacity={0.9}
             style={{
@@ -54,7 +71,7 @@ export const LobbyGameCard = ({ game, memberCount, onPress }: LobbyGameCardProps
                     </View>
                     <Text className="text-stone-500 font-body text-sm">by {game.hostName}</Text>
                 </View>
-                
+
                 {isLive ? (
                     <View className="bg-red-500 px-3 py-1.5 rounded-full flex-row items-center">
                         <View className="w-2 h-2 bg-white rounded-full mr-2" />

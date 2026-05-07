@@ -129,9 +129,16 @@ export const scheduleGameStart = (gameCode: string, scheduledAt: string, groupId
                 return;
             }
 
+            // Immediately notify group so other members' lobbies refetch and see the game
             io?.to(`group_${groupId}`).emit('game_opened', { 
                 gameCode: gameCode, 
                 title: updated.title || 'New Game' 
+            });
+
+            // Notify users in the waiting room to redirect to the starting screen
+            io?.to(gameCode).emit('game_starting', {
+                gameCode: gameCode,
+                status: 'starting'
             });
 
             // Notify group members that game is starting

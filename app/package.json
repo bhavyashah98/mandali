@@ -1,6 +1,6 @@
 {
   "name": "app",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -26,7 +26,7 @@
     "@react-aria/ssr": "^3.9.7",
     "@react-aria/utils": "^3.27.0",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "@react-native-community/datetimepicker": "^9.1.0",
+    "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-firebase/app": "^22.2.1",
     "@react-native-firebase/auth": "^22.2.1",
     "@react-navigation/bottom-tabs": "^7.15.9",
