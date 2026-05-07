@@ -81,10 +81,41 @@ export const scheduleGameStart = (gameCode: string, scheduledAt: string, groupId
         try {
             log(gameCode, `Transitioning from Scheduled to Starting.`);
             
+            // 1. Fetch current game state to get ticket price and prize definitions
+            const { data: game, error: fetchError } = await supabase
+                .from('housie_games')
+                .select('id, ticket_price, prizes, title')
+                .eq('game_code', gameCode)
+                .single();
+                
+            if (fetchError || !game) {
+                logError(gameCode, `Transition failed: Game not found.`, fetchError);
+                return;
+            }
+
+            // 2. Count tickets bought to calculate prize pool
+            const { count: ticketCount } = await supabase
+                .from('housie_tickets')
+                .select('*', { count: 'exact', head: true })
+                .eq('game_id', game.id);
+
+            const ticketPrice = game.ticket_price || 100;
+            const totalPrizePool = (ticketCount || 0) * ticketPrice;
+
+            log(gameCode, `Calculating prizes: Tickets: ${ticketCount}, Pool: ${totalPrizePool}`);
+
+            // 3. Calculate final prize amounts based on percentages
+            const calculatedPrizes = (game.prizes || []).map((p: any) => ({
+                ...p,
+                amount: Math.floor((totalPrizePool * (p.percentage || 0)) / 100)
+            }));
+
+            // 4. Update game to 'starting' and save prizes
             const { data: updated, error } = await supabase
                 .from('housie_games')
                 .update({ 
                     status: 'starting', 
+                    prizes: calculatedPrizes,
                     activation_at: new Date(Date.now() + 60000).toISOString(),
                     last_activity_at: new Date().toISOString() 
                 })
