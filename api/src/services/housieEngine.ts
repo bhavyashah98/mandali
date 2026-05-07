@@ -256,10 +256,12 @@ async function tick() {
 
 
         // 1. PROCESS AUTO-CALLS (Active)
+        // Only fetch games that are set to 'auto' calling mode
         const { data: gamesToCall, error: callError } = await supabase
             .from('housie_games')
             .update({ next_call_at: null })
             .eq('status', 'active')
+            .eq('settings->callingMode', 'auto')
             .lte('next_call_at', lockWindow)
             .select();
 
@@ -320,17 +322,23 @@ async function tick() {
  */
 export async function checkEngineStatus() {
     try {
-        const { count, error } = await supabase
+        const { data, error } = await supabase
             .from('housie_games')
-            .select('*', { count: 'exact', head: true })
+            .select('status, settings')
             .in('status', ['starting', 'active']);
 
         if (error) throw error;
 
-        const shouldRun = (count || 0) > 0;
+        // Ticker should run if:
+        // 1. There are games in 'starting' status (need to transition to active)
+        // 2. There are active games with 'auto' calling mode
+        const shouldRun = (data || []).some(g => 
+            g.status === 'starting' || 
+            (g.status === 'active' && g.settings?.callingMode === 'auto')
+        );
 
         if (shouldRun && !workerInterval) {
-            log('SYSTEM', `Ticker WAKE-UP (${count} active).`);
+            log('SYSTEM', `Ticker WAKE-UP (${data?.length || 0} active).`);
             workerInterval = setInterval(tick, 1000);
         } else if (!shouldRun && workerInterval) {
             log('SYSTEM', `Ticker HIBERNATION.`);
