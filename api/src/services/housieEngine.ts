@@ -41,34 +41,116 @@ export const cancelScheduledGame = (gameCode: string) => {
 };
 
 /**
+ * Transitions a game from 'scheduled' to 'starting'.
+ */
+export const transitionGameToStarting = async (gameCode: string, groupId: string, hostId: string) => {
+    try {
+        log(gameCode, `Transitioning from Scheduled to Starting.`);
+        
+        // 1. Fetch current game state
+        const { data: game, error: fetchError } = await supabase
+            .from('housie_games')
+            .select('id, ticket_price, prizes, title')
+            .eq('game_code', gameCode)
+            .single();
+            
+        if (fetchError || !game) {
+            logError(gameCode, `Transition failed: Game not found.`, fetchError);
+            return;
+        }
+
+        // 2. Count tickets bought to calculate prize pool
+        const { count: ticketCount } = await supabase
+            .from('housie_tickets')
+            .select('*', { count: 'exact', head: true })
+            .eq('game_id', game.id);
+
+        const ticketPrice = game.ticket_price || 100;
+        const totalPrizePool = (ticketCount || 0) * ticketPrice;
+
+        log(gameCode, `Calculating prizes: Tickets: ${ticketCount}, Pool: ${totalPrizePool}`);
+
+        // 3. Calculate final prize amounts based on percentages
+        const calculatedPrizes = (game.prizes || []).map((p: any) => ({
+            ...p,
+            amount: Math.floor((totalPrizePool * (p.percentage || 0)) / 100)
+        }));
+
+        // 4. Update game to 'starting' and save prizes
+        const { data: updated, error } = await supabase
+            .from('housie_games')
+            .update({ 
+                status: 'starting', 
+                prizes: calculatedPrizes,
+                activation_at: new Date(Date.now() + 60000).toISOString(),
+                last_activity_at: new Date().toISOString() 
+            })
+            .eq('game_code', gameCode)
+            .eq('status', 'scheduled')
+            .select()
+            .single();
+
+        if (error || !updated) {
+            logError(gameCode, `Transition failed (Already started or updated?).`, error);
+            return;
+        }
+
+        // 5. Socket Notification
+        io?.to(`group_${groupId}`).emit('game_opened', { 
+            gameCode: gameCode, 
+            title: updated.title || 'New Game' 
+        });
+
+        io?.to(gameCode).emit('game_starting', {
+            gameCode: gameCode,
+            status: 'starting'
+        });
+
+        // 6. Push Notification
+        sendGroupPushNotification(
+            groupId,
+            hostId,
+            '🎟️ Game Starting!',
+            `The Housie game "${updated.title || 'Housie'}" is starting now. Jump in to play!`,
+            { type: 'housie', gameCode, groupId, url: `mandali://housie/${gameCode}/${groupId}` }
+        ).catch(err => logError(gameCode, 'Failed to send start notification', err));
+
+        debouncedCheck();
+        cancelScheduledGame(gameCode);
+        
+    } catch (err) {
+        logError(gameCode, `Error in transitionGameToStarting`, err);
+    }
+};
+
+/**
  * Schedules a game to move from 'scheduled' to 'starting' at the right time.
- * Also handles the 5-minute pre-game reminder.
+ * This handles the memory-based timer for the exact second, while the ticker
+ * provides a fallback safety net.
  */
 export const scheduleGameStart = (gameCode: string, scheduledAt: string, groupId: string, hostId: string, title?: string) => {
     if (!scheduledAt) return;
 
-    // 1. Clear existing timers if any
     cancelScheduledGame(gameCode);
 
     const startTime = new Date(scheduledAt).getTime();
     const now = Date.now();
     const delay = Math.max(0, startTime - now);
 
-    log(gameCode, `Scheduled start in ${Math.round(delay / 1000 / 60)} mins.`);
+    log(gameCode, `Scheduled start in ${Math.round(delay / 1000 / 60)} mins (UTC: ${scheduledAt}).`);
 
-    // 2. Set the reminder timer
+    // 1. Reminder Timer
     const fiveMinInMs = 5 * 60 * 1000;
     const reminderDelay = Math.max(0, delay - fiveMinInMs);
 
-    // If game is starting in > 30 seconds, send a reminder
     if (delay > 30000) {
         const rTimer = setTimeout(async () => {
             log(gameCode, `Sending pre-game reminder.`);
             sendGroupPushNotification(
                 groupId,
                 hostId,
-                delay > fiveMinInMs ? '🕒 5 Minutes Left!' : '🎟️ Game Starting Soon!',
-                `The Housie game "${title || 'Housie'}" is starting ${delay > fiveMinInMs ? 'in 5 minutes' : 'very soon'}. Join now!`,
+                delay > (fiveMinInMs + 10000) ? '🕒 5 Minutes Left!' : '🎟️ Game Starting Soon!',
+                `The Housie game "${title || 'Housie'}" is starting ${delay > (fiveMinInMs + 10000) ? 'in 5 minutes' : 'very soon'}. Join now!`,
                 { type: 'housie', gameCode, groupId }
             ).catch(err => logError(gameCode, 'Failed to send reminder', err));
             reminderTimers.delete(gameCode);
@@ -76,85 +158,9 @@ export const scheduleGameStart = (gameCode: string, scheduledAt: string, groupId
         reminderTimers.set(gameCode, rTimer);
     }
 
-    // 3. Set the actual start timer
-    const timer = setTimeout(async () => {
-        try {
-            log(gameCode, `Transitioning from Scheduled to Starting.`);
-            
-            // 1. Fetch current game state to get ticket price and prize definitions
-            const { data: game, error: fetchError } = await supabase
-                .from('housie_games')
-                .select('id, ticket_price, prizes, title')
-                .eq('game_code', gameCode)
-                .single();
-                
-            if (fetchError || !game) {
-                logError(gameCode, `Transition failed: Game not found.`, fetchError);
-                return;
-            }
-
-            // 2. Count tickets bought to calculate prize pool
-            const { count: ticketCount } = await supabase
-                .from('housie_tickets')
-                .select('*', { count: 'exact', head: true })
-                .eq('game_id', game.id);
-
-            const ticketPrice = game.ticket_price || 100;
-            const totalPrizePool = (ticketCount || 0) * ticketPrice;
-
-            log(gameCode, `Calculating prizes: Tickets: ${ticketCount}, Pool: ${totalPrizePool}`);
-
-            // 3. Calculate final prize amounts based on percentages
-            const calculatedPrizes = (game.prizes || []).map((p: any) => ({
-                ...p,
-                amount: Math.floor((totalPrizePool * (p.percentage || 0)) / 100)
-            }));
-
-            // 4. Update game to 'starting' and save prizes
-            const { data: updated, error } = await supabase
-                .from('housie_games')
-                .update({ 
-                    status: 'starting', 
-                    prizes: calculatedPrizes,
-                    activation_at: new Date(Date.now() + 60000).toISOString(),
-                    last_activity_at: new Date().toISOString() 
-                })
-                .eq('game_code', gameCode)
-                .eq('status', 'scheduled')
-                .select()
-                .single();
-
-            if (error || !updated) {
-                logError(gameCode, `Transition failed (Already started?).`, error);
-                return;
-            }
-
-            // Immediately notify group so other members' lobbies refetch and see the game
-            io?.to(`group_${groupId}`).emit('game_opened', { 
-                gameCode: gameCode, 
-                title: updated.title || 'New Game' 
-            });
-
-            // Notify users in the waiting room to redirect to the starting screen
-            io?.to(gameCode).emit('game_starting', {
-                gameCode: gameCode,
-                status: 'starting'
-            });
-
-            // Notify group members that game is starting
-            sendGroupPushNotification(
-                groupId,
-                hostId,
-                '🎟️ Game Starting!',
-                `The Housie game "${updated.title || 'Housie'}" is starting now. Jump in to play!`,
-                { type: 'housie', gameCode, groupId, url: `mandali://housie/${gameCode}/${groupId}` }
-            ).catch(err => logError(gameCode, 'Failed to send start notification', err));
-
-            checkEngineStatus();
-            activeTimers.delete(gameCode);
-        } catch (err) {
-            logError(gameCode, `Error in start timer execution`, err);
-        }
+    // 2. Exact Start Timer
+    const timer = setTimeout(() => {
+        transitionGameToStarting(gameCode, groupId, hostId);
     }, delay);
 
     activeTimers.set(gameCode, timer);
@@ -278,7 +284,23 @@ async function tick() {
             await Promise.all(gamesToCall.map(game => processGameCall(game)));
         }
 
-        // 2. PROCESS ACTIVATIONS (Starting -> Active)
+        // 2. PROCESS SCHEDULED GAMES (Scheduled -> Starting)
+        // Proactive check for games that reached their start time (fallback for setTimeout)
+        const { data: gamesToStart, error: startError } = await supabase
+            .from('housie_games')
+            .select('game_code, group_id, host_id')
+            .eq('status', 'scheduled')
+            .lte('scheduled_at', nowIso);
+
+        if (startError) throw startError;
+        if (gamesToStart?.length) {
+            log('SYSTEM', `Found ${gamesToStart.length} missed scheduled starts. Transitioning...`);
+            for (const g of gamesToStart) {
+                await transitionGameToStarting(g.game_code, g.group_id, g.host_id);
+            }
+        }
+
+        // 3. PROCESS ACTIVATIONS (Starting -> Active)
         const { data: gamesToActivate, error: activateError } = await supabase
             .from('housie_games')
             .update({ status: 'active', last_activity_at: nowIso })

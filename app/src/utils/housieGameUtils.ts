@@ -11,10 +11,12 @@ export const transformHousieNumber = (n: number, mode: GameStyle | string): numb
     if (mode === 'plus_one') return n + 1;
     if (mode === 'minus_one') return n - 1;
     if (mode === 'reverse') {
+        const exceptions = [19, 29, 39, 49, 59, 69, 79, 89];
+        if (exceptions.includes(n)) return n;
         const units = n % 10;
         const tens = Math.floor(n / 10);
         const rev = units * 10 + tens;
-        return (rev >= 1 && rev <= 90) ? rev : -1;
+        return (rev >= 1 && rev <= 90) ? rev : n;
     }
     return n;
 };

@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
+import { fetchHousieGameStyles } from '../../../lib/api';
 
 interface GameModeCardProps {
     title?: string;
@@ -10,17 +12,24 @@ interface GameModeCardProps {
 }
 
 const GameModeCard: React.FC<GameModeCardProps> = ({ title, gameCode, settings, isTablet }) => {
+    const { data: stylesData } = useQuery({
+        queryKey: ['housieStyles'],
+        queryFn: fetchHousieGameStyles,
+        staleTime: Infinity,
+    });
 
     const modeInfo = useMemo(() => {
-        const style = settings?.gameStyle || 'classic';
-        const modeMap: Record<string, { title: string; description: string }> = {
-            classic: { title: 'Classic Housie', description: 'Standard rules: Mark numbers as they are called.' },
-            plus_one: { title: '+1 Housie', description: 'Twist: Mark the number that is 1 higher than the one called.' },
-            minus_one: { title: '-1 Housie', description: 'Twist: Mark the number that is 1 lower than the one called.' },
-            reverse: { title: 'Reverse Housie', description: 'Twist: Reverse the digits (e.g., 12 becomes 21) before marking.' },
+        const styleId = settings?.gameStyle || 'classic';
+        const styles = stylesData?.styles || [];
+
+
+        const matched = styles.find((s: any) => s.id === styleId);
+
+        return {
+            title: matched.title,
+            description: matched.description
         };
-        return modeMap[style] || modeMap.classic;
-    }, [settings?.gameStyle]);
+    }, [settings?.gameStyle, stylesData]);
 
     const callingInfo = useMemo(() => {
         if (settings?.callingMode === 'auto') {
@@ -36,19 +45,19 @@ const GameModeCard: React.FC<GameModeCardProps> = ({ title, gameCode, settings, 
     }, [settings?.callingMode, settings?.autoCallSeconds]);
 
     return (
-        <View 
-            style={{ 
-                backgroundColor: '#b30069', 
-                elevation: 12, 
-                shadowColor: '#b30069', 
-                shadowOffset: { width: 0, height: 10 }, 
-                shadowOpacity: 0.2, 
-                shadowRadius: 20 
+        <View
+            style={{
+                backgroundColor: '#b30069',
+                elevation: 12,
+                shadowColor: '#b30069',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.2,
+                shadowRadius: 20
             }}
             className={`rounded-3xl items-center mb-6 ${isTablet ? 'p-12' : 'p-6'}`}
         >
             {/* 1. Game Title - Small font at top */}
-            <Text 
+            <Text
                 className="text-white/50 font-body-bold mb-2 uppercase tracking-[2px]"
                 style={{ fontSize: isTablet ? 16 : 9 }}
                 numberOfLines={1}
@@ -81,7 +90,7 @@ const GameModeCard: React.FC<GameModeCardProps> = ({ title, gameCode, settings, 
             {/* 4. Game Twist Title */}
             <View className="flex-row items-center mb-1">
                 <Ionicons name="sparkles" size={isTablet ? 20 : 14} color="white" />
-                <Text 
+                <Text
                     className={`text-white font-headline-bold ml-2 ${isTablet ? 'text-2xl' : 'text-base'}`}
                     numberOfLines={1}
                 >
@@ -90,7 +99,7 @@ const GameModeCard: React.FC<GameModeCardProps> = ({ title, gameCode, settings, 
             </View>
 
             {/* 5. Game Twist Description */}
-            <Text 
+            <Text
                 className={`text-white/70 font-body-medium ${isTablet ? 'text-lg' : 'text-[11px]'}`}
                 numberOfLines={1}
             >

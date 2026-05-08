@@ -31,8 +31,8 @@ const WaitingRoomPrizes: React.FC<Props> = ({ prizes, ticketPrice, totalTickets,
                         </View>
                         <View className="ml-4 flex-1">
                             <Text className={`font-headline-bold text-[#594048] ${isTablet ? 'text-3xl' : 'text-base'}`}>{prize.name}</Text>
-                            <Text className={`text-stone-400 font-body-medium ${isTablet ? 'text-xl mt-1' : 'text-xs'}`}>
-                                {prize.percentage}% share
+                            <Text className={`text-stone-400 font-body-medium ${isTablet ? 'text-lg' : 'text-[10px]'}`} numberOfLines={1}>
+                                {prize.description || `${prize.percentage}% share`}
                             </Text>
                         </View>
                         <View className="items-end">

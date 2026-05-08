@@ -128,6 +128,8 @@ const HousieDefineBountyScreen = ({ navigation, route }: any) => {
                         name: p.name,
                         type: p.type || p.id,
                         row: p.row,
+                        description: p.description,
+                        icon: p.icon,
                         percentage: p.percentage,
                         category: p.category,
                         weightage: p.weightage

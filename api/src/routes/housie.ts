@@ -16,27 +16,32 @@ const router = Router();
 // Bonus prizes are only available in manual mode (host oversees judging).
 const PRIZE_CATALOGUE = [
     // ── Standard row prizes ──────────────────────────────────────────────────
-    { id: 'top_line', name: 'Top Line', description: 'First row of the ticket', icon: 'horizontal-rule', category: 'standard', repeatable: false, order: 1, weightage: 5 },
-    { id: 'middle_line', name: 'Middle Line', description: 'Middle row of the ticket', icon: 'horizontal-rule', category: 'standard', repeatable: false, order: 2, weightage: 5 },
-    { id: 'bottom_line', name: 'Bottom Line', description: 'Last row of the ticket', icon: 'horizontal-rule', category: 'standard', repeatable: false, order: 3, weightage: 5 },
+    { id: 'top_line', name: 'Top Line', description: 'All 5 numbers in the 1st row', icon: 'horizontal-rule', category: 'standard', repeatable: false, order: 1, weightage: 5 },
+    { id: 'middle_line', name: 'Middle Line', description: 'All 5 numbers in the 2nd row', icon: 'horizontal-rule', category: 'standard', repeatable: false, order: 2, weightage: 5 },
+    { id: 'bottom_line', name: 'Bottom Line', description: 'All 5 numbers in the 3rd row', icon: 'horizontal-rule', category: 'standard', repeatable: false, order: 3, weightage: 5 },
     // ── Full House (repeatable) ──────────────────────────────────────────────
-    { id: 'full_house', name: 'Full House', description: 'All numbers on the ticket marked', icon: 'grid-view', category: 'fullhouse', repeatable: true, order: 4, weightage: 15 },
+    { id: 'full_house', name: 'Full House', description: 'All 15 numbers on the ticket', icon: 'grid-view', category: 'fullhouse', repeatable: true, order: 4, weightage: 15 },
     // ── Bonus prizes — manual mode only ─────────────────────────────────────
-    { id: 'four_corners', name: 'Four Corners', description: 'All 4 corner numbers on ticket', icon: 'crop-free', category: 'bonus', repeatable: false, order: 7, weightage: 4 },
-    { id: 'six_corners', name: 'Six Corners', description: 'First and last numbers of all lines', icon: 'filter-6', category: 'bonus', repeatable: false, order: 8, weightage: 6 },
-    { id: 'star', name: 'Star', description: 'Cross + centre pattern on ticket', icon: 'star-outline', category: 'bonus', repeatable: false, order: 9, weightage: 5 },
-    { id: 'center', name: 'Center (Laddu)', description: 'Middle number of middle row', icon: 'adjust', category: 'bonus', repeatable: false, order: 10, weightage: 1 },
-    { id: 'pyramid', name: 'Pyramid', description: 'A pyramid shape of numbers', icon: 'change-history', category: 'bonus', repeatable: false, order: 11, weightage: 5 },
+    { id: 'four_corners', name: 'Four Corners', description: '1st & last numbers of top/bottom rows', icon: 'crop-free', category: 'bonus', repeatable: false, order: 7, weightage: 4 },
+    { id: 'six_corners', name: 'Six Corners', description: '1st & last numbers of all three rows', icon: 'filter-6', category: 'bonus', repeatable: false, order: 8, weightage: 6 },
+    { id: 'star', name: 'Star', description: 'Four corners + the center number', icon: 'star-outline', category: 'bonus', repeatable: false, order: 9, weightage: 5 },
+    { id: 'center', name: 'Center (Laddu)', description: 'Middle number of the middle row', icon: 'adjust', category: 'bonus', repeatable: false, order: 10, weightage: 1 },
+    { id: 'pyramid', name: 'Pyramid', description: 'Triangle: 1 top, 2 mid, 3 bottom numbers', icon: 'change-history', category: 'bonus', repeatable: false, order: 11, weightage: 5 },
     { id: 'odd_even', name: 'Odd/Even', description: 'All odd or all even numbers marked', icon: 'exposure', category: 'bonus', repeatable: false, order: 12, weightage: 7 }, // ~7.5 avg
-    { id: 'early_5', name: 'Early 5', description: 'First to mark any 5 numbers', icon: 'looks-5', category: 'bonus', repeatable: false, order: 13, weightage: 5 },
-    { id: 'early_7', name: 'Early 7', description: 'First to mark any 7 numbers', icon: 'filter-7', category: 'bonus', repeatable: false, order: 14, weightage: 7 },
-    { id: 'bp', name: 'BP / Temperature', description: 'Highest and lowest numbers on ticket', icon: 'thermostat', category: 'bonus', repeatable: false, order: 15, weightage: 2 },
+    { id: 'early_5', name: 'Early 5', description: 'First 5 numbers marked on ticket', icon: 'looks-5', category: 'bonus', repeatable: false, order: 13, weightage: 5 },
+    { id: 'early_7', name: 'Early 7', description: 'First 7 numbers marked on ticket', icon: 'filter-7', category: 'bonus', repeatable: false, order: 14, weightage: 7 },
+    { id: 'bp', name: 'BP / Temperature', description: 'Lowest and highest numbers on ticket', icon: 'thermostat', category: 'bonus', repeatable: false, order: 15, weightage: 2 },
+    { id: 'breakfast', name: 'Breakfast', description: 'All numbers in the first 3 columns', icon: 'coffee', category: 'bonus', repeatable: false, order: 16, weightage: 6 },
+    { id: 'lunch', name: 'Lunch', description: 'All numbers in the middle 3 columns', icon: 'restaurant', category: 'bonus', repeatable: false, order: 17, weightage: 6 },
+    { id: 'dinner', name: 'Dinner', description: 'All numbers in the last 3 columns', icon: 'dinner-dining', category: 'bonus', repeatable: false, order: 18, weightage: 6 },
+    { id: 'verticals', name: 'Verticals', description: 'All numbers in 1st, 5th & 9th columns', icon: 'view-column', category: 'bonus', repeatable: false, order: 19, weightage: 5 },
 ];
 
 const GAME_STYLES = [
     { id: 'classic', title: 'Classic Housie', description: 'Standard rules and numbers', icon: 'ticket-confirmation-outline' },
     { id: 'plus_one', title: '+1 Housie', description: 'Mark the number + 1 (e.g. Call 10, Mark 11)', icon: 'plus-circle-outline' },
     { id: 'minus_one', title: '-1 Housie', description: 'Mark the number - 1 (e.g. Call 10, Mark 9)', icon: 'minus-circle-outline' },
+    { id: 'reverse', title: 'Reverse Mode', description: 'XY becomes YX (e.g. Call 25, Mark 52). Numbers ending in 9 (19, 29, etc.) stay same.', icon: 'swap-horizontal' },
 ];
 
 /**
@@ -156,9 +161,18 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
 
         // Send Push Notification advising members a game is ready to join!
         const notificationTitle = scheduledAt ? '📅 Housie Scheduled!' : '🎟️ Housie Room Open!';
-        const notificationBody = scheduledAt 
-            ? `A new game "${title || 'Housie'}" has been scheduled for ${new Date(scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Grab your tickets now!`
-            : 'A group member is hosting a new game! Jump into the waiting room to grab your tickets before it starts.';
+        
+        let notificationBody = 'A group member is hosting a new game! Jump into the waiting room to grab your tickets before it starts.';
+        
+        if (scheduledAt) {
+            const istTime = new Date(scheduledAt).toLocaleTimeString('en-IN', {
+                timeZone: 'Asia/Kolkata',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+            notificationBody = `A new game "${title || 'Housie'}" has been scheduled for ${istTime}. Grab your tickets now!`;
+        }
 
         sendGroupPushNotification(
             groupId,

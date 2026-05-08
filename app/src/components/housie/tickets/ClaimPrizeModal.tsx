@@ -123,6 +123,9 @@ const ClaimPrizeModal: React.FC<ClaimPrizeModalProps> = ({
                                         </View>
                                         <View className="flex-1">
                                             <Text className={`text-[#31302d] font-headline-bold ${isTablet ? 'text-3xl' : 'text-base'}`}>{prize.name}</Text>
+                                            <Text className="text-stone-400 font-body-medium text-[10px]" numberOfLines={1}>
+                                                {prize.description}
+                                            </Text>
                                             <View className="flex-row items-center mt-1">
                                                 <Text className={`text-stone-400 font-body-medium ${isTablet ? 'text-lg' : 'text-xs'}`}>Value: {winners.length > 1 && !isLimitReached ? (prize.amount / winners.length).toFixed(0) : prize.amount}</Text>
                                                 <MandaliCoin size={isTablet ? 18 : 12} style={{ marginLeft: 4 }} />

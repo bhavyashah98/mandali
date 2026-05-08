@@ -51,6 +51,9 @@ const RewardPoolTracker: React.FC<RewardPoolTrackerProps> = ({
                                 <Text className={`font-headline-bold ${isGlobalClosed ? 'text-stone-400 line-through' : 'text-[#31302d]'} ${isTablet ? 'text-3xl' : 'text-base'}`}>
                                     {prize.name}
                                 </Text>
+                                <Text className={`font-body-medium text-stone-400 ${isTablet ? 'text-lg' : 'text-[10px]'}`} numberOfLines={1}>
+                                    {prize.description}
+                                </Text>
                                 {winners.length > 0 && (
                                     <Text className={`uppercase font-body-bold mt-1 ${isGlobalClosed ? 'text-stone-400' : 'text-orange-500'} ${isTablet ? 'text-lg' : 'text-[9px]'}`}>
                                         {isGlobalClosed ? (winners.length > 1 ? `${winners.length} WINNERS CHECKED` : `Winner: ${getParticipantName(winners[0].userId)}`) : 'Verification in progress...'}

@@ -291,6 +291,12 @@ export const isBP = (ticket: any[][], called: number[]): boolean => {
   return true;
 };
 
+/** Column-based patterns (Breakfast, Lunch, Dinner, Verticals) */
+export const isColumnSet = (ticket: any[][], columns: number[], called: number[]): boolean => {
+  const numbers = ticket.flatMap(row => columns.map(colIdx => row[colIdx])).filter(n => n > 0);
+  return allPresent(numbers, called);
+};
+
 /** 
  * Master verification function
  * @param gameMode 'classic', 'plus_one', 'minus_one', 'reverse'
@@ -308,10 +314,12 @@ export const checkPrize = (prizeId: string, ticket: number[][], called: number[]
     if (gameMode === 'plus_one') return n + 1 > 90 ? 1 : n + 1;
     if (gameMode === 'minus_one') return n - 1 < 1 ? 90 : n - 1;
     if (gameMode === 'reverse') {
+      const exceptions = [19, 29, 39, 49, 59, 69, 79, 89];
+      if (exceptions.includes(n)) return n;
       const units = n % 10;
       const tens = Math.floor(n / 10);
       const rev = units * 10 + tens;
-      return (rev >= 1 && rev <= 90) ? rev : -1;
+      return (rev >= 1 && rev <= 90) ? rev : n;
     }
     return n;
   };
@@ -401,6 +409,26 @@ export const checkPrize = (prizeId: string, ticket: number[][], called: number[]
       const min = Math.min(...flatTicket);
       const max = Math.max(...flatTicket);
       return isBP(ticket, effectiveCalled) && includesTrigger([min, max]);
+    }
+    case 'breakfast': {
+      const cols = [0, 1, 2];
+      const targets = ticket.flatMap(row => cols.map(c => row[c])).filter(n => n > 0);
+      return isColumnSet(ticket, cols, effectiveCalled) && includesTrigger(targets);
+    }
+    case 'lunch': {
+      const cols = [3, 4, 5];
+      const targets = ticket.flatMap(row => cols.map(c => row[c])).filter(n => n > 0);
+      return isColumnSet(ticket, cols, effectiveCalled) && includesTrigger(targets);
+    }
+    case 'dinner': {
+      const cols = [6, 7, 8];
+      const targets = ticket.flatMap(row => cols.map(c => row[c])).filter(n => n > 0);
+      return isColumnSet(ticket, cols, effectiveCalled) && includesTrigger(targets);
+    }
+    case 'verticals': {
+      const cols = [0, 4, 8];
+      const targets = ticket.flatMap(row => cols.map(c => row[c])).filter(n => n > 0);
+      return isColumnSet(ticket, cols, effectiveCalled) && includesTrigger(targets);
     }
     default:
       return false;

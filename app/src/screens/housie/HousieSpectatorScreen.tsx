@@ -380,6 +380,9 @@ const HousieSpectatorScreen = () => {
                                                 minimumFontScale={0.75}
                                                 className={`text-[#594048] font-headline-bold ${isTablet ? 'text-3xl' : 'text-[15px]'}`}
                                             >{prize.name}</Text>
+                                            <Text className="text-stone-400 font-body-medium text-[10px]" numberOfLines={1}>
+                                                {prize.description}
+                                            </Text>
                                             <View className={`flex-row items-center ${isTablet ? 'mt-1' : ''}`}>
                                                 <Text className={`text-[#b30069] font-body-bold ${isTablet ? 'text-xl' : 'text-[11px]'}`}>
                                                     {prize.winners?.length > 1 ? `Split: ${prize.individualAmount} each ` : `${prize.amount} `}
