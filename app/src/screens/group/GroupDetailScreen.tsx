@@ -502,11 +502,6 @@ const GroupDetailScreen = () => {
                                         <Text className={`text-primary font-headline-bold ${isTablet ? 'text-[120px]' : 'text-[80px]'}`}>{profileTargetUser?.name?.charAt(0)}</Text>
                                     </View>
                                 )}
-                                {profileTargetUser?.avatar_url && (
-                                    <View style={{ position: 'absolute', bottom: 12, right: 12 }} className="bg-black/20 rounded-full p-2 flex-row items-center">
-                                        <Ionicons name="resize" size={12} color="white" />
-                                    </View>
-                                )}
                             </View>
 
                             {/* Info section */}

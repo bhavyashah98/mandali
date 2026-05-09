@@ -120,16 +120,7 @@ const HousieResultsScreen = () => {
                                 <TouchableOpacity
                                     key={player.userId}
                                     activeOpacity={0.8}
-                                    onPress={() => setSelectedPlayer({
-                                        ...player,
-                                        // Map the data for PlayerPrizesModal
-                                        prizes: player.prizes.map((p: any) => ({
-                                            prize_id: p.id,
-                                            prize_name: p.name,
-                                            amount: p.amount || 0,
-                                            won_at: new Date().toISOString() // Fallback
-                                        }))
-                                    })}
+                                    onPress={() => setSelectedPlayer(player)}
                                     className={`flex-row items-center rounded-[32px] border ${isTablet ? 'p-8' : 'p-4'} ${player.userId === user?.id ? 'border-[#b30069]' : ''}`}
                                     style={isTop3
                                         ? { 

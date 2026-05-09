@@ -960,6 +960,7 @@ router.get('/:gameCode/results', authMiddleware, async (req: AuthRequest, res) =
                 user_id,
                 prize_name,
                 prize_amount,
+                won_at,
                 users(name, avatar_url)
             `)
             .eq('game_id', game.id);
@@ -972,11 +973,13 @@ router.get('/:gameCode/results', authMiddleware, async (req: AuthRequest, res) =
         const summary: Record<string, any> = {};
 
         resultData.forEach(row => {
+            const userData = Array.isArray(row.users) ? row.users[0] : row.users;
+
             if (!summary[row.user_id]) {
                 summary[row.user_id] = {
                     userId: row.user_id,
-                    name: row.users?.name || 'Player',
-                    avatarUrl: row.users?.avatar_url,
+                    name: userData?.name || 'Player',
+                    avatarUrl: userData?.avatar_url,
                     totalWon: 0,
                     winCount: 0,
                     prizes: []
@@ -986,7 +989,8 @@ router.get('/:gameCode/results', authMiddleware, async (req: AuthRequest, res) =
             summary[row.user_id].winCount += 1;
             summary[row.user_id].prizes.push({
                 name: row.prize_name,
-                amount: row.prize_amount
+                amount: row.prize_amount,
+                wonAt: row.won_at
             });
         });
 
@@ -1016,7 +1020,7 @@ router.get('/group/:groupId/leaderboard', authMiddleware, async (req: AuthReques
                 prize_amount,
                 game_id,
                 won_at,
-                users:user_id(name, avatar_url)
+                users(name, avatar_url)
             `)
             .eq('group_id', groupId);
 
@@ -1039,11 +1043,13 @@ router.get('/group/:groupId/leaderboard', authMiddleware, async (req: AuthReques
         const summary: Record<string, any> = {};
 
         resultData.forEach(row => {
+            const userData = Array.isArray(row.users) ? row.users[0] : row.users;
+            
             if (!summary[row.user_id]) {
                 summary[row.user_id] = {
                     userId: row.user_id,
-                    name: row.users?.name || 'Player',
-                    avatarUrl: row.users?.avatar_url,
+                    name: userData?.name || 'Player',
+                    avatarUrl: userData?.avatar_url,
                     totalWon: 0,
                     winCount: 0,
                     gamesPlayed: new Set(),
