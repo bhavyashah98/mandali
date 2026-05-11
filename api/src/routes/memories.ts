@@ -81,6 +81,23 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
+        // Final check for image limit before creating memory
+        const { data: existingMemories } = await supabase
+            .from('memories')
+            .select('image_urls')
+            .eq('user_id', userId);
+
+        let currentTotal = 0;
+        existingMemories?.forEach(m => {
+            if (Array.isArray(m.image_urls)) currentTotal += m.image_urls.length;
+        });
+
+        if (currentTotal + imageUrls.length > 200) {
+            return res.status(403).json({ 
+                error: `Upload limit reached. You have ${currentTotal} images and this would exceed the 200 image limit. Please delete some memories.` 
+            });
+        }
+
         console.log('[Memories] Creating memory for group:', groupId, 'by user:', userId);
         const { data, error } = await supabase
             .from('memories')

@@ -70,15 +70,15 @@ initHousieEngine();
 const onlineUsers = new Map<string, string>(); // userId -> socketId
 
 // Memory Monitor
-// setInterval(() => {
-//     const used = process.memoryUsage();
-//     console.log(`[SYS]
-//     RSS=${Math.round(used.rss / 1024 / 1024)}MB
-//     HeapUsed=${Math.round(used.heapUsed / 1024 / 1024)}MB
-//     HeapTotal=${Math.round(used.heapTotal / 1024 / 1024)}MB
-//     External=${Math.round(used.external / 1024 / 1024)}MB
-//     Online=${onlineUsers.size}`);
-// }, 10000);
+setInterval(() => {
+    const used = process.memoryUsage();
+    console.log(`[SYS]
+    RSS=${Math.round(used.rss / 1024 / 1024)}MB
+    HeapUsed=${Math.round(used.heapUsed / 1024 / 1024)}MB
+    HeapTotal=${Math.round(used.heapTotal / 1024 / 1024)}MB
+    External=${Math.round(used.external / 1024 / 1024)}MB
+    Online=${onlineUsers.size}`);
+}, 60000);
 
 // Socket.io Connection Logic
 io.on('connection', async (socket) => {
