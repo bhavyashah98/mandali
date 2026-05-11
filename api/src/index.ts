@@ -91,7 +91,10 @@ io.on('connection', async (socket) => {
             const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET!) as { userId: string };
             userId = decoded.userId;
             (socket as any).userId = userId;
-        } catch (err) { }
+            console.log(`[Socket] Token verified for userId: ${userId}`);
+        } catch (err: any) { 
+            console.error(`[Socket] Token verification failed: ${err.message}`);
+        }
     }
 
     if (!userId) {
