@@ -9,6 +9,28 @@ const router = express.Router();
 // All group routes require authentication
 router.use(authMiddleware);
 
+// Helper to sanitize incoming image URLs (handles legacy client objects/strings)
+const sanitizeImageUrl = (url: any) => {
+    if (!url) return null;
+    // If it's the full Cloudinary object { url, publicId }
+    if (typeof url === 'object' && url.url) return url.url;
+    // If it's a string (could be a plain URL or a stringified JSON)
+    if (typeof url === 'string') {
+        if (url === '[object Object]') return null;
+        try {
+            // Check if it's a stringified JSON object
+            if (url.startsWith('{')) {
+                const parsed = JSON.parse(url);
+                if (parsed.url) return parsed.url;
+            }
+        } catch (e) {
+            // Not JSON, treat as plain string
+        }
+        return url;
+    }
+    return null;
+};
+
 // ──────────────────────────────────────────────
 // POST /groups — Create a new group
 // ──────────────────────────────────────────────
@@ -21,6 +43,9 @@ router.post('/', async (req: AuthRequest, res) => {
             return res.status(400).json({ error: 'Group name is required' });
         }
 
+        const sanitizedUrl = sanitizeImageUrl(coverPhotoUrl);
+        console.log(`[Groups] 🆕 Creating group "${name}". Original:`, coverPhotoUrl, 'Sanitized:', sanitizedUrl);
+
         // Generate a unique 8-char invite code
         const inviteCode = crypto.randomBytes(4).toString('hex').toUpperCase();
 
@@ -30,7 +55,7 @@ router.post('/', async (req: AuthRequest, res) => {
             .insert({
                 name: name.trim(),
                 description,
-                cover_photo_url: coverPhotoUrl || null,
+                cover_photo_url: sanitizedUrl,
                 invite_code: inviteCode,
                 admin_user_id: userId,
             })
@@ -53,7 +78,6 @@ router.post('/', async (req: AuthRequest, res) => {
 
         if (memberError) {
             console.error('[Groups] Add admin member error:', memberError);
-            // Group was created but member insert failed — clean up
             await supabase.from('groups').delete().eq('id', group.id);
             return res.status(500).json({ error: 'Failed to add you as group admin' });
         }
@@ -78,7 +102,6 @@ router.get('/', async (req: AuthRequest, res) => {
     try {
         const userId = req.userId!;
 
-        // Get all group_ids the user is a member of
         const { data: memberships, error: memberError } = await supabase
             .from('group_members')
             .select('group_id, role')
@@ -95,7 +118,6 @@ router.get('/', async (req: AuthRequest, res) => {
 
         const groupIds = memberships.map((m: any) => m.group_id);
 
-        // Get full group details
         const { data: groups, error: groupsError } = await supabase
             .from('groups')
             .select('*')
@@ -107,7 +129,6 @@ router.get('/', async (req: AuthRequest, res) => {
             return res.status(500).json({ error: 'Failed to fetch groups' });
         }
 
-        // For each group, get member count and USER winnings
         const groupsWithMeta = await Promise.all(
             groups.map(async (group: any) => {
                 const [memberCountRes, winningsRes] = await Promise.all([
@@ -149,7 +170,6 @@ router.get('/:id', async (req: AuthRequest, res) => {
         const { id } = req.params;
         const userId = req.userId!;
 
-        // Verify the user is a member
         const { data: membership } = await supabase
             .from('group_members')
             .select('role')
@@ -161,7 +181,6 @@ router.get('/:id', async (req: AuthRequest, res) => {
             return res.status(403).json({ error: 'You are not a member of this group' });
         }
 
-        // Get group details
         const { data: group, error: groupError } = await supabase
             .from('groups')
             .select('*')
@@ -172,7 +191,6 @@ router.get('/:id', async (req: AuthRequest, res) => {
             return res.status(404).json({ error: 'Group not found' });
         }
 
-        // Get all members with user info
         const { data: members } = await supabase
             .from('group_members')
             .select('id, role, joined_at, user_id, users(id, name, phone, avatar_url)')
@@ -202,7 +220,6 @@ router.post('/join', async (req: AuthRequest, res) => {
             return res.status(400).json({ error: 'Invite code is required' });
         }
 
-        // Find the group by invite code
         const { data: group, error: groupError } = await supabase
             .from('groups')
             .select('*')
@@ -213,7 +230,6 @@ router.post('/join', async (req: AuthRequest, res) => {
             return res.status(404).json({ error: 'Invalid invite code. No group found.' });
         }
 
-        // Check if already a member
         const { data: existing } = await supabase
             .from('group_members')
             .select('id')
@@ -225,7 +241,6 @@ router.post('/join', async (req: AuthRequest, res) => {
             return res.status(409).json({ error: 'You are already a member of this group', group });
         }
 
-        // Add as member
         const { error: joinError } = await supabase
             .from('group_members')
             .insert({
@@ -258,7 +273,6 @@ router.patch('/:id', async (req: AuthRequest, res) => {
         const { name, description, coverPhotoUrl } = req.body;
         const userId = req.userId!;
 
-        // 1. Verify user is admin
         const { data: membership } = await supabase
             .from('group_members')
             .select('role')
@@ -273,7 +287,11 @@ router.patch('/:id', async (req: AuthRequest, res) => {
         const updates: any = {};
         if (name) updates.name = name.trim();
         if (description !== undefined) updates.description = description;
-        if (coverPhotoUrl !== undefined) updates.cover_photo_url = coverPhotoUrl;
+        if (coverPhotoUrl !== undefined) {
+            const sanitizedUrl = sanitizeImageUrl(coverPhotoUrl);
+            console.log(`[Groups] 🔄 Updating group ${id}. Original:`, coverPhotoUrl, 'Sanitized:', sanitizedUrl);
+            updates.cover_photo_url = sanitizedUrl;
+        }
 
         const { data: group, error: updateError } = await supabase
             .from('groups')
@@ -288,7 +306,6 @@ router.patch('/:id', async (req: AuthRequest, res) => {
         }
 
         const io = req.app.get('io');
-        console.log(`[Groups] 📢 Emitting GROUP_UPDATED for group ${id}`);
         emitGroupEvent(io, id as string, GroupEventType.GROUP_UPDATED, group, [userId]);
 
         res.json({ group, message: 'Group updated successfully' });
@@ -306,7 +323,6 @@ router.delete('/:id', async (req: AuthRequest, res) => {
         const { id } = req.params;
         const userId = req.userId!;
 
-        // 1. Verify user is admin
         const { data: membership } = await supabase
             .from('group_members')
             .select('role')
@@ -318,7 +334,6 @@ router.delete('/:id', async (req: AuthRequest, res) => {
             return res.status(403).json({ error: 'Only admins can delete groups' });
         }
 
-        // 2. Delete group (cascades should handle members/photos/etc if setup in DB)
         const { error: deleteError } = await supabase
             .from('groups')
             .delete()
@@ -344,7 +359,6 @@ router.post('/:id/leave', async (req: AuthRequest, res) => {
         const { id } = req.params;
         const userId = req.userId!;
 
-        // Check current membership
         const { data: membership } = await supabase
             .from('group_members')
             .select('role')
@@ -356,7 +370,6 @@ router.post('/:id/leave', async (req: AuthRequest, res) => {
             return res.status(404).json({ error: 'Membership not found' });
         }
 
-        // If admin, check if others exist
         if (membership.role === 'admin') {
             const { count } = await supabase
                 .from('group_members')
@@ -404,7 +417,6 @@ router.post('/:id/transfer-ownership', async (req: AuthRequest, res) => {
             return res.status(400).json({ error: 'Target member ID is required for transfer' });
         }
 
-        // 1. Verify caller is admin
         const { data: myMembership } = await supabase
             .from('group_members')
             .select('role')
@@ -416,7 +428,6 @@ router.post('/:id/transfer-ownership', async (req: AuthRequest, res) => {
             return res.status(403).json({ error: 'Only admins can transfer ownership' });
         }
 
-        // 2. Verify target is a member
         const { data: targetMembership } = await supabase
             .from('group_members')
             .select('id')
@@ -428,18 +439,13 @@ router.post('/:id/transfer-ownership', async (req: AuthRequest, res) => {
             return res.status(400).json({ error: 'Target user is not a member of this group' });
         }
 
-        // 3. Batch updates
         await Promise.all([
-            // Set new admin in members table
             supabase.from('group_members').update({ role: 'admin' }).eq('group_id', id).eq('user_id', newAdminUserId),
-            // Demote self to member
             supabase.from('group_members').update({ role: 'member' }).eq('group_id', id).eq('user_id', userId),
-            // Update group ownership record
             supabase.from('groups').update({ admin_user_id: newAdminUserId }).eq('id', id)
         ]);
 
         const io = req.app.get('io');
-        console.log(`[Groups] 📢 Emitting MEMBERSHIP_CHANGED for group ${id}`);
         emitGroupEvent(io, id as string, GroupEventType.MEMBERSHIP_CHANGED, { newAdminUserId }, [userId, newAdminUserId]);
 
         res.json({ message: 'Ownership transferred successfully' });

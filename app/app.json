@@ -114,6 +114,9 @@
             "forceStaticLinking": [
               "RNFBApp"
             ]
+          },
+          "android": {
+            "allowBackup": false
           }
         }
       ],
