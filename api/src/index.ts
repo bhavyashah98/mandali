@@ -15,8 +15,10 @@ import wellKnownRoutes from './routes/well-known';
 import deepLinksRoutes from './routes/deepLinks';
 import moderationRoutes from './routes/moderation';
 import chatRoutes from './routes/chat';
+import appVersionRoutes from './routes/appVersion';
 import { supabase } from './lib/supabase';
 import { socketAuthMiddleware } from './middleware/socketAuth';
+import { appVersionGuard } from './middleware/appVersionGuard';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -28,7 +30,11 @@ export const io = new Server(httpServer, {
         methods: ["GET", "POST"],
         credentials: true
     },
-    allowEIO3: true // Support older engine.io versions if necessary
+    allowEIO3: true, // Support older engine.io versions if necessary
+    connectionStateRecovery: {
+        maxDisconnectionDuration: 2 * 60 * 1000,
+        skipMiddlewares: true,
+    }
 });
 
 // Attach io to app for use in routes
@@ -43,6 +49,8 @@ app.use((req, res, next) => {
     next();
 });
 
+app.use(appVersionGuard);
+
 // Route Handlers
 app.use('/auth', authRoutes);
 app.use('/groups', groupRoutes);
@@ -54,6 +62,7 @@ app.use('/', deepLinksRoutes);
 app.use('/', legalRoutes);
 app.use('/moderation', moderationRoutes);
 app.use('/chat', chatRoutes);
+app.use('/app-version', appVersionRoutes);
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', message: 'Mandali API is running' });
@@ -92,7 +101,7 @@ io.on('connection', async (socket) => {
             userId = decoded.userId;
             (socket as any).userId = userId;
             console.log(`[Socket] Token verified for userId: ${userId}`);
-        } catch (err: any) { 
+        } catch (err: any) {
             console.error(`[Socket] Token verification failed: ${err.message}`);
         }
     }

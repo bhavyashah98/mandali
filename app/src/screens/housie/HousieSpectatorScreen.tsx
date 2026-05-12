@@ -50,7 +50,9 @@ const HousieSpectatorScreen = () => {
         refetchOnWindowFocus: false,
     });
 
-    useSocketRoom('join_game', gameCode);
+    useSocketRoom('join_game', gameCode, () => {
+        refetchGame();
+    });
 
     // Socket — listen for numbers and game end
     useEffect(() => {

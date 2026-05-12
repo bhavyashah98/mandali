@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { updateHousieStatus } from '../../../lib/api';
 import { useQuery } from '@tanstack/react-query';
@@ -20,7 +20,7 @@ const TicketHeader: React.FC<TicketHeaderProps> = ({
     gameTitle, gameSettings, hostName, hostId, gameCode, userId, isTablet, onBack
 }) => {
     // Fetch styles from cache (parent screen should have pre-fetched)
-    const { data: stylesData } = useQuery({
+    const { data: stylesData, isLoading: isStylesLoading } = useQuery({
         queryKey: ['housieStyles'],
         queryFn: fetchHousieGameStyles,
         staleTime: Infinity,
@@ -29,11 +29,10 @@ const TicketHeader: React.FC<TicketHeaderProps> = ({
     const isAuto = gameSettings?.callingMode === 'auto';
     const twistId = gameSettings?.gameStyle || 'classic';
 
-    // Resolve the display title from backend data
     const twistLabel = React.useMemo(() => {
         const styles = stylesData?.styles || [];
         const matched = styles.find((s: any) => s.id === twistId);
-        return matched.title;
+        return matched?.title;
     }, [twistId, stylesData]);
 
     return (
@@ -64,11 +63,15 @@ const TicketHeader: React.FC<TicketHeaderProps> = ({
                         className={`bg-white rounded-full flex-row items-center border border-stone-100 ${isTablet ? 'px-4 py-1.5' : 'px-2 py-0.5'}`}
                     >
                         <View className={`rounded-full bg-green-500 ${isTablet ? 'w-2.5 h-2.5 mr-2' : 'w-1.5 h-1.5 mr-1'}`} />
-                        <Text className={`text-stone-500 font-body-bold uppercase tracking-wider ${isTablet ? 'text-base' : 'text-[8px]'}`}>
-                            {isAuto ? `${gameSettings.autoCallSeconds}s Auto` : 'Manual'}
-                            <Text className="text-stone-300 mx-1">•</Text> {twistLabel}
-                            <Text className="text-stone-300 mx-1">•</Text> Host: {hostName}
-                        </Text>
+                        {isStylesLoading || !twistLabel ? (
+                            <ActivityIndicator size="small" color="#b30069" />
+                        ) : (
+                            <Text className={`text-stone-500 font-body-bold uppercase tracking-wider ${isTablet ? 'text-base' : 'text-[8px]'}`}>
+                                {isAuto ? `${gameSettings.autoCallSeconds}s Auto` : 'Manual'}
+                                <Text className="text-stone-300 mx-1">•</Text> {twistLabel}
+                                <Text className="text-stone-300 mx-1">•</Text> Host: {hostName}
+                            </Text>
+                        )}
                     </View>
                 </View>
             </View>

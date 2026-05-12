@@ -1,14 +1,41 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { getAppVersionHeaders } from './appVersion';
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+export interface AppVersionStatus {
+    success: boolean;
+    platform: 'android' | 'ios';
+    forceUpdate: boolean;
+    recommendUpdate: boolean;
+    currentBuild: number;
+    minimumSupportedBuild: number;
+    latestBuild: number;
+    minimumSupportedVersion: string;
+    latestVersion: string;
+    message: string;
+    storeUrl: string;
+    isUpdateRequired: boolean;
+    minimumVersion: string;
+    minimumBuildNumber: number;
+}
+
+export const fetchAppVersionStatus = async (params: {
+    platform: string;
+    version: string;
+    buildNumber: string | number;
+}): Promise<AppVersionStatus> => {
+    const response = await axios.get(`${API_URL}/app-version`, { params, timeout: 8000 });
+    return response.data;
+};
 
 // Helper to get auth headers
 export const getAuthHeaders = async () => {
     const token = await AsyncStorage.getItem('mandali_token');
     return {
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        ...getAppVersionHeaders(),
     };
 };
 
@@ -177,7 +204,7 @@ export const createHousieGame = async (groupId: string, settings?: HousieSetting
 
 export const fetchHousieGame = async (gameCode: string): Promise<any> => {
     const headers = await getAuthHeaders();
-    const response = await axios.get(`${API_URL}/housie/${gameCode}`, { headers });
+    const response = await axios.get(`${API_URL}/housie/${gameCode}?t=${Date.now()}`, { headers });
     return response.data;
 };
 
@@ -195,7 +222,7 @@ export const fetchTicketById = async (ticketId: string) => {
 
 export const fetchActiveHousieGame = async (groupId: string): Promise<{ activeGame: any, lastGame: any }> => {
     const headers = await getAuthHeaders();
-    const response = await axios.get(`${API_URL}/housie/active/${groupId}`, { headers });
+    const response = await axios.get(`${API_URL}/housie/active/${groupId}?t=${Date.now()}`, { headers });
     return response.data;
 };
 
@@ -219,7 +246,7 @@ export const updateHousieTicketCount = async (gameCode: string, newCount: number
 
 export const fetchHousieTickets = async (gameCode: string): Promise<{ tickets: any[] }> => {
     const headers = await getAuthHeaders();
-    const response = await axios.get(`${API_URL}/housie/${gameCode}/tickets`, { headers });
+    const response = await axios.get(`${API_URL}/housie/${gameCode}/tickets?t=${Date.now()}`, { headers });
     return response.data;
 };
 

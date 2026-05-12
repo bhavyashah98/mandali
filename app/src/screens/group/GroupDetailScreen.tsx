@@ -492,7 +492,7 @@ const GroupDetailScreen = () => {
                                         style={{ width: '100%', height: '100%' }}
                                     >
                                         <Image
-                                            source={{ uri: getOptimizedImageUrl(profileTargetUser.avatar_url, 'w_300,q_auto,f_auto') }}
+                                            source={{ uri: profileTargetUser.avatar_url }}
                                             style={{ width: '100%', aspectRatio: 1 }}
                                             contentFit="cover"
                                         />
@@ -564,7 +564,7 @@ const GroupDetailScreen = () => {
                                     style={{ width: '100%', height: '100%' }}
                                 >
                                     <Image
-                                        source={{ uri: getOptimizedImageUrl(group.cover_photo_url, 'w_150,q_auto,f_auto') }}
+                                        source={{ uri: group.cover_photo_url }}
                                         style={{ width: '100%', height: undefined, aspectRatio: 1 }}
                                         contentFit="contain"
                                     />

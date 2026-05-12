@@ -112,7 +112,7 @@ export const HostTicketsSection: React.FC<HostTicketsSectionProps> = React.memo(
                             >
                                 <View className="absolute top-1.5 right-1.5 bg-[#31302d] px-1.5 py-0.5 rounded-lg flex-row items-center">
                                     <MaterialCommunityIcons name="crown" size={8} color="#fbbf24" />
-                                    <Text className="text-[6px] font-headline-bold text-[#fbbf24] uppercase ml-1">Premium</Text>
+                                    <Text className="text-[6px] font-headline-bold text-[#fbbf24] uppercase ml-1">Pro</Text>
                                 </View>
                                 <Text className={`font-headline-bold ${ticketDifficulty === 'hard' ? 'text-white' : 'text-[#1c1c18]'} ${isTablet ? 'text-2xl' : 'text-base'}`}>
                                     Hard

@@ -19,11 +19,20 @@ function onAppStateChange(status: AppStateStatus) {
 //components
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { RootNavigator } from '@/src/navigation/RootNavigator';
+import { AppUpdateGate } from './src/components/AppUpdateGate';
 
 //contexts
 import { SocketProvider } from './src/contexts/SocketContext';
 import { HousieNotificationProvider } from './src/contexts/HousieNotificationContext';
 import { useAuthStore } from './src/stores/authStore';
+
+//hooks
+import { useHousieGlobalSync } from './src/hooks/housie/useHousieGlobalSync';
+
+const HousieSyncManager = () => {
+  useHousieGlobalSync();
+  return null;
+};
 
 //styles
 import '@/global.css';
@@ -68,12 +77,15 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
           <GluestackUIProvider mode="light">
-            <SocketProvider token={token}>
-              <HousieNotificationProvider>
-                <RootNavigator />
-                <StatusBar style="auto" />
-              </HousieNotificationProvider>
-            </SocketProvider>
+            <AppUpdateGate>
+              <SocketProvider token={token}>
+                <HousieSyncManager />
+                <HousieNotificationProvider>
+                  <RootNavigator />
+                  <StatusBar style="auto" />
+                </HousieNotificationProvider>
+              </SocketProvider>
+            </AppUpdateGate>
           </GluestackUIProvider>
         </SafeAreaProvider>
       </QueryClientProvider>

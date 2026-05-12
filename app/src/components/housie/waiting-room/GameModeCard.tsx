@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { fetchHousieGameStyles } from '../../../lib/api';
@@ -12,7 +12,7 @@ interface GameModeCardProps {
 }
 
 const GameModeCard: React.FC<GameModeCardProps> = ({ title, gameCode, settings, isTablet }) => {
-    const { data: stylesData } = useQuery({
+    const { data: stylesData, isLoading: isStylesLoading } = useQuery({
         queryKey: ['housieStyles'],
         queryFn: fetchHousieGameStyles,
         staleTime: Infinity,
@@ -26,8 +26,8 @@ const GameModeCard: React.FC<GameModeCardProps> = ({ title, gameCode, settings, 
         const matched = styles.find((s: any) => s.id === styleId);
 
         return {
-            title: matched.title,
-            description: matched.description
+            title: matched?.title,
+            description: matched?.description
         };
     }, [settings?.gameStyle, stylesData]);
 
@@ -88,23 +88,29 @@ const GameModeCard: React.FC<GameModeCardProps> = ({ title, gameCode, settings, 
             <View className="w-12 h-[1px] bg-white/20 mb-5" />
 
             {/* 4. Game Twist Title */}
-            <View className="flex-row items-center mb-1">
-                <Ionicons name="sparkles" size={isTablet ? 20 : 14} color="white" />
-                <Text
-                    className={`text-white font-headline-bold ml-2 ${isTablet ? 'text-2xl' : 'text-base'}`}
-                    numberOfLines={1}
-                >
-                    {modeInfo.title}
-                </Text>
-            </View>
+            {isStylesLoading || !modeInfo.title ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+                <>
+                    <View className="flex-row items-center mb-1">
+                        <Ionicons name="sparkles" size={isTablet ? 20 : 14} color="white" />
+                        <Text
+                            className={`text-white font-headline-bold ml-2 ${isTablet ? 'text-2xl' : 'text-base'}`}
+                            numberOfLines={1}
+                        >
+                            {modeInfo.title}
+                        </Text>
+                    </View>
 
-            {/* 5. Game Twist Description */}
-            <Text
-                className={`text-white/70 font-body-medium ${isTablet ? 'text-lg' : 'text-[11px]'}`}
-                numberOfLines={1}
-            >
-                {modeInfo.description}
-            </Text>
+                    {/* 5. Game Twist Description */}
+                    <Text
+                        className={`text-white/70 font-body-medium ${isTablet ? 'text-lg' : 'text-[11px]'}`}
+                        numberOfLines={1}
+                    >
+                        {modeInfo.description}
+                    </Text>
+                </>
+            )}
         </View>
 
 

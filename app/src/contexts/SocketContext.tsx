@@ -8,11 +8,11 @@ import React, {
     ReactNode,
 } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
-import { useHousieGlobalSync } from '../hooks/housie/useHousieGlobalSync';
 
 //Socket
 import { socketService } from '../lib/socketService';
 import { Socket } from 'socket.io-client';
+import NetInfo from '@react-native-community/netinfo';
 
 interface SocketContextType {
     socket: Socket | null;
@@ -24,11 +24,6 @@ interface Props {
     token: string | null;
     children: ReactNode;
 }
-
-const HousieSyncManager = () => {
-    useHousieGlobalSync();
-    return null;
-};
 
 export const SocketProvider: React.FC<Props> = ({ token, children }) => {
     const [socket, setSocket] = useState<Socket | null>(null);
@@ -68,11 +63,41 @@ export const SocketProvider: React.FC<Props> = ({ token, children }) => {
         };
     }, []);
 
+    // Network State Listener (NetInfo)
+    const wasOnline = useRef<boolean | null>(null);
+
+    useEffect(() => {
+        const unsubscribeNetInfo = NetInfo.addEventListener(state => {
+            if (!token) {
+                wasOnline.current = null;
+                return;
+            }
+
+            const s = socketService.getSocket();
+
+            const isOnline = state.isConnected === true && state.isInternetReachable !== false;
+
+            if (isOnline) {
+                if (wasOnline.current === false && s && !s.connected) {
+                    console.log('[SocketProvider] Network restored! Forcing socket reconnection...');
+                    s.connect();
+                }
+            } else if (state.isConnected === false || state.isInternetReachable === false) {
+                console.log('[SocketProvider] Network lost!');
+            }
+
+            wasOnline.current = isOnline;
+        });
+
+        return () => {
+            unsubscribeNetInfo();
+        };
+    }, [token]);
+
     const value = useMemo(() => ({ socket }), [socket]);
 
     return (
         <SocketContext.Provider value={value}>
-            <HousieSyncManager />
             {children}
         </SocketContext.Provider>
     );

@@ -1,4 +1,10 @@
 import { io, Socket } from 'socket.io-client';
+import { Platform } from 'react-native';
+import { getAppBuildNumber, getAppVersion } from './appVersion';
+
+const getSocketPlatform = () => {
+    return Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : 'unknown';
+};
 
 class SocketService {
     private static instance: SocketService;
@@ -32,17 +38,32 @@ class SocketService {
         const host = process.env.EXPO_PUBLIC_SOCKET_URL!;
 
         this.socket = io(host, {
-            transports: ['websocket'],
+            transports: ['polling', 'websocket'],
+
             autoConnect: true,
+
             reconnection: true,
             reconnectionAttempts: Infinity,
+
             reconnectionDelay: 1000,
-            timeout: 10000,
-            auth: { token },
+            reconnectionDelayMax: 5000,
+
+            timeout: 20000,
+            auth: {
+                token,
+                platform: getSocketPlatform(),
+                version: getAppVersion(),
+                buildNumber: getAppBuildNumber(),
+            },
         });
 
         this.socket.on('connect', () => {
             console.log('[SocketService] ✅ Connected');
+            if (this.socket?.recovered) {
+                console.log('[SocketService] Missed packets recovered');
+            } else {
+                console.log('[SocketService] Fresh connection / recovery failed');
+            }
         });
 
         this.socket.on('connect_error', (err) => {
@@ -65,7 +86,12 @@ class SocketService {
 
         this.token = token;
         this.socket.disconnect();
-        this.socket.auth = { token };
+        this.socket.auth = {
+            token,
+            platform: getSocketPlatform(),
+            version: getAppVersion(),
+            buildNumber: getAppBuildNumber(),
+        };
         this.socket.connect();
     }
 

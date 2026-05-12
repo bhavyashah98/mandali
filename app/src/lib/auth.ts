@@ -1,6 +1,7 @@
 import { getAuth, signInWithPhoneNumber, type FirebaseAuthTypes } from '@react-native-firebase/auth';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAppVersionHeaders } from './appVersion';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -25,6 +26,8 @@ export const verifyOTP = async (
     const response = await axios.post(`${API_URL}/auth/verify`, {
         firebaseToken,
         phone: result.user.phoneNumber,
+    }, {
+        headers: getAppVersionHeaders(),
     });
 
     // Save JWT token

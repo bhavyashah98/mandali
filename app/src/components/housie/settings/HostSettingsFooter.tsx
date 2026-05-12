@@ -26,7 +26,7 @@ export const HostSettingsFooter = ({
                     <ActivityIndicator color="white" />
                 ) : (
                     <Text className="font-headline-bold text-white text-xl">
-                        {isScheduled ? 'Schedule Game' : 'Create & Open Room'}
+                        Next: Define Prizes
                     </Text>
                 )}
             </TouchableOpacity>

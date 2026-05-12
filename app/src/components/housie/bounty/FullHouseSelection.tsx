@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { Alert, View, Text, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 
 interface Props {
@@ -59,7 +59,7 @@ const FullHouseSelection: React.FC<Props> = ({ count, onCountChange }) => {
 
             <View className="px-2">
                 <Text className="font-body text-stone-400 text-[11px] leading-4 italic">
-                    * Prizes are automatically distributed: FH1 > FH2 > FH3... to reward earlier claims.
+                    * Prizes are automatically distributed: FH1 &gt; FH2 &gt; FH3... to reward earlier claims.
                 </Text>
             </View>
         </View>
