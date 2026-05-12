@@ -237,6 +237,7 @@ const SetupProfileScreen = () => {
                                     visible={showDatePicker}
                                     mode="date"
                                     value={birthday}
+                                    minimumDate={new Date(1900, 0, 1)}
                                     maximumDate={new Date()}
                                     onConfirm={(selectedDate) => {
                                         setBirthday(selectedDate);

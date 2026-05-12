@@ -39,6 +39,7 @@ class SocketService {
 
         this.socket = io(host, {
             transports: ['polling', 'websocket'],
+            upgrade: true,
 
             autoConnect: true,
 
@@ -46,7 +47,8 @@ class SocketService {
             reconnectionAttempts: Infinity,
 
             reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
+            reconnectionDelayMax: 3000,
+            randomizationFactor: 0.5,
 
             timeout: 20000,
             auth: {

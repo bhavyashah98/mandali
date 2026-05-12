@@ -214,6 +214,7 @@ const CreateMemoryScreen = () => {
                             visible={showDatePicker}
                             mode="date"
                             value={memoryDate}
+                            minimumDate={new Date(1900, 0, 1)}
                             maximumDate={new Date()}
                             onConfirm={(selectedDate) => {
                                 setMemoryDate(selectedDate);

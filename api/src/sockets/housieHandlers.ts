@@ -5,12 +5,18 @@ import { pauseAutoHost, resetAutoHostTimer } from '../services/housieAutoHost';
 
 export const registerHousieHandlers = (io: Server, socket: Socket) => {
 
-    socket.on('join_game', (gameCode) => {
+    socket.on('join_game', (gameCode, ack) => {
         socket.join(gameCode);
+        if (typeof ack === 'function') {
+            ack({ success: true, room: gameCode });
+        }
     });
 
-    socket.on('join_group', (groupId) => {
+    socket.on('join_group', (groupId, ack) => {
         socket.join(`group_${groupId}`);
+        if (typeof ack === 'function') {
+            ack({ success: true, room: `group_${groupId}` });
+        }
     });
 
     // Player signals they've opened the prize selection modal

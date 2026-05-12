@@ -31,6 +31,8 @@ export const io = new Server(httpServer, {
         credentials: true
     },
     allowEIO3: true, // Support older engine.io versions if necessary
+    pingInterval: 25000,
+    pingTimeout: 60000,
     connectionStateRecovery: {
         maxDisconnectionDuration: 2 * 60 * 1000,
         skipMiddlewares: true,
