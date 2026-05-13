@@ -396,3 +396,10 @@ export const settleHisaabBalance = async (groupId: string, toUserId: string, amo
     const response = await axios.post(`${API_URL}/hisaab/settle`, { groupId, toUserId, amount }, { headers });
     return response.data;
 };
+
+// --- CONFIG API ---
+export const fetchAppConfig = async () => {
+    const response = await axios.get(`${API_URL}/config/app-config`);
+    return response.data;
+};
+

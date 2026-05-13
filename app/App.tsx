@@ -10,16 +10,11 @@ import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { AppState, AppStateStatus, Platform } from 'react-native';
 
-function onAppStateChange(status: AppStateStatus) {
-  if (Platform.OS !== 'web') {
-    focusManager.setFocused(status === 'active');
-  }
-}
-
 //components
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { RootNavigator } from '@/src/navigation/RootNavigator';
 import { AppUpdateGate } from './src/components/AppUpdateGate';
+import { ConfigProvider } from './src/context/ConfigContext';
 
 //contexts
 import { SocketProvider } from './src/contexts/SocketContext';
@@ -29,13 +24,19 @@ import { useAuthStore } from './src/stores/authStore';
 //hooks
 import { useHousieGlobalSync } from './src/hooks/housie/useHousieGlobalSync';
 
+//styles
+import '@/global.css';
+
 const HousieSyncManager = () => {
   useHousieGlobalSync();
   return null;
 };
 
-//styles
-import '@/global.css';
+function onAppStateChange(status: AppStateStatus) {
+  if (Platform.OS !== 'web') {
+    focusManager.setFocused(status === 'active');
+  }
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -77,15 +78,17 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
           <GluestackUIProvider mode="light">
-            <AppUpdateGate>
-              <SocketProvider token={token}>
-                <HousieSyncManager />
-                <HousieNotificationProvider>
-                  <RootNavigator />
-                  <StatusBar style="auto" />
-                </HousieNotificationProvider>
-              </SocketProvider>
-            </AppUpdateGate>
+            <ConfigProvider>
+              <AppUpdateGate>
+                <SocketProvider token={token}>
+                  <HousieSyncManager />
+                  <HousieNotificationProvider>
+                    <RootNavigator />
+                    <StatusBar style="auto" />
+                  </HousieNotificationProvider>
+                </SocketProvider>
+              </AppUpdateGate>
+            </ConfigProvider>
           </GluestackUIProvider>
         </SafeAreaProvider>
       </QueryClientProvider>

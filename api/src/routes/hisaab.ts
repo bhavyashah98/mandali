@@ -191,7 +191,7 @@ router.get('/members/:groupId', async (req: AuthRequest, res) => {
 
         // 3. Simplified view for the UI
         const simplified = simplifyDebts(netBalances);
-        
+
         // 4. Return formatted response
         const formattedMembers = members.map((m: any) => ({
             id: m.user_id,
@@ -199,9 +199,9 @@ router.get('/members/:groupId', async (req: AuthRequest, res) => {
             balance: Number(netBalances[m.user_id].toFixed(2))
         }));
 
-        res.json({ 
-            members: formattedMembers, 
-            simplifiedReports: simplified 
+        res.json({
+            members: formattedMembers,
+            simplifiedReports: simplified
         });
     } catch (err) {
         res.status(500).json({ error: 'Calculation failed' });
@@ -256,7 +256,5 @@ router.post('/settle', async (req: AuthRequest, res) => {
         res.status(500).json({ error: 'Failed to settle' });
     }
 });
-
-export default router;
 
 export default router;

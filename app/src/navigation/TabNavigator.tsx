@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWindowDimensions } from 'react-native';
+import { useConfig } from '../context/ConfigContext';
 
 import { GroupNavigator } from './GroupNavigator';
 import { HousieNavigator } from './HousieNavigator';
@@ -17,7 +18,8 @@ export const TabNavigator = () => {
     const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
-    
+    const { isHisaabEnabled } = useConfig();
+
     return (
         <Tab.Navigator
             screenOptions={({ route }) => ({
@@ -56,7 +58,7 @@ export const TabNavigator = () => {
                     else if (route.name === 'Memories') iconName = focused ? 'images' : 'images-outline';
                     else if (route.name === 'Hisaab') iconName = focused ? 'receipt' : 'receipt-outline';
                     else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
-                    
+
                     return <Ionicons name={iconName} size={isTablet ? 44 : 26} color={color} />;
                 },
             })}
@@ -64,7 +66,9 @@ export const TabNavigator = () => {
             <Tab.Screen name="Groups" component={GroupNavigator} />
             <Tab.Screen name="Housie" component={HousieNavigator} />
             <Tab.Screen name="Memories" component={MemoriesNavigator} />
-            <Tab.Screen name="Hisaab" component={HisaabNavigator} />
+            {isHisaabEnabled && (
+                <Tab.Screen name="Hisaab" component={HisaabNavigator} />
+            )}
             <Tab.Screen name="Profile" component={ProfileNavigator} />
         </Tab.Navigator>
     );
