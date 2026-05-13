@@ -10,14 +10,15 @@ import { BeVietnamPro_300Light, BeVietnamPro_400Regular, BeVietnamPro_500Medium,
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import '@/global.css';
+import { ConfigProvider } from '@/src/context/ConfigContext';
 
 const queryClient = new QueryClient({
-    defaultOptions: {
-        queries: {
-            retry: 2,
-            staleTime: 1000 * 60 * 5, // 5 minutes
-        },
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      staleTime: 1000 * 60 * 5, // 5 minutes
     },
+  },
 });
 
 export default function App() {
@@ -46,8 +47,10 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
           <GluestackUIProvider mode="light">
-            <RootNavigator />
-            <StatusBar style="auto" />
+            <ConfigProvider>
+              <RootNavigator />
+              <StatusBar style="auto" />
+            </ConfigProvider>
           </GluestackUIProvider>
         </SafeAreaProvider>
       </QueryClientProvider>

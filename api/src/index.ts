@@ -11,10 +11,9 @@ import uploadRoutes from './routes/upload';
 import housieRoutes from './routes/housie';
 import memoriesRoutes from './routes/memories';
 import legalRoutes from './routes/legal';
-import wellKnownRoutes from './routes/well-known';
-import deepLinksRoutes from './routes/deepLinks';
 import moderationRoutes from './routes/moderation';
 import hisaabRoutes from './routes/hisaab';
+import configRoutes from './routes/config';
 import { supabase } from './lib/supabase';
 
 const app = express();
@@ -49,6 +48,7 @@ app.use('/upload', uploadRoutes);
 app.use('/housie', housieRoutes);
 app.use('/memories', memoriesRoutes);
 app.use('/hisaab', hisaabRoutes);
+app.use('/config', configRoutes);
 app.use('/', legalRoutes);
 app.use('/moderation', moderationRoutes);
 
