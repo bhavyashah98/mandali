@@ -209,6 +209,40 @@ router.get('/:id', async (req: AuthRequest, res) => {
 });
 
 // ──────────────────────────────────────────────
+// GET /groups/:id/blink-games — List Blink games for group
+// ──────────────────────────────────────────────
+router.get('/:id/blink-games', async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.userId!;
+
+        const { data: membership } = await supabase
+            .from('group_members')
+            .select('id')
+            .eq('group_id', id)
+            .eq('user_id', userId)
+            .single();
+
+        if (!membership) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const { data: games, error } = await supabase
+            .from('blink_games')
+            .select('*, host:users!host_id(name, avatar_url)')
+            .eq('group_id', id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        res.json({ games });
+    } catch (error: any) {
+        console.error('[Groups] List Blink Games Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ──────────────────────────────────────────────
 // POST /groups/join — Join a group via invite code
 // ──────────────────────────────────────────────
 router.post('/join', async (req: AuthRequest, res) => {

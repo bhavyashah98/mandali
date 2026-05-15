@@ -16,6 +16,7 @@ import chatRoutes from './routes/chat';
 import appVersionRoutes from './routes/appVersion';
 import hisaabRoutes from './routes/hisaab';
 import configRoutes from './routes/config';
+import blinkRoutes from './routes/blink';
 import { supabase } from './lib/supabase';
 import { socketAuthMiddleware } from './middleware/socketAuth';
 import { appVersionGuard } from './middleware/appVersionGuard';
@@ -61,6 +62,7 @@ app.use('/housie', housieRoutes);
 app.use('/memories', memoriesRoutes);
 app.use('/hisaab', hisaabRoutes);
 app.use('/config', configRoutes);
+app.use('/blink/games', blinkRoutes);
 app.use('/', legalRoutes);
 app.use('/moderation', moderationRoutes);
 app.use('/chat', chatRoutes);
@@ -76,6 +78,10 @@ import { initHousieEngine } from './services/housieEngine';
 
 // Initialize Background Engine
 initHousieEngine();
+
+// import { populateBlinkCards } from './utils/generateBlinkCards';
+// // Run one-off generation for Blink cards
+// populateBlinkCards();
 
 // --- Real-time Presence Cache ---
 const onlineUsers = new Map<string, string>(); // userId -> socketId
