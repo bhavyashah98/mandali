@@ -1,44 +1,11 @@
 import express from 'express';
 import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
+import * as hisaabService from '../services/hisaab.service';
 
 const router = express.Router();
 
 router.use(authMiddleware);
-
-// Helper function: Simplify Debts (Greedy Algorithm)
-// Minimizes the number of transactions required to settle up
-const simplifyDebts = (balances: { [userId: string]: number }) => {
-    const debtors = Object.keys(balances)
-        .filter(id => balances[id] < -0.01)
-        .map(id => ({ id, amount: Math.abs(balances[id]) }))
-        .sort((a, b) => b.amount - a.amount);
-
-    const creditors = Object.keys(balances)
-        .filter(id => balances[id] > 0.01)
-        .map(id => ({ id, amount: balances[id] }))
-        .sort((a, b) => b.amount - a.amount);
-
-    const transactions: { from: string; to: string; amount: number }[] = [];
-
-    let d = 0, c = 0;
-    while (d < debtors.length && c < creditors.length) {
-        const amount = Math.min(debtors[d].amount, creditors[c].amount);
-        transactions.push({
-            from: debtors[d].id,
-            to: creditors[c].id,
-            amount: Number(amount.toFixed(2))
-        });
-
-        debtors[d].amount -= amount;
-        creditors[c].amount -= amount;
-
-        if (debtors[d].amount < 0.01) d++;
-        if (creditors[c].amount < 0.01) c++;
-    }
-
-    return transactions;
-};
 
 // ──────────────────────────────────────────────
 // GET /hisaab/balances — Get user's net balances across all groups
@@ -80,10 +47,10 @@ router.get('/balances', async (req: AuthRequest, res) => {
             if (gid && groupStats[gid]) groupStats[gid].netBalance -= Number(p.amount);
         });
 
-        // 3. Settlements Received (+) and Paid (-)
+        // 3. Settlements Received (-) and Paid (+)
         settledRes.data?.forEach(s => {
-            if (s.to_user_id === userId) groupStats[s.group_id].netBalance += Number(s.amount);
-            if (s.from_user_id === userId) groupStats[s.group_id].netBalance -= Number(s.amount);
+            if (s.to_user_id === userId) groupStats[s.group_id].netBalance -= Number(s.amount);
+            if (s.from_user_id === userId) groupStats[s.group_id].netBalance += Number(s.amount);
         });
 
         const balances = Object.keys(groupStats).map(gid => ({
@@ -108,7 +75,7 @@ router.get('/ledger/:groupId', async (req: AuthRequest, res) => {
         const [expensesRes, settledRes] = await Promise.all([
             supabase
                 .from('expenses')
-                .select('*, users:paid_by(name), expense_participants(*, users:user_id(name))')
+                .select('*, payer:users!paid_by(name), adder:users!added_by(name), expense_participants(*, users:user_id(name))')
                 .eq('group_id', groupId),
             supabase
                 .from('settlements')
@@ -124,8 +91,11 @@ router.get('/ledger/:groupId', async (req: AuthRequest, res) => {
                 description: e.description,
                 amount: e.amount,
                 paidBy: e.paid_by,
-                paidByName: (e.users as any)?.name || 'Unknown',
+                paidByName: (e.payer as any)?.name || 'Unknown',
+                addedBy: e.added_by || e.paid_by,
+                addedByName: (e.adder as any)?.name || (e.payer as any)?.name || 'Unknown',
                 type: 'expense',
+                expenseType: e.expense_type || 'split_and_settle',
                 createdAt: e.created_at,
                 participants: e.expense_participants.map((p: any) => ({
                     userId: p.user_id,
@@ -172,25 +142,16 @@ router.get('/members/:groupId', async (req: AuthRequest, res) => {
         ]);
 
         const members = membersRes.data || [];
-        const netBalances: { [key: string]: number } = {};
-        members.forEach(m => netBalances[m.user_id] = 0);
-
-        // 1. Process Expenses
-        expensesRes.data?.forEach(e => {
-            netBalances[e.paid_by] += Number(e.amount);
-            e.expense_participants.forEach((p: any) => {
-                netBalances[p.user_id] -= Number(p.amount);
-            });
-        });
-
-        // 2. Process Settlements
-        settledRes.data?.forEach(s => {
-            netBalances[s.from_user_id] -= Number(s.amount);
-            netBalances[s.to_user_id] += Number(s.amount);
-        });
+        const memberIds = members.map(m => m.user_id);
+        
+        const netBalances = hisaabService.calculateNetBalances(
+            memberIds,
+            (expensesRes.data || []) as any,
+            (settledRes.data || []) as any
+        );
 
         // 3. Simplified view for the UI
-        const simplified = simplifyDebts(netBalances);
+        const simplified = hisaabService.simplifyDebts(netBalances);
 
         // 4. Return formatted response
         const formattedMembers = members.map((m: any) => ({
@@ -213,12 +174,20 @@ router.get('/members/:groupId', async (req: AuthRequest, res) => {
 // ──────────────────────────────────────────────
 router.post('/expense', async (req: AuthRequest, res) => {
     try {
-        const { groupId, description, amount, participants } = req.body;
+        const { groupId, description, amount, participants, paidByUserId, expenseType } = req.body;
         const userId = req.userId!;
+        const effectivePaidBy = paidByUserId || userId;
 
         const { data: expense, error: expErr } = await supabase
             .from('expenses')
-            .insert({ group_id: groupId, description, amount, paid_by: userId })
+            .insert({
+                group_id: groupId,
+                description,
+                amount,
+                paid_by: effectivePaidBy,
+                added_by: userId,
+                expense_type: expenseType || 'split_and_settle'
+            })
             .select().single();
 
         if (expErr) throw expErr;
@@ -241,12 +210,12 @@ router.post('/expense', async (req: AuthRequest, res) => {
 // ──────────────────────────────────────────────
 router.post('/settle', async (req: AuthRequest, res) => {
     try {
-        const { groupId, toUserId, amount } = req.body;
+        const { groupId, fromUserId, toUserId, amount } = req.body;
         const userId = req.userId!;
 
         await supabase.from('settlements').insert({
             group_id: groupId,
-            from_user_id: userId,
+            from_user_id: fromUserId || userId,
             to_user_id: toUserId,
             amount
         });
@@ -254,6 +223,61 @@ router.post('/settle', async (req: AuthRequest, res) => {
         res.status(201).json({ message: 'Settlement recorded' });
     } catch (err) {
         res.status(500).json({ error: 'Failed to settle' });
+    }
+});
+
+router.delete('/expense/:id', async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.userId!;
+
+        await supabase.from('expenses').delete().eq('id', id);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to delete expense' });
+    }
+});
+
+router.delete('/settlement/:id', async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.userId!;
+
+        await supabase.from('settlements').delete().eq('id', id);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to delete settlement' });
+    }
+});
+
+router.put('/expense/:id', async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const { description, amount, participants, expenseType } = req.body;
+        const userId = req.userId!;
+
+        await supabase.from('expense_participants').delete().eq('expense_id', id);
+
+        await supabase
+            .from('expenses')
+            .update({
+                description,
+                amount,
+                expense_type: expenseType || 'split_and_settle'
+            })
+            .eq('id', id);
+
+        const partToInsert = participants.map((p: any) => ({
+            expense_id: id,
+            user_id: p.userId,
+            amount: p.amount
+        }));
+
+        await supabase.from('expense_participants').insert(partToInsert);
+
+        res.json({ message: 'Expense updated' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update expense' });
     }
 });
 

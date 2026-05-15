@@ -391,9 +391,9 @@ export const createHisaabExpense = async (expenseData: any) => {
     return response.data;
 };
 
-export const settleHisaabBalance = async (groupId: string, toUserId: string, amount: number) => {
+export const settleHisaabBalance = async (groupId: string, toUserId: string, amount: number, fromUserId?: string) => {
     const headers = await getAuthHeaders();
-    const response = await axios.post(`${API_URL}/hisaab/settle`, { groupId, toUserId, amount }, { headers });
+    const response = await axios.post(`${API_URL}/hisaab/settle`, { groupId, fromUserId, toUserId, amount }, { headers });
     return response.data;
 };
 
@@ -403,3 +403,20 @@ export const fetchAppConfig = async () => {
     return response.data;
 };
 
+export const deleteHisaabExpense = async (id: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.delete(`${API_URL}/hisaab/expense/${id}`, { headers });
+    return response.data;
+};
+
+export const deleteHisaabSettlement = async (id: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.delete(`${API_URL}/hisaab/settlement/${id}`, { headers });
+    return response.data;
+};
+
+export const updateHisaabExpense = async (id: string, expenseData: any) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.put(`${API_URL}/hisaab/expense/${id}`, expenseData, { headers });
+    return response.data;
+};

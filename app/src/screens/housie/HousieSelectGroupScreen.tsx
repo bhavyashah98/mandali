@@ -52,35 +52,36 @@ const HousieSelectGroupScreen = () => {
                     "Mandali Glory",
                     "This represents your total social points won across all groups. These points are virtual and have no cash value."
                 )}
-                style={{ elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10 }}
-                className={`bg-[#1c1c18] rounded-[40px] mb-8 overflow-hidden ${isTablet ? 'p-12' : 'p-6'}`}
+                style={{ elevation: 10, shadowColor: '#b30069', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10 }}
+                className={`bg-[#b30069] rounded-[40px] mb-8 overflow-hidden ${isTablet ? 'p-12' : 'p-6'}`}
             >
                 <LinearGradient
-                    colors={['rgba(255,255,255,0.05)', 'transparent']}
+                    colors={['rgba(255,255,255,0.15)', 'transparent']}
                     className="absolute inset-0"
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                 />
                 <View className="flex-row items-center justify-between">
                     <View>
-                        <Text className={`text-stone-400 font-body-bold uppercase tracking-widest ${isTablet ? 'text-2xl mb-4' : 'text-[10px] mb-1'}`}>Total Mandali Glory</Text>
+                        <Text className={`text-white/70 font-body-bold uppercase tracking-widest ${isTablet ? 'text-2xl mb-4' : 'text-[10px] mb-1'}`}>Total Mandali Glory</Text>
                         <View className="flex-row items-center">
-                            <Text className={`text-[#f59e0b] font-headline-bold ${isTablet ? 'text-7xl' : 'text-3xl'}`}>
+                            <Text className={`text-white font-headline-bold ${isTablet ? 'text-7xl' : 'text-3xl'}`}>
                                 {totalGlory.toLocaleString()}
                             </Text>
                             <MandaliCoin size={isTablet ? 48 : 24} style={{ marginLeft: 12 }} />
                         </View>
                     </View>
                     <View 
-                        style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
+                        style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
                         className={`rounded-[28px] items-center justify-center ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}
                     >
-                        <MaterialIcons name="emoji-events" size={isTablet ? 48 : 24} color="#f59e0b" />
+                        <MaterialIcons name="emoji-events" size={isTablet ? 48 : 24} color="white" />
                     </View>
                 </View>
             </TouchableOpacity>
         );
     };
+
 
     const renderContextCards = () => (
         <View className={`gap-4 flex-1 w-full pb-12 ${isTablet ? 'mt-12' : 'mt-4'}`}>
