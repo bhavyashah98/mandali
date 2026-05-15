@@ -8,9 +8,10 @@ interface LobbyGameCardProps {
     game: any;
     memberCount: number;
     onPress: (game: any) => void;
+    activeColor?: string;
 }
 
-export const LobbyGameCard = ({ game, memberCount, onPress }: LobbyGameCardProps) => {
+export const LobbyGameCard = ({ game, memberCount, onPress, activeColor = '#b30069' }: LobbyGameCardProps) => {
 
     const isLive = game.status === 'active';
     const isStarting = game.status === 'starting';
@@ -49,19 +50,20 @@ export const LobbyGameCard = ({ game, memberCount, onPress }: LobbyGameCardProps
             activeOpacity={0.9}
             style={{
                 backgroundColor: 'white',
-                shadowColor: '#b30069',
+                shadowColor: activeColor,
                 shadowOffset: { width: 0, height: 8 },
                 shadowOpacity: isLive ? 0.08 : 0.03,
                 shadowRadius: 15,
                 elevation: 4
             }}
-            className={`w-full rounded-[32px] p-6 mb-5 border ${isLive ? 'border-[#b30069]/20' : 'border-stone-100'}`}
+            className={`w-full rounded-[32px] p-6 mb-5 border ${isLive ? 'border-primary/20' : 'border-stone-100'}`}
+            style={{ borderColor: isLive ? `${activeColor}33` : '#f1f1f1' }}
         >
             <View className="flex-row items-start justify-between mb-4">
                 <View className="flex-1 mr-4">
                     <View className="flex-row items-center mb-1">
                         <Text className="text-stone-800 font-headline-bold text-xl flex-shrink" numberOfLines={1}>
-                            {game.title || 'Housie Room'}
+                            {game.title || `${game.game_type === 'blink' ? 'Blink' : 'Housie'} Room`}
                         </Text>
                         {hasTicket && (
                             <View className="ml-2 bg-green-50 p-1 rounded-full">
@@ -105,7 +107,7 @@ export const LobbyGameCard = ({ game, memberCount, onPress }: LobbyGameCardProps
                 </View>
 
                 <LinearGradient
-                    colors={['#b30069', '#d4007d']}
+                    colors={[activeColor, activeColor + 'dd']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     className="rounded-2xl"

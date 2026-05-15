@@ -3,6 +3,14 @@ import { Platform } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAppConfig } from '../lib/api';
 
+interface GameConfigItem {
+    id: string;
+    title: string;
+    subtitle: string;
+    icon: string;
+    iconType: string;
+}
+
 interface AppConfig {
     hisaab: {
         android: boolean;
@@ -12,6 +20,7 @@ interface AppConfig {
         android: string;
         ios: string;
     };
+    games: GameConfigItem[];
 }
 
 interface ConfigContextType {
@@ -19,6 +28,7 @@ interface ConfigContextType {
     isLoading: boolean;
     isError: boolean;
     isHisaabEnabled: boolean;
+    availableGames: GameConfigItem[];
 }
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
@@ -31,8 +41,12 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
 
     const isHisaabEnabled = React.useMemo(() => {
-        if (!config) return false; // Default to false
+        if (!config) return false;
         return Platform.OS === 'android' ? config.hisaab.android : config.hisaab.ios;
+    }, [config]);
+
+    const availableGames = React.useMemo(() => {
+        return config?.games || [];
     }, [config]);
 
     return (
@@ -42,6 +56,7 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 isLoading,
                 isError,
                 isHisaabEnabled,
+                availableGames,
             }}
         >
             {children}

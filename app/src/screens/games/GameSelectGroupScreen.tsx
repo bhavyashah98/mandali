@@ -11,7 +11,7 @@ import { fetchGroups, getOptimizedImageUrl } from '../../lib/api';
 import MandaliCoin from '../../components/MandaliCoin';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const HousieSelectGroupScreen = () => {
+const GameSelectGroupScreen = () => {
     const navigation = useNavigation<any>();
     const socket = useSocket();
     const queryClient = useQueryClient();
@@ -93,10 +93,10 @@ const HousieSelectGroupScreen = () => {
                 style={{ backgroundColor: 'rgba(179, 0, 105, 0.05)' }}
                 className={`rounded-[32px] ${isTablet ? 'p-12' : 'p-5'}`}
             >
-                <MaterialIcons name="confirmation-num" size={isTablet ? 48 : 24} color="#b30069" className="mb-4" />
-                <Text className={`font-headline-bold text-[#1c1c18] mb-2 ${isTablet ? 'text-3xl' : 'text-[15px]'}`}>Classic Gameplay</Text>
+                <MaterialIcons name="sports-esports" size={isTablet ? 48 : 24} color="#b30069" className="mb-4" />
+                <Text className={`font-headline-bold text-[#1c1c18] mb-2 ${isTablet ? 'text-3xl' : 'text-[15px]'}`}>Multiplayer Fun</Text>
                 <Text className={`font-body-medium text-stone-500 leading-relaxed ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
-                    Generate automated digital tickets instantly and play live with anyone in your Mandali circle.
+                    Play classic games like Housie and Blink live with your Mandali circle.
                 </Text>
             </View>
             <View 
@@ -104,9 +104,9 @@ const HousieSelectGroupScreen = () => {
                 className={`rounded-[32px] ${isTablet ? 'p-12' : 'p-5'}`}
             >
                 <MaterialIcons name="emoji-events" size={isTablet ? 48 : 24} color="#b30069" className="mb-4" />
-                <Text className={`font-headline-bold text-[#1c1c18] mb-2 ${isTablet ? 'text-3xl' : 'text-[15px]'}`}>Live Bounties</Text>
+                <Text className={`font-headline-bold text-[#1c1c18] mb-2 ${isTablet ? 'text-3xl' : 'text-[15px]'}`}>Group Rewards</Text>
                 <Text className={`font-body-medium text-stone-500 leading-relaxed ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
-                    Fastest five, first row, full house... sprint to claim digital rewards against your friends.
+                    Compete for glory and climb the leaderboard in every group you join.
                 </Text>
             </View>
             <View 
@@ -114,19 +114,9 @@ const HousieSelectGroupScreen = () => {
                 className={`rounded-[32px] ${isTablet ? 'p-12' : 'p-5'}`}
             >
                 <MaterialIcons name="notifications-active" size={isTablet ? 48 : 24} color="#b30069" className="mb-4" />
-                <Text className={`font-headline-bold text-[#1c1c18] mb-2 ${isTablet ? 'text-3xl' : 'text-[15px]'}`}>Instant Invites</Text>
+                <Text className={`font-headline-bold text-[#1c1c18] mb-2 ${isTablet ? 'text-3xl' : 'text-[15px]'}`}>Real-time Play</Text>
                 <Text className={`font-body-medium text-stone-500 leading-relaxed ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
-                    When a game is launched, all members of your chosen Mandali are notified instantly to join the lobby.
-                </Text>
-            </View>
-            <View 
-                style={{ backgroundColor: 'rgba(179, 0, 105, 0.05)' }}
-                className={`rounded-[32px] ${isTablet ? 'p-12' : 'p-5'}`}
-            >
-                <MaterialIcons name="leaderboard" size={isTablet ? 48 : 24} color="#b30069" className="mb-4" />
-                <Text className={`font-headline-bold text-[#1c1c18] mb-2 ${isTablet ? 'text-3xl' : 'text-[15px]'}`}>Mandali Leaderboards</Text>
-                <Text className={`font-body-medium text-stone-500 leading-relaxed ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
-                    Track all-time winners across your group and see exactly who claims the highest bounties securely.
+                    Get notified as soon as a game starts and jump right into the action.
                 </Text>
             </View>
         </View>
@@ -138,11 +128,11 @@ const HousieSelectGroupScreen = () => {
                 style={{ backgroundColor: 'rgba(179, 0, 105, 0.05)' }}
                 className={`rounded-full items-center justify-center mb-8 ${isTablet ? 'w-40 h-40' : 'w-20 h-20'}`}
             >
-                <MaterialIcons name="local-activity" size={isTablet ? 80 : 40} color="#b30069" />
+                <MaterialIcons name="videogame-asset" size={isTablet ? 80 : 40} color="#b30069" />
             </View>
             <Text className={`font-headline-bold text-on-surface text-center mb-4 ${isTablet ? 'text-5xl' : 'text-2xl'}`}>No Mandali Found!</Text>
             <Text className={`text-on-surface-variant text-center font-body-medium leading-relaxed mb-12 ${isTablet ? 'text-2xl px-20' : 'text-[15px]'}`}>
-                Housie is better with friends and family. Create or join a Mandali to start your first session!
+                Games are better with friends and family. Create or join a Mandali to start playing!
             </Text>
 
             <View className="w-full gap-6">
@@ -151,8 +141,8 @@ const HousieSelectGroupScreen = () => {
                         screen: 'CreateGroup',
                         params: {
                             returnTo: {
-                                parent: 'Housie',
-                                screen: 'HousieSelectGroup',
+                                parent: 'Games',
+                                screen: 'GameSelectGroup',
                             }
                         }
                     })}
@@ -171,8 +161,8 @@ const HousieSelectGroupScreen = () => {
                         screen: 'JoinGroup',
                         params: {
                             returnTo: {
-                                parent: 'Housie',
-                                screen: 'HousieSelectGroup',
+                                parent: 'Games',
+                                screen: 'GameSelectGroup',
                             }
                         }
                     })}
@@ -192,7 +182,7 @@ const HousieSelectGroupScreen = () => {
     const renderGroupItem = ({ item }: { item: any }) => {
         return (
             <TouchableOpacity
-                onPress={() => navigation.navigate('HousieLobby', { groupId: item.id })}
+                onPress={() => navigation.navigate('GameSelection', { groupId: item.id })}
                 activeOpacity={0.7}
                 style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
                 className={`bg-white rounded-[32px] flex-row items-center border border-stone-100 mb-4 ${isTablet ? 'px-10 py-8' : 'px-4 py-4'}`}
@@ -272,7 +262,7 @@ const HousieSelectGroupScreen = () => {
                         adjustsFontSizeToFit
                         numberOfLines={1}
                     >
-                        Housie
+                        Games
                     </Text>
                     <Text
                         className="font-body-bold text-[#b30069] text-center tracking-[4px] uppercase"
@@ -314,4 +304,4 @@ const HousieSelectGroupScreen = () => {
     );
 };
 
-export default HousieSelectGroupScreen;
+export default GameSelectGroupScreen;

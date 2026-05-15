@@ -420,3 +420,38 @@ export const updateHisaabExpense = async (id: string, expenseData: any) => {
     const response = await axios.put(`${API_URL}/hisaab/expense/${id}`, expenseData, { headers });
     return response.data;
 };
+
+// --- BLINK API ---
+export const fetchBlinkGroupGames = async (groupId: string): Promise<{ games: any[] }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/blink/games/group/${groupId}`, { headers });
+    return response.data;
+};
+
+export const fetchBlinkGame = async (gameCode: string): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/blink/games/${gameCode.toUpperCase()}?t=${Date.now()}`, { headers });
+    return response.data;
+};
+
+export const createBlinkGame = async (gameData: {
+    groupId: string;
+    title?: string;
+    maxPlayers?: number;
+    cardsPerPlayer?: number;
+    difficultyLevel?: number;
+    theme?: string;
+    isScheduled?: boolean;
+    scheduledAt?: string;
+}): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const endpoint = gameData.isScheduled ? `${API_URL}/blink/games/schedule` : `${API_URL}/blink/games`;
+    const response = await axios.post(endpoint, gameData, { headers });
+    return response.data;
+};
+
+export const cancelBlinkGame = async (gameId: string, reason?: string): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/blink/games/${gameId}/cancel`, { reason }, { headers });
+    return response.data;
+};

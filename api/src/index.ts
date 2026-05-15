@@ -74,6 +74,7 @@ app.get('/health', (req, res) => {
 
 import { registerChatHandlers } from './sockets/chatHandlers';
 import { registerHousieHandlers } from './sockets/housieHandlers';
+import { registerBlinkHandlers } from './sockets/blinkHandlers';
 import { initHousieEngine } from './services/housieEngine';
 
 // Initialize Background Engine
@@ -146,6 +147,7 @@ io.on('connection', async (socket) => {
     // 3. Delegate Feature Handlers
     registerChatHandlers(io, socket, onlineUsers);
     registerHousieHandlers(io, socket);
+    registerBlinkHandlers(io, socket);
 
     // 4. Lifecyle Handlers
     socket.on('disconnect', (reason) => {

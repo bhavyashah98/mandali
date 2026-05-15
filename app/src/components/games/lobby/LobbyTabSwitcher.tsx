@@ -6,9 +6,10 @@ interface LobbyTabSwitcherProps {
     activeTab: 'active' | 'scheduled';
     setActiveTab: (tab: 'active' | 'scheduled') => void;
     activeCount: number;
+    activeColor?: string;
 }
 
-export const LobbyTabSwitcher = ({ activeTab, setActiveTab, activeCount }: LobbyTabSwitcherProps) => {
+export const LobbyTabSwitcher = ({ activeTab, setActiveTab, activeCount, activeColor = '#b30069' }: LobbyTabSwitcherProps) => {
     return (
         <View className="mb-8">
             <View className="flex-row bg-stone-200/50 rounded-[32px] relative h-16 items-center overflow-hidden">
@@ -17,10 +18,13 @@ export const LobbyTabSwitcher = ({ activeTab, setActiveTab, activeCount }: Lobby
                     className="flex-1 h-full items-center justify-center z-10"
                 >
                     <View className="flex-row items-center">
-                        <Ionicons name="flash" size={18} color={activeTab === 'active' ? '#b30069' : '#a09d96'} />
+                        <Ionicons name="flash" size={18} color={activeTab === 'active' ? activeColor : '#a09d96'} />
                         <Text className={`font-headline-bold ml-2 text-lg ${activeTab === 'active' ? 'text-stone-800' : 'text-stone-400'}`}>Active</Text>
                         {activeCount > 0 && (
-                            <View className="ml-2 bg-[#b30069] px-2 py-0.5 rounded-full">
+                            <View 
+                                style={{ backgroundColor: activeColor }}
+                                className="ml-2 px-2 py-0.5 rounded-full"
+                            >
                                 <Text className="text-white text-[10px] font-headline-bold">{activeCount}</Text>
                             </View>
                         )}
@@ -32,7 +36,7 @@ export const LobbyTabSwitcher = ({ activeTab, setActiveTab, activeCount }: Lobby
                     className="flex-1 h-full items-center justify-center z-10"
                 >
                     <View className="flex-row items-center">
-                        <Ionicons name="calendar" size={18} color={activeTab === 'scheduled' ? '#b30069' : '#a09d96'} />
+                        <Ionicons name="calendar" size={18} color={activeTab === 'scheduled' ? activeColor : '#a09d96'} />
                         <Text className={`font-headline-bold ml-2 text-lg ${activeTab === 'scheduled' ? 'text-stone-800' : 'text-stone-400'}`}>Upcoming</Text>
                     </View>
                 </TouchableOpacity>

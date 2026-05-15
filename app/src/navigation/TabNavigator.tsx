@@ -7,7 +7,7 @@ import { useWindowDimensions } from 'react-native';
 import { useConfig } from '../context/ConfigContext';
 
 import { GroupNavigator } from './GroupNavigator';
-import { HousieNavigator } from './HousieNavigator';
+import { GamesNavigator } from './GamesNavigator';
 import { MemoriesNavigator } from './MemoriesNavigator';
 import { ProfileNavigator } from './ProfileNavigator';
 import { HisaabNavigator } from './HisaabNavigator';
@@ -54,7 +54,7 @@ export const TabNavigator = () => {
                 tabBarIcon: ({ focused, color }) => {
                     let iconName: any;
                     if (route.name === 'Groups') iconName = focused ? 'people' : 'people-outline';
-                    else if (route.name === 'Housie') iconName = focused ? 'game-controller' : 'game-controller-outline';
+                    else if (route.name === 'Games') iconName = focused ? 'game-controller' : 'game-controller-outline';
                     else if (route.name === 'Memories') iconName = focused ? 'images' : 'images-outline';
                     else if (route.name === 'Hisaab') iconName = focused ? 'receipt' : 'receipt-outline';
                     else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
@@ -64,7 +64,7 @@ export const TabNavigator = () => {
             })}
         >
             <Tab.Screen name="Groups" component={GroupNavigator} />
-            <Tab.Screen name="Housie" component={HousieNavigator} />
+            <Tab.Screen name="Games" component={GamesNavigator} />
             <Tab.Screen name="Memories" component={MemoriesNavigator} />
             {isHisaabEnabled && (
                 <Tab.Screen name="Hisaab" component={HisaabNavigator} />

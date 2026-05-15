@@ -5,8 +5,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
 // Hooks
-import { useHousieGroupLobby } from '../../hooks/housie/useHousieGroupLobby';
-import { useHousieLobbySync } from '../../hooks/housie/useHousieLobbySync';
+import { useBlinkGroupLobby } from '../../hooks/blink/useBlinkGroupLobby';
+import { useBlinkLobbySync } from '../../hooks/blink/useBlinkLobbySync';
 
 // Components
 import { LobbyTabSwitcher } from '../../components/games/lobby/LobbyTabSwitcher';
@@ -20,37 +20,23 @@ interface LobbyProps {
     primaryColor: string;
 }
 
-export const HousieLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProps) => {
+export const BlinkLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProps) => {
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
     const [activeTab, setActiveTab] = useState<'active' | 'scheduled'>('active');
 
-    // Housie Specific Hooks
-    const data = useHousieGroupLobby(groupId);
-    useHousieLobbySync(groupId);
+    // Blink Specific Hooks
+    const data = useBlinkGroupLobby(groupId);
+    useBlinkLobbySync(groupId);
 
     const handleAction = useCallback((game: any) => {
-        const { game_code, status, myTicketCount, host_id } = game;
-        const isHost = host_id === data.userId;
-
+        const { game_code, status } = game;
         if (status === 'waiting' || status === 'scheduled') {
-            if (myTicketCount > 0 || isHost) {
-                navigation.navigate('HousieWaitingRoom', { gameCode: game_code, groupId });
-            } else {
-                navigation.navigate('HousieJoinGame', { gameCode: game_code, groupId });
-            }
-        } else if (status === 'starting') {
-            navigation.navigate('HousieStarting', { gameCode: game_code, groupId });
-        } else if (status === 'active') {
-            if (myTicketCount > 0) {
-                navigation.navigate('HousieTicket', { gameCode: game_code, groupId });
-            } else if (isHost && game.settings?.callingMode === 'manual') {
-                navigation.navigate('HousieGame', { gameCode: game_code, groupId });
-            } else {
-                navigation.navigate('HousieSpectator', { gameCode: game_code, groupId });
-            }
+            navigation.navigate('BlinkWaitingRoom', { gameCode: game_code, groupId });
+        } else if (status === 'starting' || status === 'active') {
+            navigation.navigate('BlinkGame', { gameCode: game_code, groupId });
         }
-    }, [navigation, data.userId, groupId]);
+    }, [navigation, groupId]);
 
     const currentGames = useMemo(() => 
         activeTab === 'active' ? data.activeGames : data.scheduledGames, 
@@ -80,7 +66,7 @@ export const HousieLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProp
         >
             {/* Host Card */}
             <TouchableOpacity
-                onPress={() => navigation.navigate('HousieHostSettings', { groupId })}
+                onPress={() => navigation.navigate('BlinkHostSettings', { groupId })}
                 activeOpacity={0.9}
                 style={{ height: isTablet ? 180 : 84, backgroundColor: primaryColor }}
                 className="w-full mt-4 mb-10 rounded-[32px] flex-row items-center px-6 shadow-lg"
@@ -90,7 +76,7 @@ export const HousieLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProp
                 </View>
                 <View className="flex-1">
                     <Text className="font-headline-bold text-white" style={{ fontSize: isTablet ? 36 : 18 }} adjustsFontSizeToFit numberOfLines={1}>
-                        Host Housie
+                        Host Blink
                     </Text>
                     <Text className={`text-white/60 font-body-medium ${isTablet ? 'text-xl mt-1.5' : 'text-xs'}`}>
                         Start a live game or schedule for later
