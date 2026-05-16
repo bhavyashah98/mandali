@@ -1,52 +1,41 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAuthStore } from '../../../stores/authStore';
 
-interface LobbyGameCardProps {
-    game: any;
+export interface BaseLobbyCardProps {
+    title: string;
+    hostName: string;
+    status: 'active' | 'starting' | 'waiting' | 'scheduled';
     memberCount: number;
-    onPress: (game: any) => void;
-    activeColor?: string;
+    participantCount: number;
+    activeColor: string;
+    onPress: () => void;
+    buttonLabel: string;
+    buttonIcon: string;
+    headerBadge?: React.ReactNode;
+    additionalStats?: React.ReactNode;
 }
 
-export const LobbyGameCard = ({ game, memberCount, onPress, activeColor = '#b30069' }: LobbyGameCardProps) => {
-
-    const isLive = game.status === 'active';
-    const isStarting = game.status === 'starting';
-    const hasTicket = game.myTicketCount > 0;
-    const { user } = useAuthStore();
-    const isHost = user?.id === game.host_id;
-    const isManual = game.settings?.callingMode === 'manual';
-
-    let buttonLabel = 'Join Room';
-    let buttonIcon: any = 'play';
-
-    if (game.status === 'waiting') {
-        buttonLabel = hasTicket ? 'Enter Lobby' : 'Get Tickets';
-        buttonIcon = 'ticket-alt';
-    } else if (isLive || isStarting) {
-        if (isHost) {
-            if (hasTicket) {
-                buttonLabel = 'Play Now';
-                buttonIcon = 'gamepad';
-            } else if (isManual) {
-                buttonLabel = 'Resume Host';
-                buttonIcon = 'play-circle';
-            } else {
-                buttonLabel = 'Spectate';
-                buttonIcon = 'eye';
-            }
-        } else {
-            buttonLabel = hasTicket ? 'Play Now' : 'Spectate';
-            buttonIcon = hasTicket ? 'gamepad' : 'eye';
-        }
-    }
+export const BaseLobbyCard = ({
+    title,
+    hostName,
+    status,
+    memberCount,
+    participantCount,
+    activeColor,
+    onPress,
+    buttonLabel,
+    buttonIcon,
+    headerBadge,
+    additionalStats
+}: BaseLobbyCardProps) => {
+    const isLive = status === 'active';
+    const isStarting = status === 'starting';
 
     return (
         <TouchableOpacity
-            onPress={() => onPress(game)}
+            onPress={onPress}
             activeOpacity={0.9}
             style={{
                 backgroundColor: 'white',
@@ -54,24 +43,20 @@ export const LobbyGameCard = ({ game, memberCount, onPress, activeColor = '#b300
                 shadowOffset: { width: 0, height: 8 },
                 shadowOpacity: isLive ? 0.08 : 0.03,
                 shadowRadius: 15,
-                elevation: 4
+                elevation: 4,
+                borderColor: isLive ? `${activeColor}33` : '#f1f1f1'
             }}
             className={`w-full rounded-[32px] p-6 mb-5 border ${isLive ? 'border-primary/20' : 'border-stone-100'}`}
-            style={{ borderColor: isLive ? `${activeColor}33` : '#f1f1f1' }}
         >
             <View className="flex-row items-start justify-between mb-4">
                 <View className="flex-1 mr-4">
                     <View className="flex-row items-center mb-1">
                         <Text className="text-stone-800 font-headline-bold text-xl flex-shrink" numberOfLines={1}>
-                            {game.title || `${game.game_type === 'blink' ? 'Blink' : 'Housie'} Room`}
+                            {title}
                         </Text>
-                        {hasTicket && (
-                            <View className="ml-2 bg-green-50 p-1 rounded-full">
-                                <MaterialIcons name="check-circle" size={14} color="#16a34a" />
-                            </View>
-                        )}
+                        {headerBadge}
                     </View>
-                    <Text className="text-stone-500 font-body text-sm">by {game.hostName}</Text>
+                    <Text className="text-stone-500 font-body text-sm">by {hostName}</Text>
                 </View>
 
                 {isLive ? (
@@ -95,15 +80,10 @@ export const LobbyGameCard = ({ game, memberCount, onPress, activeColor = '#b300
                     <View className="flex-row items-center mr-4">
                         <Ionicons name="people" size={16} color="#a09d96" />
                         <Text className="text-stone-400 font-body-bold text-xs ml-1">
-                            {game.participantCount || 0}/{memberCount}
+                            {participantCount || 0}/{memberCount}
                         </Text>
                     </View>
-
-                    {hasTicket && (
-                        <Text className="text-green-600 font-body-bold text-xs">
-                            {game.myTicketCount} ticket{game.myTicketCount > 1 ? 's' : ''}
-                        </Text>
-                    )}
+                    {additionalStats}
                 </View>
 
                 <LinearGradient
@@ -113,7 +93,7 @@ export const LobbyGameCard = ({ game, memberCount, onPress, activeColor = '#b300
                     className="rounded-2xl"
                 >
                     <View className="px-5 py-2.5 flex-row items-center">
-                        <FontAwesome5 name={buttonIcon} size={14} color="white" />
+                        <FontAwesome5 name={buttonIcon as any} size={14} color="white" />
                         <Text className="text-white font-headline-bold ml-2 text-sm">{buttonLabel}</Text>
                     </View>
                 </LinearGradient>

@@ -49,7 +49,7 @@ const BlinkLeaderboardScreen = () => {
                 <View style={{ width: isTablet ? 64 : 44 }}>
                     <TouchableOpacity
                         onPress={() => navigation.goBack()}
-                        className={`items-center justify-center rounded-full bg-white border border-stone-100 shadow-sm ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                        className={`items-center justify-center rounded-full bg-white border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                     >
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 18} color={primaryColor} style={{ marginLeft: isTablet ? 12 : 4 }} />
                     </TouchableOpacity>
@@ -65,7 +65,7 @@ const BlinkLeaderboardScreen = () => {
             </View>
 
             {/* Period Tabs */}
-            <View className={`flex-row bg-white border border-stone-100 mx-6 mb-6 p-1.5 rounded-[24px] shadow-sm`}>
+            <View className={`flex-row bg-white border border-stone-100 mx-6 mb-6 p-1.5 rounded-[24px]`}>
                 {TABS.map(tab => {
                     const isActive = activePeriod === tab.key;
                     return (
@@ -88,14 +88,14 @@ const BlinkLeaderboardScreen = () => {
                         <ActivityIndicator color={primaryColor} size="large" />
                     </View>
                 ) : leaderboard.length === 0 ? (
-                    <View className="bg-white rounded-[32px] p-10 items-center border border-stone-100 mt-4 shadow-sm">
+                    <View className="bg-white rounded-[32px] p-10 items-center border border-stone-100 mt-4">
                         <FontAwesome5 name="bolt" size={40} color="#d1d5db" className="mb-4" />
                         <Text className="text-stone-800 font-headline-bold text-xl mb-1">No Champions Yet</Text>
                         <Text className="text-stone-400 text-center font-body-medium">Be the first to win a Blink match in this Mandali!</Text>
                     </View>
                 ) : (
                     leaderboard.map((player, index) => (
-                        <View key={player.userId} className="bg-white rounded-3xl p-4 mb-3 border border-stone-100 flex-row items-center shadow-sm">
+                        <View key={player.userId} className="bg-white rounded-3xl p-4 mb-3 border border-stone-100 flex-row items-center">
                             <Text className="font-headline-bold text-stone-400 w-8">{index + 1}</Text>
                             <View className="w-10 h-10 rounded-full bg-stone-100 mr-3 overflow-hidden">
                                 {player.avatarUrl && <Image source={{ uri: player.avatarUrl }} className="w-full h-full" />}
@@ -117,7 +117,7 @@ const BlinkLeaderboardScreen = () => {
                 <TouchableOpacity 
                     onPress={() => navigation.goBack()} 
                     style={{ backgroundColor: primaryColor }}
-                    className="w-full rounded-3xl py-5 items-center shadow-lg"
+                    className="w-full rounded-3xl py-5 items-center"
                 >
                     <Text className="text-white font-headline-bold text-lg">Close</Text>
                 </TouchableOpacity>

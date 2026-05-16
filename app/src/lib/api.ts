@@ -439,19 +439,53 @@ export const createBlinkGame = async (gameData: {
     title?: string;
     maxPlayers?: number;
     cardsPerPlayer?: number;
-    difficultyLevel?: number;
+    symbolsPerCard?: number;
     theme?: string;
     isScheduled?: boolean;
     scheduledAt?: string;
 }): Promise<any> => {
     const headers = await getAuthHeaders();
     const endpoint = gameData.isScheduled ? `${API_URL}/blink/games/schedule` : `${API_URL}/blink/games`;
-    const response = await axios.post(endpoint, gameData, { headers });
-    return response.data;
+    try {
+        const response = await axios.post(endpoint, gameData, { headers });
+        return response.data;
+    } catch (error: any) {
+        throw new Error(error.response?.data?.error || 'Failed to create Blink game');
+    }
 };
 
 export const cancelBlinkGame = async (gameId: string, reason?: string): Promise<any> => {
     const headers = await getAuthHeaders();
     const response = await axios.post(`${API_URL}/blink/games/${gameId}/cancel`, { reason }, { headers });
+    return response.data;
+};
+
+export const joinBlinkGame = async (gameCode: string): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/blink/games/${gameCode}/join`, {}, { headers });
+    return response.data;
+};
+
+export const startBlinkGame = async (gameId: string): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/blink/games/${gameId}/start`, {}, { headers });
+    return response.data;
+};
+
+export const fetchBlinkPlayers = async (gameCode: string): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/blink/games/${gameCode.toUpperCase()}/players`, { headers });
+    return response.data;
+};
+
+export const fetchBlinkPlayer = async (gameCode: string): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/blink/games/${gameCode.toUpperCase()}/player`, { headers });
+    return response.data;
+};
+
+export const endBlinkGame = async (gameCode: string): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/blink/games/${gameCode.toUpperCase()}/end`, {}, { headers });
     return response.data;
 };

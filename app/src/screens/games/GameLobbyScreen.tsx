@@ -3,10 +3,12 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 
 // Hooks & Constants
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { GAME_REGISTRY } from '../../constants/gameRegistry';
+import { fetchGroupDetail } from '../../lib/api';
 
 const GameLobbyScreen = () => {
     const navigation = useNavigation<any>();
@@ -17,6 +19,15 @@ const GameLobbyScreen = () => {
     // Get config from registry
     const config = GAME_REGISTRY[gameType] || GAME_REGISTRY.housie;
     const ContentComponent = config.Component;
+
+    // Fetch Group Detail for Header
+    const { data: groupData } = useQuery({
+        queryKey: ['group', groupId],
+        queryFn: () => fetchGroupDetail(groupId!),
+        enabled: !!groupId,
+    });
+
+    const groupName = groupData?.group?.name || 'This Mandali';
 
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
@@ -44,13 +55,13 @@ const GameLobbyScreen = () => {
                         </Text>
                     </View>
                     <Text className={`font-body-bold text-stone-400 uppercase tracking-widest ${isTablet ? 'text-lg mt-1' : 'text-[9px]'}`}>
-                        MANDALI • LOBBY
+                        {groupName} • LOBBY
                     </Text>
                 </View>
 
                 <View style={{ width: isTablet ? 64 : 44 }} className="items-end">
                     <TouchableOpacity
-                        onPress={() => navigation.navigate(config.leaderboardScreen, { groupId })}
+                        onPress={() => navigation.navigate(config.leaderboardScreen, { groupId, groupName })}
                         className={`items-center justify-center rounded-full shadow-md ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                         style={{ backgroundColor: config.primaryColor }}
                     >

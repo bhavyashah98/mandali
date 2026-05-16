@@ -7,21 +7,20 @@ export const useBlinkWaitingRoomData = (gameCode: string | undefined, groupId: s
     const { user } = useAuthStore();
 
     // 1. Fetch Game Details
-    const { 
-        data: gameData, 
-        isLoading: isGameLoading, 
-        error: gameError 
+    const {
+        data: gameData,
+        isLoading: isGameLoading,
+        error: gameError
     } = useQuery({
         queryKey: ['blinkGame', gameCode],
         queryFn: () => fetchBlinkGame(gameCode!),
         enabled: !!gameCode,
-        refetchInterval: 5000, // Regular poll fallback
     });
 
     // 2. Fetch Group Details (for member list/admin status)
-    const { 
-        data: groupData, 
-        isLoading: isGroupLoading 
+    const {
+        data: groupData,
+        isLoading: isGroupLoading
     } = useQuery({
         queryKey: ['group', groupId],
         queryFn: () => fetchGroupDetail(groupId!),
@@ -33,6 +32,7 @@ export const useBlinkWaitingRoomData = (gameCode: string | undefined, groupId: s
 
     // For now, let's assume we don't have a separate "stats" endpoint for Blink yet
     // and just use the game object which should contain participants
+    console.log(game?.participants);
     const participants = game?.participants || [];
 
     return {

@@ -10,7 +10,7 @@ import { useHousieLobbySync } from '../../hooks/housie/useHousieLobbySync';
 
 // Components
 import { LobbyTabSwitcher } from '../../components/games/lobby/LobbyTabSwitcher';
-import { LobbyGameCard } from '../../components/games/lobby/LobbyGameCard';
+import { HousieLobbyCard } from '../../components/games/lobby/HousieLobbyCard';
 import { LobbyScheduledCard } from '../../components/games/lobby/LobbyScheduledCard';
 import { LobbyEmptyState } from '../../components/games/lobby/LobbyEmptyState';
 
@@ -110,7 +110,7 @@ export const HousieLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProp
                 {currentGames.length > 0 ? (
                     currentGames.map((game: any) => (
                         activeTab === 'active'
-                            ? <LobbyGameCard key={game.id} game={game} memberCount={data.memberCount} onPress={handleAction} activeColor={primaryColor} />
+                            ? <HousieLobbyCard key={game.id} game={game} memberCount={data.memberCount} onPress={handleAction} activeColor={primaryColor} />
                             : <LobbyScheduledCard key={game.id} game={game} memberCount={data.memberCount} onPress={handleAction} activeColor={primaryColor} />
                     ))
                 ) : (

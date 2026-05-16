@@ -10,7 +10,7 @@ import { useBlinkLobbySync } from '../../hooks/blink/useBlinkLobbySync';
 
 // Components
 import { LobbyTabSwitcher } from '../../components/games/lobby/LobbyTabSwitcher';
-import { LobbyGameCard } from '../../components/games/lobby/LobbyGameCard';
+import { BlinkLobbyCard } from '../../components/games/lobby/BlinkLobbyCard';
 import { LobbyScheduledCard } from '../../components/games/lobby/LobbyScheduledCard';
 import { LobbyEmptyState } from '../../components/games/lobby/LobbyEmptyState';
 
@@ -96,7 +96,7 @@ export const BlinkLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProps
                 {currentGames.length > 0 ? (
                     currentGames.map((game: any) => (
                         activeTab === 'active'
-                            ? <LobbyGameCard key={game.id} game={game} memberCount={data.memberCount} onPress={handleAction} activeColor={primaryColor} />
+                            ? <BlinkLobbyCard key={game.id} game={game} memberCount={data.memberCount} onPress={handleAction} activeColor={primaryColor} />
                             : <LobbyScheduledCard key={game.id} game={game} memberCount={data.memberCount} onPress={handleAction} activeColor={primaryColor} />
                     ))
                 ) : (
