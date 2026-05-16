@@ -282,7 +282,7 @@ const GameSelectGroupScreen = () => {
                 </View>
             ) : (
                 <FlatList
-                    data={groups}
+                    data={groups ? [...groups].sort((a, b) => (b.totalWinnings || 0) - (a.totalWinnings || 0)) : []}
                     renderItem={renderGroupItem}
                     keyExtractor={(item) => item.id}
                     ListHeaderComponent={renderTotalGloryCard}

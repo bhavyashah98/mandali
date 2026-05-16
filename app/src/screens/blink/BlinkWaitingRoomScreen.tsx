@@ -29,6 +29,7 @@ const BlinkWaitingRoomScreen = () => {
         groupData,
         participants,
         isHost,
+        isParticipant,
         isLoading
     } = useBlinkWaitingRoomData(gameCode, groupId);
 
@@ -37,23 +38,17 @@ const BlinkWaitingRoomScreen = () => {
         game,
         gameCode: gameCode || '',
         groupId: groupId || '',
-        isHost
+        isParticipant
     });
 
     const handleStartGame = useCallback(async () => {
         if (!game?.id) return;
         try {
             await startBlinkGame(game.id);
-            // Host navigates immediately
-            navigation.replace('BlinkGame', {
-                gameCode,
-                groupId,
-                isHost: true
-            });
         } catch (err: any) {
             Alert.alert('Error', err.message || 'Failed to start game');
         }
-    }, [game?.id, gameCode, groupId, navigation]);
+    }, [game?.id]);
 
     const handleCancelGame = async () => {
         try {

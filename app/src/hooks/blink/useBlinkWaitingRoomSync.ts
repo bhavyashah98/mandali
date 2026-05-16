@@ -9,14 +9,14 @@ interface UseBlinkWaitingRoomSyncProps {
     game: any;
     gameCode: string;
     groupId: string;
-    isHost: boolean;
+    isParticipant: boolean;
 }
 
 export const useBlinkWaitingRoomSync = ({
     game,
     gameCode,
     groupId,
-    isHost
+    isParticipant
 }: UseBlinkWaitingRoomSyncProps) => {
     const socket = useSocket();
     const queryClient = useQueryClient();
@@ -27,19 +27,14 @@ export const useBlinkWaitingRoomSync = ({
     }, [queryClient, gameCode]);
 
     // useSocketRoom handles room joining and AppState recovery
-    useSocketRoom(gameCode, undefined, invalidateGame);
+    useSocketRoom('join_blink_game', gameCode, invalidateGame);
 
     useEffect(() => {
         if (!socket || !gameCode) return;
 
         // Listen for game status changes
         const handleGameUpdate = () => invalidateGame();
-        
-        const handleGameStarted = (data: any) => {
-            if (data.gameCode === gameCode) {
-                navigation.replace('BlinkGame', { gameCode, groupId });
-            }
-        };
+        const handleGameStarting = (data: any) => invalidateGame();
 
         const handleError = (data: any) => {
             Alert.alert('Game Error', data.message || 'An error occurred.');
@@ -47,21 +42,31 @@ export const useBlinkWaitingRoomSync = ({
 
         socket.on('blink_game_updated', handleGameUpdate);
         socket.on('blink_player_joined', handleGameUpdate);
-        socket.on('blink_game_started', handleGameStarted);
+        socket.on('blink_game_starting', handleGameStarting);
         socket.on('blink_error', handleError);
 
         return () => {
             socket.off('blink_game_updated', handleGameUpdate);
             socket.off('blink_player_joined', handleGameUpdate);
-            socket.off('blink_game_started', handleGameStarted);
+            socket.off('blink_game_starting', handleGameStarting);
             socket.off('blink_error', handleError);
         };
     }, [socket, gameCode, invalidateGame, navigation, groupId]);
 
-    // Host-specific: Join the game room automatically
+    // Host-specific: Auto-navigate to starting screen when game starts
     useEffect(() => {
-        if (socket && gameCode) {
-            socket.emit('join_blink_game', gameCode);
+        if (!game) return;
+
+        if (game.status === 'starting') {
+            navigation.replace('BlinkStarting', { gameCode, groupId });
+        } else if (game.status === 'active') {
+            if (isParticipant) {
+                navigation.replace('BlinkGame', { gameCode, groupId });
+            } else {
+                // Handle Spectate later
+            }
+        } else if (game.status === 'ended') {
+            navigation.goBack();
         }
-    }, [socket, gameCode]);
+    }, [game?.status, isParticipant, navigation, gameCode, groupId]);
 };

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { scheduleBlinkActivation, cancelBlinkActivation } from '../services/blinkEngine';
 
 const router = Router();
 
@@ -66,6 +67,12 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
 
         if (hostJoinError) throw hostJoinError;
 
+        // 4. Notify via socket to group
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`group_${groupId}`).emit('blink_game_created', { gameCode: game.game_code, groupId });
+        }
+
         res.status(201).json({ game, message: 'Game created successfully' });
     } catch (error: any) {
         console.error('[Blink] Create Error:', error);
@@ -121,6 +128,12 @@ router.post('/schedule', authMiddleware, async (req: AuthRequest, res) => {
         }, { onConflict: 'game_id,user_id' });
 
         if (hostJoinError) throw hostJoinError;
+
+        // 4. Notify via socket to group
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`group_${groupId}`).emit('blink_game_scheduled', { gameCode: game.game_code, groupId });
+        }
 
         res.status(201).json({ game, message: 'Game scheduled successfully' });
     } catch (error: any) {
@@ -330,63 +343,57 @@ router.post('/:gameId/start', authMiddleware, async (req: AuthRequest, res) => {
             return res.status(400).json({ error: 'Need at least 1 player to start.' });
         }
 
-        // 3. Fetch cards
-        const { data: cards } = await supabase
-            .from('blink_cards')
-            .select('id, symbols')
-            .eq('symbols_per_card', game.symbols_per_card);
-        if (!cards || cards.length === 0) {
-            return res.status(400).json({ error: 'No cards found for this configuration.' });
+        const now = new Date();
+        const delaySeconds = game.status === 'scheduled' ? 60 : 15;
+        const activationTime = new Date(now.getTime() + delaySeconds * 1000);
+
+        const totalPlayers = participants.length;
+        const totalPrizePool = totalPlayers * 100;
+        let prizes: any[] = [];
+
+        if (totalPlayers <= 2) {
+            prizes = [{ id: '1st', name: '1st Place', description: 'Fastest matcher', percentage: 100, amount: totalPrizePool, icon: 'emoji-events' }];
+        } else if (totalPlayers <= 5) {
+            prizes = [
+                { id: '1st', name: '1st Place', description: 'Fastest matcher', percentage: 70, amount: Math.floor(totalPrizePool * 0.70), icon: 'emoji-events' },
+                { id: '2nd', name: '2nd Place', description: 'Runner up', percentage: 30, amount: Math.floor(totalPrizePool * 0.30), icon: 'military-tech' }
+            ];
+        } else {
+            prizes = [
+                { id: '1st', name: '1st Place', description: 'Fastest matcher', percentage: 50, amount: Math.floor(totalPrizePool * 0.50), icon: 'emoji-events' },
+                { id: '2nd', name: '2nd Place', description: 'Runner up', percentage: 30, amount: Math.floor(totalPrizePool * 0.30), icon: 'military-tech' },
+                { id: '3rd', name: '3rd Place', description: 'Second runner up', percentage: 20, amount: Math.floor(totalPrizePool * 0.20), icon: 'military-tech' }
+            ];
         }
 
-        // 4. Shuffle and distribute ONLY the first card per person
-        const shuffledCards = [...cards].sort(() => Math.random() - 0.5);
-        const initialCenterCard = shuffledCards.pop()!;
-
-        const playersUpdates = participants.map(p => {
-            const firstCard = shuffledCards.pop()!;
-            return {
-                userId: p.user_id,
-                currentCardId: firstCard.id,
-                cardsRemaining: game.cards_per_player - 1
-            };
-        });
-
-        // 5. Update DB
         const { error: updateError } = await supabase
             .from('blink_games')
             .update({
-                status: 'active',
-                current_center_card: initialCenterCard.id,
-                started_at: new Date().toISOString()
+                status: 'starting',
+                prizes: prizes,
+                starting_at: now.toISOString(),
+                activation_at: activationTime.toISOString()
             })
             .eq('id', gameId);
 
         if (updateError) throw updateError;
 
-        for (const p of playersUpdates) {
-            await supabase
-                .from('blink_players')
-                .update({
-                    cards_remaining: p.cardsRemaining,
-                    current_card_id: p.currentCardId
-                })
-                .eq('game_id', game.id)
-                .eq('user_id', p.userId);
-        }
-
-        // 6. Notify via socket (for other players to redirect)
+        // Schedule backend auto-activation after the countdown
         const io = req.app.get('io');
+        scheduleBlinkActivation(io, gameId as string, delaySeconds * 1000);
+
         if (io) {
-            io.to(game.game_code.toUpperCase()).emit('blink_game_started', { gameCode: game.game_code });
+            io.to(game.game_code.toUpperCase()).emit('blink_game_starting', { gameCode: game.game_code });
+            io.to(`group_${game.group_id}`).emit('blink_game_starting', { gameCode: game.game_code, groupId: game.group_id });
         }
 
-        res.json({ message: 'Game started successfully', gameCode: game.game_code });
+        res.json({ message: 'Game starting', gameCode: game.game_code });
     } catch (error: any) {
         console.error('[Blink] Start Route Error:', error);
         res.status(500).json({ error: error.message });
     }
 });
+
 
 /**
  * CANCEL GAME
@@ -399,7 +406,7 @@ router.post('/:gameId/cancel', authMiddleware, async (req: AuthRequest, res) => 
 
         const { data: game } = await supabase
             .from('blink_games')
-            .select('host_id, status')
+            .select('host_id, status, group_id')
             .eq('id', gameId)
             .single();
 
@@ -427,6 +434,15 @@ router.post('/:gameId/cancel', authMiddleware, async (req: AuthRequest, res) => 
             .single();
 
         if (error) throw error;
+
+        cancelBlinkActivation(gameId as string);
+
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`group_${game.group_id}`).emit('blink_game_cancelled', { gameCode: updated.game_code, groupId: game.group_id });
+            // Also emit to the game room itself
+            io.to(updated.game_code.toUpperCase()).emit('blink_game_cancelled', { gameCode: updated.game_code });
+        }
 
         res.json({ success: true, game: updated });
     } catch (error: any) {
@@ -483,12 +499,12 @@ router.post('/:gameCode/end', authMiddleware, async (req: any, res: any) => {
         // 1. Verify game exists and user is host
         const { data: game, error: gameError } = await supabase
             .from('blink_games')
-            .select('id, status, host_id')
+            .select('id, status, host_id, group_id')
             .eq('game_code', gameCode)
             .single();
 
         if (gameError || !game) return res.status(404).json({ error: 'Game not found' });
-        
+
         if (game.host_id !== userId) {
             return res.status(403).json({ error: 'Only the host can end the game' });
         }
@@ -509,11 +525,55 @@ router.post('/:gameCode/end', authMiddleware, async (req: any, res: any) => {
         const io = req.app.get('io');
         if (io) {
             io.to(gameCode.toUpperCase()).emit('blink_game_ended', { winner: null });
+            io.to(`group_${game.group_id}`).emit('blink_game_ended', { gameCode, groupId: game.group_id });
         }
 
         res.json({ success: true, message: 'Game ended successfully' });
     } catch (error: any) {
         console.error('[Blink] End Game Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * GET GAME RESULTS
+ * GET /blink/games/:gameCode/results
+ */
+router.get('/:gameCode/results', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const gameCode = (req.params.gameCode as string).toUpperCase();
+        
+        // 1. Resolve game
+        const { data: game, error: gameError } = await supabase
+            .from('blink_games')
+            .select('id, group_id')
+            .eq('game_code', gameCode)
+            .single();
+
+        if (gameError || !game) return res.status(404).json({ error: 'Game not found' });
+
+        // 2. Fetch results for this game
+        const { data: results, error: resultsError } = await supabase
+            .from('game_results')
+            .select('user_id, prize_name, prize_amount, users(name, avatar_url)')
+            .eq('game_id', game.id)
+            .order('created_at', { ascending: true }); // Winners arrive in rank order
+
+        if (resultsError) throw resultsError;
+
+        // 3. Transform to grouped results (per player) if needed, 
+        // but for Blink each player usually wins once (1st, 2nd, or 3rd)
+        const transformed = (results || []).map(r => ({
+            userId: r.user_id,
+            name: (r.users as any)?.name || 'Player',
+            avatarUrl: (r.users as any)?.avatar_url,
+            prizes: [{ name: r.prize_name, amount: r.prize_amount }],
+            totalWon: r.prize_amount
+        }));
+
+        res.json({ results: transformed });
+    } catch (error: any) {
+        console.error('[Blink] Results Fetch Error:', error);
         res.status(500).json({ error: error.message });
     }
 });

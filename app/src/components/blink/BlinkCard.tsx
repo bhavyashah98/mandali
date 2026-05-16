@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, TouchableOpacity, Animated } from 'react-native';
+import React, { useRef } from 'react';
+import { View, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
-import { BLINK_SYMBOL_ASSETS, BLINK_SYMBOL_COLORS } from '../../constants/blinkAssets';
+import { BLINK_SYMBOL_ASSETS } from '../../constants/blinkAssets';
 
 interface BlinkCardProps {
     symbols: number[];
@@ -20,19 +20,32 @@ const SymbolIcon = ({ symbolId, iconSize }: { symbolId: number; iconSize: number
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.25,
             shadowRadius: 1.5,
-            // elevation: 3 // Optional: Might just look like a square on Android, better to omit if testing on Android
         }}>
-            <Image 
-                source={source} 
-                style={{ width: iconSize, height: iconSize }} 
+            <Image
+                source={source}
+                style={{ width: iconSize, height: iconSize }}
                 contentFit="contain"
             />
         </View>
     );
 };
 
+// Debounce duration in ms — prevents double-emit from rapid taps
+const TAP_DEBOUNCE_MS = 600;
+
 export const BlinkCard = ({ symbols, isCenter = false, onSymbolPress, size }: BlinkCardProps) => {
     if (!symbols || symbols.length === 0) return null;
+
+    // Ref-based debounce — does not cause re-render
+    const lastTapRef = useRef<number>(0);
+
+    const handleSymbolPress = (sid: number) => {
+        if (!onSymbolPress) return;
+        const now = Date.now();
+        if (now - lastTapRef.current < TAP_DEBOUNCE_MS) return; // drop rapid taps
+        lastTapRef.current = now;
+        onSymbolPress(sid);
+    };
 
     const cardRadius = size / 2;
 
@@ -46,14 +59,12 @@ export const BlinkCard = ({ symbols, isCenter = false, onSymbolPress, size }: Bl
     const layoutRotation = (seed % 360) * (Math.PI / 180);
 
     // ── Assign size tiers: 2 big, 4 medium, 2 small ──────────────────
-    // Deterministically shuffle indices and assign tiers in order
     const indices = symbols.map((_, i) => i);
     const shuffled = [...indices].sort((a, b) => {
         const ha = (symbols[a] * seed * 31 + a * 17) % 1000;
         const hb = (symbols[b] * seed * 31 + b * 17) % 1000;
         return ha - hb;
     });
-    // shuffled[0..1] = big, shuffled[2..5] = medium, shuffled[6..7] = small
     const tierMap = new Map<number, 'big' | 'medium' | 'small'>();
     shuffled.forEach((origIdx, rank) => {
         if (rank < 2) tierMap.set(origIdx, 'big');
@@ -62,7 +73,6 @@ export const BlinkCard = ({ symbols, isCenter = false, onSymbolPress, size }: Bl
     });
 
     // ── Icon size tiers scaled to card diameter ─────────────────────
-    // big  = ~17% of card size, medium = ~12%, small = ~8%
     const TIER_SIZES = {
         big:    [Math.round(size * 0.16), Math.round(size * 0.19)],
         medium: [Math.round(size * 0.11), Math.round(size * 0.13)],
@@ -94,34 +104,27 @@ export const BlinkCard = ({ symbols, isCenter = false, onSymbolPress, size }: Bl
                     const sizeNoise = (sid * 37 + idx * 11) % (maxSz - minSz + 1);
                     const iconSize = minSz + sizeNoise;
 
-                    // Position
                     let x = 0;
                     let y = 0;
 
                     if (idx === 0) {
-                        // First icon: center
                         x = 0;
                         y = 0;
                     } else {
-                        // Rest: evenly distributed on a ring
                         const surrounding = symbols.length - 1;
                         const angle = layoutRotation + (idx - 1) * (2 * Math.PI / surrounding);
-
-                        // Small per-icon jitter so they don't look too robotic
                         const jitter = ((sid * 7 + idx * 13) % 14) - 7;
                         const dist = Math.min(ringRadius + jitter, cardRadius - iconSize / 2 - 6);
-
                         x = Math.cos(angle) * dist;
                         y = Math.sin(angle) * dist;
                     }
 
-                    // Playful rotation per icon
                     const iconRotation = ((sid * 23 + idx * 17) % 71) - 35;
 
                     return (
                         <TouchableOpacity
                             key={`${sid}-${idx}`}
-                            onPress={() => onSymbolPress?.(sid)}
+                            onPress={() => handleSymbolPress(sid)}
                             disabled={isCenter}
                             className="absolute"
                             style={{

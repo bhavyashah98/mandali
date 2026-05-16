@@ -30,6 +30,8 @@ export const useBlinkWaitingRoomData = (gameCode: string | undefined, groupId: s
     const game = gameData?.game;
     const isHost = user?.id === game?.host_id;
 
+    const isParticipant = game?.participants?.some((p: any) => p.user_id === user?.id);
+
     // For now, let's assume we don't have a separate "stats" endpoint for Blink yet
     // and just use the game object which should contain participants
     console.log(game?.participants);
@@ -40,6 +42,7 @@ export const useBlinkWaitingRoomData = (gameCode: string | undefined, groupId: s
         groupData,
         participants,
         isHost,
+        isParticipant,
         isLoading: isGameLoading || isGroupLoading,
         gameError
     };

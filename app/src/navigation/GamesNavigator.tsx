@@ -18,7 +18,9 @@ import HousieHostSettingsScreen from '../screens/housie/HousieHostSettingsScreen
 import BlinkHostSettingsScreen from '../screens/blink/BlinkHostSettingsScreen';
 import BlinkWaitingRoomScreen from '../screens/blink/BlinkWaitingRoomScreen';
 import BlinkGameScreen from '../screens/blink/BlinkGameScreen';
+import BlinkStartingScreen from '../screens/blink/BlinkStartingScreen';
 import BlinkLeaderboardScreen from '../screens/blink/BlinkLeaderboardScreen';
+import BlinkResultsScreen from '../screens/blink/BlinkResultsScreen';
 
 const Stack = createStackNavigator();
 
@@ -49,9 +51,11 @@ export const GamesNavigator = () => {
 
             {/* Blink Flow */}
             <Stack.Screen name="BlinkWaitingRoom" component={BlinkWaitingRoomScreen} />
+            <Stack.Screen name="BlinkStarting" component={BlinkStartingScreen} />
             <Stack.Screen name="BlinkGame" component={BlinkGameScreen} />
             <Stack.Screen name="BlinkHostSettings" component={BlinkHostSettingsScreen} />
             <Stack.Screen name="BlinkLeaderboard" component={BlinkLeaderboardScreen} />
+            <Stack.Screen name="BlinkResults" component={BlinkResultsScreen} />
         </Stack.Navigator>
     );
 };

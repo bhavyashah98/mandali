@@ -7,8 +7,6 @@ import { BlinkHeader } from '../../components/blink/BlinkHeader';
 import { BlinkCard } from '../../components/blink/BlinkCard';
 import { useBlinkGameEngine } from '../../hooks/blink/useBlinkGameEngine';
 
-const { height, width } = Dimensions.get('window');
-
 const BlinkGameScreen = () => {
     const route = useRoute();
     const params = route.params as { gameCode: string; groupId: string; isHost?: boolean };
@@ -21,8 +19,8 @@ const BlinkGameScreen = () => {
         centerSymbols,
         mySymbols,
         isLoading,
-        attemptMatch
-    } = useBlinkGameEngine(gameCode);
+        attemptMatch,
+    } = useBlinkGameEngine(gameCode, groupId);
 
     const { height: windowHeight, width: windowWidth } = Dimensions.get('window');
     const cardSize = Math.min(windowWidth * 0.88, windowHeight * 0.30);

@@ -27,6 +27,7 @@ export const BlinkLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProps
 
     // Blink Specific Hooks
     const data = useBlinkGroupLobby(groupId);
+
     useBlinkLobbySync(groupId);
 
     const handleAction = useCallback((game: any) => {
@@ -38,8 +39,8 @@ export const BlinkLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProps
         }
     }, [navigation, groupId]);
 
-    const currentGames = useMemo(() => 
-        activeTab === 'active' ? data.activeGames : data.scheduledGames, 
+    const currentGames = useMemo(() =>
+        activeTab === 'active' ? data.activeGames : data.scheduledGames,
         [activeTab, data.activeGames, data.scheduledGames]
     );
 
