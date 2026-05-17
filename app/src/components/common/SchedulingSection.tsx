@@ -22,7 +22,6 @@ export const SchedulingSection = ({
         setIsScheduled(true);
     };
 
-
     return (
         <View
             style={{

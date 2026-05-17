@@ -9,10 +9,10 @@ import { createHousieGame } from '../../lib/api';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 // Components
-import { HostSettingsHeader } from '../../components/housie/settings/HostSettingsHeader';
+import { HostSettingsHeader } from '../../components/common/HostSettingsHeader';
 import { HostSettingsFooter } from '../../components/housie/settings/HostSettingsFooter';
-import { RoomDetailsSection } from '../../components/housie/settings/RoomDetailsSection';
-import { SchedulingSection } from '../../components/housie/settings/SchedulingSection';
+import { RoomDetailsSection } from '../../components/common/RoomDetailsSection';
+import { SchedulingSection } from '../../components/common/SchedulingSection';
 import { CallingModeSection } from '../../components/housie/settings/CallingModeSection';
 import { GameTwistSection } from '../../components/housie/settings/GameTwistSection';
 import { HostTicketsSection } from '../../components/housie/settings/HostTicketsSection';
@@ -96,7 +96,7 @@ const HousieHostSettingsScreen = () => {
 
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
-            <HostSettingsHeader onBack={() => navigation.goBack()} isTablet={isTablet} />
+            <HostSettingsHeader onBack={() => navigation.goBack()} isTablet={isTablet} groupId={groupId} />
 
             <ScrollView
                 className="flex-1"

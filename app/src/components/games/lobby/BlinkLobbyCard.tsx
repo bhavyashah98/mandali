@@ -13,7 +13,7 @@ export const BlinkLobbyCard = ({ game, memberCount, onPress, activeColor = '#b30
     const { user } = useAuthStore();
     const isLive = game.status === 'active';
     const isStarting = game.status === 'starting';
-    const isHost = user?.id === game.host_id;
+    const isParticipant = game.blink_players?.some((p: any) => p.user_id === user?.id);
 
     let buttonLabel = 'Join Room';
     let buttonIcon = 'sign-in-alt';
@@ -22,8 +22,8 @@ export const BlinkLobbyCard = ({ game, memberCount, onPress, activeColor = '#b30
         buttonLabel = 'Join Room';
         buttonIcon = 'sign-in-alt';
     } else if (isLive || isStarting) {
-        buttonLabel = isHost ? 'Spectate' : 'Play Now';
-        buttonIcon = (isLive || isStarting) ? 'gamepad' : 'eye';
+        buttonLabel = !isParticipant ? 'Spectate' : 'Play Now';
+        buttonIcon = !isParticipant ? 'eye' : 'gamepad';
     }
 
     return (

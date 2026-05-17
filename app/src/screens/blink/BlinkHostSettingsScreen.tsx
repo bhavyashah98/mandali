@@ -8,9 +8,9 @@ import { useIsTablet } from '../../hooks/useIsTablet';
 import { createBlinkGame } from '../../lib/api';
 
 // Shared Components
-import { HostSettingsHeader } from '../../components/housie/settings/HostSettingsHeader';
-import { RoomDetailsSection } from '../../components/housie/settings/RoomDetailsSection';
-import { SchedulingSection } from '../../components/housie/settings/SchedulingSection';
+import { HostSettingsHeader } from '../../components/common/HostSettingsHeader';
+import { RoomDetailsSection } from '../../components/common/RoomDetailsSection';
+import { SchedulingSection } from '../../components/common/SchedulingSection';
 
 const BlinkHostSettingsScreen = () => {
     const route = useRoute<any>();
@@ -24,12 +24,12 @@ const BlinkHostSettingsScreen = () => {
     const [cardsPerPlayer, setCardsPerPlayer] = useState(12);
     const [symbolsPerCard, setSymbolsPerCard] = useState(6);
     const [theme] = useState('default');
-    
+
     const [isScheduled, setIsScheduled] = useState(false);
     const [scheduledAt, setScheduledAt] = useState(new Date(Date.now() + 2 * 60 * 1000));
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
-    
+
     const [isLoading, setIsLoading] = useState(false);
 
     const handleCreate = async () => {
@@ -52,7 +52,10 @@ const BlinkHostSettingsScreen = () => {
                 scheduledAt: isScheduled ? scheduledAt.toISOString() : undefined
             });
 
-            if (data.game) {
+            if (isScheduled) {
+                Alert.alert('Success', 'Game scheduled successfully!');
+                navigation.goBack();
+            } else {
                 navigation.replace('BlinkWaitingRoom', { gameCode: data.game.game_code, groupId });
             }
         } catch (error: any) {
@@ -64,7 +67,7 @@ const BlinkHostSettingsScreen = () => {
 
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
-            <HostSettingsHeader onBack={() => navigation.goBack()} isTablet={isTablet} />
+            <HostSettingsHeader onBack={() => navigation.goBack()} isTablet={isTablet} groupId={groupId} />
 
             <ScrollView
                 className="flex-1"
@@ -75,7 +78,7 @@ const BlinkHostSettingsScreen = () => {
                 <RoomDetailsSection title={title} setTitle={setTitle} />
 
                 {/* Game Config */}
-                <View 
+                <View
                     style={{
                         shadowColor: '#000',
                         shadowOffset: { width: 0, height: 2 },
@@ -86,7 +89,7 @@ const BlinkHostSettingsScreen = () => {
                     className="mb-8 bg-white p-6 rounded-[32px] border border-stone-100"
                 >
                     <Text className="font-headline-bold text-stone-800 mb-4 text-lg">Game Config</Text>
-                    
+
                     <View className="flex-row justify-between mb-6">
                         <View className="flex-1 bg-stone-50 rounded-2xl p-4 border border-stone-100 mr-2">
                             <Text className="text-stone-400 font-body-bold text-[9px] uppercase mb-1">Max Players</Text>
@@ -117,7 +120,7 @@ const BlinkHostSettingsScreen = () => {
                     <Text className="text-stone-400 font-body-bold text-[10px] uppercase mb-3 px-1">Symbols Per Card</Text>
                     <View className="flex-row items-center bg-stone-50 p-1.5 rounded-2xl">
                         {[6, 8].map(level => (
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 key={level}
                                 onPress={() => setSymbolsPerCard(level)}
                                 className={`flex-1 py-3 rounded-xl items-center justify-center ${symbolsPerCard === level ? 'bg-white' : ''}`}
@@ -151,8 +154,8 @@ const BlinkHostSettingsScreen = () => {
                     onPress={handleCreate}
                     disabled={isLoading}
                     className="w-full bg-[#b30069] rounded-[32px] items-center justify-center"
-                    style={{ 
-                        height: isTablet ? 80 : 64, 
+                    style={{
+                        height: isTablet ? 80 : 64,
                         opacity: isLoading ? 0.8 : 1,
                         shadowColor: primaryColor,
                         shadowOffset: { width: 0, height: 4 },
