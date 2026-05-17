@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { scheduleBlinkActivation, cancelBlinkActivation, preloadBlinkGame } from '../services/blinkEngine';
 import { activeBlinkGames } from '../services/blinkMemory';
+import { sendGroupPushNotification } from '../lib/push';
 
 const router = Router();
 
@@ -74,6 +75,18 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
             io.to(`group_${groupId}`).emit('blink_game_created', { gameCode: game.game_code, groupId });
         }
 
+        // 5. Send Push Notification
+        const notificationTitle = '⚡ Blink Room Open!';
+        const notificationBody = 'A group member is hosting a new Blink match! Jump into the waiting room before it starts.';
+        
+        sendGroupPushNotification(
+            groupId,
+            userId,
+            notificationTitle,
+            notificationBody,
+            { type: 'blink', gameCode: gameCode, groupId: groupId, url: `mandali://blink/${gameCode}/${groupId}` }
+        ).catch((err: any) => console.error('[Push Failed]:', err));
+
         res.status(201).json({ game, message: 'Game created successfully' });
     } catch (error: any) {
         console.error('[Blink] Create Error:', error);
@@ -135,6 +148,22 @@ router.post('/schedule', authMiddleware, async (req: AuthRequest, res) => {
         if (io) {
             io.to(`group_${groupId}`).emit('blink_game_scheduled', { gameCode: game.game_code, groupId });
         }
+
+        // 5. Send Push Notification
+        const istTime = new Date(scheduledAt).toLocaleTimeString('en-IN', {
+            timeZone: 'Asia/Kolkata',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+
+        sendGroupPushNotification(
+            groupId,
+            userId,
+            '📅 Blink Scheduled!',
+            `A new Blink match "${title || 'Scheduled Blink Game'}" has been scheduled for ${istTime}. Get ready!`,
+            { type: 'blink', gameCode: gameCode, groupId: groupId, url: `mandali://blink/${gameCode}/${groupId}` }
+        ).catch((err: any) => console.error('[Push Failed]:', err));
 
         res.status(201).json({ game, message: 'Game scheduled successfully' });
     } catch (error: any) {
@@ -268,7 +297,7 @@ router.get('/:gameCode', authMiddleware, async (req: AuthRequest, res) => {
                     name: p.users?.name || 'Player',
                     avatar_url: p.users?.avatar_url,
                     currentCard: p.current_card_id ? cardMap.get(p.current_card_id) : [],
-                    cardsLeft: p.cards_remaining
+                    cardsLeft: p.current_card_id ? p.cards_remaining : -1
                 }))
             }
         });
@@ -300,7 +329,7 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
 
         const { data: games, error } = await supabase
             .from('blink_games')
-            .select('*, host:users!host_id(name, avatar_url)')
+            .select('*, host:users!host_id(name, avatar_url), blink_players(user_id)')
             .eq('group_id', groupId)
             .order('created_at', { ascending: false });
 
@@ -353,20 +382,56 @@ router.post('/:gameCode/start', authMiddleware, async (req: AuthRequest, res) =>
         let prizes: any[] = [];
 
         if (totalPlayers === 1) {
-            prizes = [{ id: '1st', name: '1st Place', description: 'Fastest matcher', percentage: 20, amount: totalPrizePool, icon: 'emoji-events' }];
+            prizes = [{ id: '1st', name: '1st Place', description: 'Fastest matcher', percentage: 20, amount: Math.floor(totalPrizePool * 0.20), icon: 'emoji-events' }];
         } else if (totalPlayers <= 2) {
-            prizes = [{ id: '1st', name: '1st Place', description: 'Fastest matcher', percentage: 100, amount: totalPrizePool, icon: 'emoji-events' }];
-        } else if (totalPlayers <= 5) {
-            prizes = [
-                { id: '1st', name: '1st Place', description: 'Fastest matcher', percentage: 70, amount: Math.floor(totalPrizePool * 0.70), icon: 'emoji-events' },
-                { id: '2nd', name: '2nd Place', description: 'Runner up', percentage: 30, amount: Math.floor(totalPrizePool * 0.30), icon: 'military-tech' }
-            ];
+            prizes = [{ id: '1st', name: '1st Place', description: 'Fastest matcher', percentage: 50, amount: Math.floor(totalPrizePool * 0.50), icon: 'emoji-events' }];
         } else {
-            prizes = [
-                { id: '1st', name: '1st Place', description: 'Fastest matcher', percentage: 50, amount: Math.floor(totalPrizePool * 0.50), icon: 'emoji-events' },
-                { id: '2nd', name: '2nd Place', description: 'Runner up', percentage: 30, amount: Math.floor(totalPrizePool * 0.30), icon: 'military-tech' },
-                { id: '3rd', name: '3rd Place', description: 'Second runner up', percentage: 20, amount: Math.floor(totalPrizePool * 0.20), icon: 'military-tech' }
-            ];
+            // Fair gameplay distribution for (n-1) winners
+            const W = totalPlayers - 1;
+            let weights: number[] = [];
+            let totalWeight = 0;
+            for (let r = 1; r <= W; r++) {
+                const weight = Math.pow(W - r + 1, 1.4);
+                weights.push(weight);
+                totalWeight += weight;
+            }
+
+            let percentages = weights.map(w => Math.round((w / totalWeight) * 100));
+
+            // Adjust rounding difference to guarantee exactly 100% sum
+            const currentSum = percentages.reduce((sum, p) => sum + p, 0);
+            const diff = 100 - currentSum;
+            if (diff !== 0) {
+                percentages[0] += diff;
+            }
+
+            prizes = percentages.map((pct, idx) => {
+                const rank = idx + 1;
+                let suffix = 'th';
+                if (rank === 1) suffix = 'st';
+                else if (rank === 2) suffix = 'nd';
+                else if (rank === 3) suffix = 'rd';
+
+                const idStr = `${rank}${suffix}`;
+
+                let description = 'Rank finished';
+                if (rank === 1) description = 'Fastest matcher';
+                else if (rank === 2) description = 'Runner up';
+                else if (rank === 3) description = 'Second runner up';
+
+                let icon = 'stars';
+                if (rank === 1) icon = 'emoji-events';
+                else if (rank === 2 || rank === 3) icon = 'military-tech';
+
+                return {
+                    id: idStr,
+                    name: `${idStr} Place`,
+                    description,
+                    percentage: pct,
+                    amount: Math.floor(totalPrizePool * (pct / 100)),
+                    icon
+                };
+            });
         }
 
         const { error: updateError } = await supabase

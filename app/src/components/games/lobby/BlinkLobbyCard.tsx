@@ -14,6 +14,7 @@ export const BlinkLobbyCard = ({ game, memberCount, onPress, activeColor = '#b30
     const isLive = game.status === 'active';
     const isStarting = game.status === 'starting';
     const isParticipant = game.blink_players?.some((p: any) => p.user_id === user?.id);
+    const participantCount = game.blink_players?.length || 0;
 
     let buttonLabel = 'Join Room';
     let buttonIcon = 'sign-in-alt';
@@ -22,17 +23,17 @@ export const BlinkLobbyCard = ({ game, memberCount, onPress, activeColor = '#b30
         buttonLabel = 'Join Room';
         buttonIcon = 'sign-in-alt';
     } else if (isLive || isStarting) {
-        buttonLabel = !isParticipant ? 'Spectate' : 'Play Now';
-        buttonIcon = !isParticipant ? 'eye' : 'gamepad';
+        buttonLabel = !isParticipant ? 'Spectate' : 'Resume';
+        buttonIcon = !isParticipant ? 'eye' : 'play';
     }
 
     return (
         <BaseLobbyCard
             title={game.title || 'Blink Room'}
-            hostName={game.hostName}
+            hostName={game.hostName || game.host?.name || 'Host'}
             status={game.status}
             memberCount={memberCount}
-            participantCount={game.participantCount || 0}
+            participantCount={participantCount}
             activeColor={activeColor}
             onPress={() => onPress(game)}
             buttonLabel={buttonLabel}

@@ -21,6 +21,7 @@ import BlinkGameScreen from '../screens/blink/BlinkGameScreen';
 import BlinkStartingScreen from '../screens/blink/BlinkStartingScreen';
 import BlinkLeaderboardScreen from '../screens/blink/BlinkLeaderboardScreen';
 import BlinkResultsScreen from '../screens/blink/BlinkResultsScreen';
+import BlinkJoinScreen from '../screens/blink/BlinkJoinScreen';
 
 const Stack = createStackNavigator();
 
@@ -50,6 +51,7 @@ export const GamesNavigator = () => {
             <Stack.Screen name="HousieSpectator" component={HousieSpectatorScreen} />
 
             {/* Blink Flow */}
+            <Stack.Screen name="BlinkJoin" component={BlinkJoinScreen} />
             <Stack.Screen name="BlinkWaitingRoom" component={BlinkWaitingRoomScreen} />
             <Stack.Screen name="BlinkStarting" component={BlinkStartingScreen} />
             <Stack.Screen name="BlinkGame" component={BlinkGameScreen} />

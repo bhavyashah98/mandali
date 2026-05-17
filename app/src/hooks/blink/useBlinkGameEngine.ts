@@ -13,7 +13,6 @@ export const useBlinkGameEngine = (gameCode: string, groupId?: string) => {
     const { user } = useAuthStore();
     const userId = user?.id;
 
-    // ... existing room logic ...
     useSocketRoom('join_blink_game', gameCode, () => {
         if (gameCode) {
             queryClient.invalidateQueries({ queryKey: ['blinkGame', gameCode] });
@@ -24,25 +23,27 @@ export const useBlinkGameEngine = (gameCode: string, groupId?: string) => {
     const [participantsMap, setParticipantsMap] = useState<Record<string, any>>({});
     const [centerSymbols, setCenterSymbols] = useState<number[]>([]);
     const [mySymbols, setMySymbols] = useState<number[]>([]);
+    const [myPrize, setMyPrize] = useState<{ rank: number; prizeName: string; prizeAmount: number } | null>(null);
 
-    // ... existing queries ...
     const { data: gameData, isLoading: isGameLoading } = useQuery({
         queryKey: ['blinkGame', gameCode],
         queryFn: () => fetchBlinkGame(gameCode),
         enabled: !!gameCode,
     });
 
+    const game = gameData?.game;
+    const isParticipant = game?.participants?.some((p: any) => p.id === userId) || false;
+
     const { data: playerData, isLoading: isPlayerLoading } = useQuery({
         queryKey: ['blinkPlayer', gameCode],
         queryFn: () => fetchBlinkPlayer(gameCode),
-        enabled: !!gameCode,
+        enabled: !!gameCode && isParticipant,
     });
 
-    // ... hydration logic ...
+    // Hydration logic
     useEffect(() => {
-        if (isGameLoading || isPlayerLoading || !gameData?.game || !playerData?.player) return;
+        if (isGameLoading || !game) return;
 
-        const game = gameData.game;
         const totalCards = game.cards_per_player;
 
         const participants = game.participants.reduce((acc: any, p: any) => ({
@@ -52,9 +53,12 @@ export const useBlinkGameEngine = (gameCode: string, groupId?: string) => {
         setParticipantsMap(participants);
 
         setCenterSymbols(game.centerCard);
-        setMySymbols(playerData.player.currentCardSymbols);
 
-    }, [gameData, playerData, userId, isGameLoading, isPlayerLoading]);
+        if (isParticipant && playerData?.player) {
+            setMySymbols(playerData.player.currentCardSymbols);
+        }
+
+    }, [gameData, playerData, userId, isGameLoading, isPlayerLoading, isParticipant]);
 
     // Socket Logic
     useEffect(() => {
@@ -64,9 +68,8 @@ export const useBlinkGameEngine = (gameCode: string, groupId?: string) => {
             if (payload.sd) {
                 console.log(`[Blink Perf] Server processing took: ${payload.sd}ms`);
             }
-            
             if (payload.c) setCenterSymbols(payload.c);
-            // ... rest of state update ...
+            
             if (payload.u) {
                 setParticipantsMap(prev => {
                     const player = prev[payload.u];
@@ -85,6 +88,13 @@ export const useBlinkGameEngine = (gameCode: string, groupId?: string) => {
 
         const onWinnerFound = (payload: any) => {
             console.log(`[Blink] Winner: Rank ${payload.rank} - ${payload.userId}`);
+            if (payload.userId === userId) {
+                setMyPrize({
+                    rank: payload.rank,
+                    prizeName: payload.prizeName,
+                    prizeAmount: payload.prizeAmount
+                });
+            }
         };
 
         const onGameEnded = () => {
@@ -102,17 +112,24 @@ export const useBlinkGameEngine = (gameCode: string, groupId?: string) => {
             socket.off('blink_winner', onWinnerFound);
             socket.off('blink_game_ended', onGameEnded);
         };
-    }, [gameCode, socket, navigation, groupId]);
+    }, [gameCode, socket, navigation, groupId, userId]);
 
     const attemptMatch = useCallback((symbolId: number) => {
+        if (!isParticipant) return;
         socket?.emit('blink_match_attempt', { gameCode, symbolId });
-    }, [gameCode, socket]);
+    }, [gameCode, socket, isParticipant]);
+
+    const myProgress = participantsMap[userId!];
+    const hasFinished = myProgress ? myProgress.cardsLeft === -1 : false;
 
     return {
         players: Object.values(participantsMap),
         centerSymbols,
         mySymbols,
         isLoading: isGameLoading,
-        attemptMatch
+        attemptMatch,
+        isParticipant,
+        hasFinished,
+        myPrize
     };
 };

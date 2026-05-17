@@ -60,7 +60,7 @@ const BlinkStartingScreen = () => {
 
     const prizes = game?.prizes || [];
     const participants = game?.participants || [];
-    const totalPrizePool = participants.length * 100;
+    const totalPrizePool = prizes.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
 
     // Same loading gate as HousieStartingScreen:
     // Show loader until game data AND secondsLeft are both ready

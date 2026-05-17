@@ -3,15 +3,16 @@ import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { fetchBlinkGame, endBlinkGame } from '../../lib/api';
+import { fetchBlinkGame, endBlinkGame, fetchGroupDetail } from '../../lib/api';
+import { useAuthStore } from '../../stores/authStore';
 
 interface BlinkGameNavHeaderProps {
     gameCode: string;
     groupId: string;
-    isHost: boolean;
 }
 
-export const BlinkGameNavHeader = ({ gameCode, groupId, isHost }: BlinkGameNavHeaderProps) => {
+export const BlinkGameNavHeader = ({ gameCode, groupId }: BlinkGameNavHeaderProps) => {
+    const { user } = useAuthStore();
     const navigation = useNavigation<any>();
 
     const { data } = useQuery({
@@ -20,7 +21,15 @@ export const BlinkGameNavHeader = ({ gameCode, groupId, isHost }: BlinkGameNavHe
         enabled: !!gameCode,
     });
 
+    const { data: groupData } = useQuery({
+        queryKey: ['group', groupId],
+        queryFn: () => fetchGroupDetail(groupId),
+        enabled: !!groupId,
+    });
+
     const game = data?.game;
+    const groupName = groupData?.group?.name;
+    const isHost = game && user ? game.host_id === user.id : false;
 
     // Build a compact info line from game settings
     const infoTokens: string[] = [];
@@ -60,7 +69,9 @@ export const BlinkGameNavHeader = ({ gameCode, groupId, isHost }: BlinkGameNavHe
 
             {/* ── Center ── */}
             <View className="items-center flex-1 mx-3">
-                <Text className="text-[#594048] font-body-bold text-stone-400 uppercase tracking-widest">Blink • {gameCode} </Text>
+                <Text className="text-[#594048] font-body-bold text-stone-400 uppercase tracking-widest text-[9px]" numberOfLines={1}>
+                    {groupName || 'Blink'} • {game?.hostName || 'Host'}
+                </Text>
                 {!!infoLine && (
                     <Text className="text-[12px] font-body-bold" numberOfLines={1}>
                         {infoLine}

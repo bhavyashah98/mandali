@@ -11,7 +11,7 @@ import { useBlinkLobbySync } from '../../hooks/blink/useBlinkLobbySync';
 // Components
 import { LobbyTabSwitcher } from '../../components/games/lobby/LobbyTabSwitcher';
 import { BlinkLobbyCard } from '../../components/games/lobby/BlinkLobbyCard';
-import { LobbyScheduledCard } from '../../components/games/lobby/LobbyScheduledCard';
+import { BlinkScheduledCard } from '../../components/games/lobby/BlinkScheduledCard';
 import { LobbyEmptyState } from '../../components/games/lobby/LobbyEmptyState';
 
 interface LobbyProps {
@@ -31,13 +31,20 @@ export const BlinkLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProps
     useBlinkLobbySync(groupId);
 
     const handleAction = useCallback((game: any) => {
-        const { game_code, status } = game;
+        const { game_code, status, host_id, blink_players = [] } = game;
+        const isHost = host_id === data.userId;
+        const isParticipant = blink_players.some((p: any) => p.user_id === data.userId);
+
         if (status === 'waiting' || status === 'scheduled') {
-            navigation.navigate('BlinkWaitingRoom', { gameCode: game_code, groupId });
+            if (isParticipant || isHost) {
+                navigation.navigate('BlinkWaitingRoom', { gameCode: game_code, groupId });
+            } else {
+                navigation.navigate('BlinkJoin', { gameCode: game_code, groupId });
+            }
         } else if (status === 'starting' || status === 'active') {
             navigation.navigate('BlinkGame', { gameCode: game_code, groupId });
         }
-    }, [navigation, groupId]);
+    }, [navigation, data.userId, groupId]);
 
     const currentGames = useMemo(() =>
         activeTab === 'active' ? data.activeGames : data.scheduledGames,
@@ -98,7 +105,7 @@ export const BlinkLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProps
                     currentGames.map((game: any) => (
                         activeTab === 'active'
                             ? <BlinkLobbyCard key={game.id} game={game} memberCount={data.memberCount} onPress={handleAction} activeColor={primaryColor} />
-                            : <LobbyScheduledCard key={game.id} game={game} memberCount={data.memberCount} onPress={handleAction} activeColor={primaryColor} />
+                            : <BlinkScheduledCard key={game.id} game={game} memberCount={data.memberCount} onPress={handleAction} activeColor={primaryColor} />
                     ))
                 ) : (
                     <LobbyEmptyState type={activeTab} />

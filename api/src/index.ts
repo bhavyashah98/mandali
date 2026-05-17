@@ -76,9 +76,11 @@ import { registerChatHandlers } from './sockets/chatHandlers';
 import { registerHousieHandlers } from './sockets/housieHandlers';
 import { registerBlinkHandlers } from './sockets/blinkHandlers';
 import { initHousieEngine } from './services/housieEngine';
+import { initBlinkEngine } from './services/blinkEngine';
 
-// Initialize Background Engine
+// Initialize Background Engines
 initHousieEngine();
+initBlinkEngine();
 
 // import { populateBlinkCards } from './utils/generateBlinkCards';
 // // Run one-off generation for Blink cards

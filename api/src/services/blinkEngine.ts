@@ -1,9 +1,13 @@
 import { Server } from 'socket.io';
 import { supabase } from '../lib/supabase';
 import { activeBlinkGames, InMemoryBlinkPlayer, InMemoryBlinkGame } from './blinkMemory';
+import { io } from '../index';
+import { sendGroupPushNotification } from '../lib/push';
 
 // Track in-progress timers so we don't double-schedule
 const pendingActivations = new Map<string, NodeJS.Timeout>();
+const activeTimers = new Map<string, NodeJS.Timeout>();
+const reminderTimers = new Map<string, NodeJS.Timeout>();
 
 /**
  * Schedules the automatic activation of a Blink game after the countdown expires.
@@ -34,6 +38,239 @@ export const cancelBlinkActivation = (gameId: string) => {
         clearTimeout(existing);
         pendingActivations.delete(gameId);
         console.log(`[BlinkEngine] Cancelled activation for game ${gameId}`);
+    }
+};
+
+/**
+ * Cancels active start and reminder timers for scheduled games.
+ */
+export const cancelScheduledBlinkGame = (gameCode: string) => {
+    const code = gameCode.toUpperCase();
+    if (activeTimers.has(code)) {
+        clearTimeout(activeTimers.get(code));
+        activeTimers.delete(code);
+        console.log(`[BlinkEngine] [${code}] Cleared active start timer.`);
+    }
+    if (reminderTimers.has(code)) {
+        clearTimeout(reminderTimers.get(code));
+        reminderTimers.delete(code);
+        console.log(`[BlinkEngine] [${code}] Cleared reminder timer.`);
+    }
+};
+
+/**
+ * Transitions a game from 'scheduled' to 'starting' and preloads RAM caches.
+ */
+export const transitionBlinkGameToStarting = async (gameCode: string, groupId: string, hostId: string) => {
+    const code = gameCode.toUpperCase();
+    try {
+        console.log(`[BlinkEngine] [${code}] Transitioning scheduled game to starting...`);
+
+        // 1. Fetch current game state
+        const { data: game, error: fetchError } = await supabase
+            .from('blink_games')
+            .select('*')
+            .eq('game_code', code)
+            .single();
+
+        if (fetchError || !game) {
+            console.error(`[BlinkEngine] [${code}] Transition failed: Game not found.`, fetchError);
+            return;
+        }
+
+        // 2. Fetch participants
+        const { data: participants } = await supabase
+            .from('blink_players')
+            .select('user_id, users(name, avatar_url)')
+            .eq('game_id', game.id);
+
+        if (!participants || participants.length < 1) {
+            console.warn(`[BlinkEngine] [${code}] Scheduled start aborted: No participants joined.`);
+            cancelScheduledBlinkGame(code);
+            return;
+        }
+
+        const now = new Date();
+        const delaySeconds = 60; // 60s countdown for scheduled game starting
+        const activationTime = new Date(now.getTime() + delaySeconds * 1000);
+
+        const totalPlayers = participants.length;
+        const totalPrizePool = totalPlayers * 100;
+        let prizes: any[] = [];
+
+        // Exact same dynamic prizes calculation as start route
+        if (totalPlayers === 1) {
+            prizes = [{ id: '1st', name: '1st Place', description: 'Fastest matcher', percentage: 20, amount: Math.floor(totalPrizePool * 0.20), icon: 'emoji-events' }];
+        } else if (totalPlayers <= 2) {
+            prizes = [{ id: '1st', name: '1st Place', description: 'Fastest matcher', percentage: 50, amount: Math.floor(totalPrizePool * 0.50), icon: 'emoji-events' }];
+        } else {
+            const W = totalPlayers - 1;
+            let weights: number[] = [];
+            let totalWeight = 0;
+            for (let r = 1; r <= W; r++) {
+                const weight = Math.pow(W - r + 1, 1.4);
+                weights.push(weight);
+                totalWeight += weight;
+            }
+
+            let percentages = weights.map(w => Math.round((w / totalWeight) * 100));
+
+            const currentSum = percentages.reduce((sum, p) => sum + p, 0);
+            const diff = 100 - currentSum;
+            if (diff !== 0) {
+                percentages[0] += diff;
+            }
+
+            prizes = percentages.map((pct, idx) => {
+                const rank = idx + 1;
+                let suffix = 'th';
+                if (rank === 1) suffix = 'st';
+                else if (rank === 2) suffix = 'nd';
+                else if (rank === 3) suffix = 'rd';
+
+                const idStr = `${rank}${suffix}`;
+                
+                let description = 'Rank finished';
+                if (rank === 1) description = 'Fastest matcher';
+                else if (rank === 2) description = 'Runner up';
+                else if (rank === 3) description = 'Second runner up';
+
+                let icon = 'stars';
+                if (rank === 1) icon = 'emoji-events';
+                else if (rank === 2 || rank === 3) icon = 'military-tech';
+
+                return {
+                    id: idStr,
+                    name: `${idStr} Place`,
+                    description,
+                    percentage: pct,
+                    amount: Math.floor(totalPrizePool * (pct / 100)),
+                    icon
+                };
+            });
+        }
+
+        // 3. Update Database status to starting
+        const { error: updateError } = await supabase
+            .from('blink_games')
+            .update({
+                status: 'starting',
+                prizes: prizes,
+                starting_at: now.toISOString(),
+                activation_at: activationTime.toISOString()
+            })
+            .eq('id', game.id)
+            .eq('status', 'scheduled');
+
+        if (updateError) {
+            console.error(`[BlinkEngine] [${code}] Transition DB update failed:`, updateError);
+            return;
+        }
+
+        // 4. Preload and Schedule activation
+        scheduleBlinkActivation(io, game.id, delaySeconds * 1000);
+        await preloadBlinkGame(game.id);
+
+        // 5. Emit Socket events
+        if (io) {
+            io.to(code).emit('blink_game_starting', { gameCode: code });
+            io.to(`group_${groupId}`).emit('blink_game_starting', { gameCode: code, groupId });
+        }
+
+        // 6. Push notification
+        sendGroupPushNotification(
+            groupId,
+            hostId,
+            '⚡ Blink Match Starting!',
+            `The scheduled Blink match "${game.title || 'Blink'}" is starting now. Join the waiting room!`,
+            { type: 'blink', gameCode: code, groupId, url: `mandali://blink/${code}/${groupId}` }
+        ).catch(err => console.error(`[BlinkEngine] [${code}] Failed to send start notification:`, err));
+
+        cancelScheduledBlinkGame(code);
+
+    } catch (err) {
+        console.error(`[BlinkEngine] [${code}] Error in transitionBlinkGameToStarting:`, err);
+    }
+};
+
+/**
+ * Schedules a game to move from 'scheduled' to 'starting' at the right time.
+ */
+export const scheduleBlinkGameStart = (gameCode: string, scheduledAt: string, groupId: string, hostId: string, title?: string) => {
+    if (!scheduledAt) return;
+
+    const code = gameCode.toUpperCase();
+    cancelScheduledBlinkGame(code);
+
+    const startTime = new Date(scheduledAt).getTime();
+    const now = Date.now();
+    const delay = Math.max(0, startTime - now);
+
+    console.log(`[BlinkEngine] [${code}] Scheduled start in ${Math.round(delay / 1000 / 60)} mins (UTC: ${scheduledAt}).`);
+
+    // 1. Reminder Timer (5 minutes before)
+    const fiveMinInMs = 5 * 60 * 1000;
+    const reminderDelay = Math.max(0, delay - fiveMinInMs);
+
+    if (delay > 30000) {
+        const rTimer = setTimeout(async () => {
+            console.log(`[BlinkEngine] [${code}] Sending pre-game reminder.`);
+            sendGroupPushNotification(
+                groupId,
+                hostId,
+                delay > (fiveMinInMs + 10000) ? '🕒 5 Minutes Left!' : '⚡ Blink Starting Soon!',
+                `The Blink match "${title || 'Blink'}" is starting ${delay > (fiveMinInMs + 10000) ? 'in 5 minutes' : 'very soon'}. Join now!`,
+                { type: 'blink', gameCode: code, groupId }
+            ).catch(err => console.error(`[BlinkEngine] [${code}] Failed to send reminder:`, err));
+            reminderTimers.delete(code);
+        }, reminderDelay);
+        reminderTimers.set(code, rTimer);
+    }
+
+    // 2. Exact Start Timer
+    const timer = setTimeout(() => {
+        transitionBlinkGameToStarting(code, groupId, hostId);
+    }, delay);
+
+    activeTimers.set(code, timer);
+};
+
+/**
+ * Initializer for Scheduled Blink Games engine
+ */
+export const initBlinkEngine = async () => {
+    console.log('[BlinkEngine] Initializing Production Blink Engine...');
+
+    try {
+        // 1. Sync all scheduled games into memory timeouts on start
+        const { data: scheduled } = await supabase
+            .from('blink_games')
+            .select('game_code, scheduled_at, group_id, host_id, title')
+            .eq('status', 'scheduled');
+        
+        if (scheduled) {
+            scheduled.forEach(g => {
+                scheduleBlinkGameStart(g.game_code, g.scheduled_at, g.group_id, g.host_id, g.title);
+            });
+        }
+
+        // 2. Proactive check for games that reached their start time (safety check for system restarts)
+        const nowIso = new Date().toISOString();
+        const { data: missedGames } = await supabase
+            .from('blink_games')
+            .select('game_code, group_id, host_id')
+            .eq('status', 'scheduled')
+            .lte('scheduled_at', nowIso);
+
+        if (missedGames?.length) {
+            console.log(`[BlinkEngine] Found ${missedGames.length} missed scheduled starts. Transitioning...`);
+            for (const g of missedGames) {
+                await transitionBlinkGameToStarting(g.game_code, g.group_id, g.host_id);
+            }
+        }
+
+    } catch (err) {
+        console.error('[BlinkEngine] Unexpected error during initialization:', err);
     }
 };
 

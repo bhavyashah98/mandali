@@ -12,6 +12,7 @@ interface PlayerProgress {
     isYou?: boolean;
     isLeading?: boolean;
     totalCards: number;
+    id: string;
 }
 
 interface BlinkHeaderProps {
@@ -146,8 +147,6 @@ export const BlinkHeader = ({ players }: BlinkHeaderProps) => {
     const visible = sorted.slice(0, 5);
     const overflow = sorted.length - 5;
 
-    console.log(players, "BlinkHeader");
-
     return (
         <View className="px-5 pt-1 pb-1">
             {/* Player circles */}
@@ -158,7 +157,7 @@ export const BlinkHeader = ({ players }: BlinkHeaderProps) => {
                 contentContainerStyle={{ paddingRight: 8, paddingVertical: 4 }}
             >
                 {visible.map((player) => (
-                    <PlayerItem key={player.userId} player={player} />
+                    <PlayerItem key={player.id} player={player} />
                 ))}
                 {overflow > 0 && (
                     <View className="items-center" style={{ marginRight: 8 }}>

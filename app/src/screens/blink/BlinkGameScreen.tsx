@@ -5,14 +5,15 @@ import { useRoute } from '@react-navigation/native';
 import { BlinkGameNavHeader } from '../../components/blink/BlinkGameNavHeader';
 import { BlinkHeader } from '../../components/blink/BlinkHeader';
 import { BlinkCard } from '../../components/blink/BlinkCard';
+import { BlinkSpectatorPanel } from '../../components/blink/BlinkSpectatorPanel';
+import { BlinkFinishedPanel } from '../../components/blink/BlinkFinishedPanel';
 import { useBlinkGameEngine } from '../../hooks/blink/useBlinkGameEngine';
 
 const BlinkGameScreen = () => {
     const route = useRoute();
-    const params = route.params as { gameCode: string; groupId: string; isHost?: boolean };
+    const params = route.params as { gameCode: string; groupId: string };
     const gameCode = params?.gameCode?.trim().toUpperCase() || 'BLINK';
     const groupId = params?.groupId || '';
-    const isHost = params?.isHost || true;
 
     const {
         players,
@@ -20,6 +21,9 @@ const BlinkGameScreen = () => {
         mySymbols,
         isLoading,
         attemptMatch,
+        isParticipant,
+        hasFinished,
+        myPrize,
     } = useBlinkGameEngine(gameCode, groupId);
 
     const { height: windowHeight, width: windowWidth } = Dimensions.get('window');
@@ -29,7 +33,7 @@ const BlinkGameScreen = () => {
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top']}>
 
             {/* ── NAV HEADER ── */}
-            <BlinkGameNavHeader gameCode={gameCode} groupId={groupId} isHost={isHost} />
+            <BlinkGameNavHeader gameCode={gameCode} groupId={groupId} />
 
             {/* ── PLAYERS PROGRESS ── */}
             <BlinkHeader players={players} />
@@ -64,19 +68,27 @@ const BlinkGameScreen = () => {
                 </View>
             </View>
 
-            {/* ── YOUR CARD ── */}
-            <View className="flex-1 items-center justify-center">
-                <Text className="text-[9px] font-body-bold text-[#b30069] tracking-widest uppercase mb-3">
-                    Your Card{' '}
-                    <Text className="text-stone-400 normal-case">(Tap to match)</Text>
-                </Text>
-                <BlinkCard
-                    symbols={mySymbols}
-                    isCenter={false}
-                    size={cardSize}
-                    onSymbolPress={attemptMatch}
-                />
-            </View>
+            {/* ── LOWER SECTION (GAMEPLAY OR SPECTATOR PANEL) ── */}
+            {isParticipant ? (
+                hasFinished ? (
+                    <BlinkFinishedPanel myPrize={myPrize} />
+                ) : (
+                    <View className="flex-1 items-center justify-center">
+                        <Text className="text-[9px] font-body-bold text-[#b30069] tracking-widest uppercase mb-3">
+                            Your Card{' '}
+                            <Text className="text-stone-400 normal-case">(Tap to match)</Text>
+                        </Text>
+                        <BlinkCard
+                            symbols={mySymbols}
+                            isCenter={false}
+                            size={cardSize}
+                            onSymbolPress={attemptMatch}
+                        />
+                    </View>
+                )
+            ) : (
+                <BlinkSpectatorPanel />
+            )}
 
         </SafeAreaView>
     );

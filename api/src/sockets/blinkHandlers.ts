@@ -134,7 +134,7 @@ export const registerBlinkHandlers = (io: Server, socket: Socket) => {
                 io.to(code).emit('blink_state_update', {
                     c: newCenterCardSymbols,
                     u: userId,
-                    l: remaining > 0 ? remaining - 1 : 0,
+                    l: remaining > 0 ? remaining - 1 : -1,
                     sd: serverDuration // Server processing time
                 });
 
