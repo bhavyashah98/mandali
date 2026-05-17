@@ -61,8 +61,12 @@ export const useBlinkGameEngine = (gameCode: string, groupId?: string) => {
         if (!gameCode || !socket) return;
 
         const onStateUpdate = (payload: any) => {
+            if (payload.sd) {
+                console.log(`[Blink Perf] Server processing took: ${payload.sd}ms`);
+            }
+            
             if (payload.c) setCenterSymbols(payload.c);
-
+            // ... rest of state update ...
             if (payload.u) {
                 setParticipantsMap(prev => {
                     const player = prev[payload.u];
@@ -81,13 +85,10 @@ export const useBlinkGameEngine = (gameCode: string, groupId?: string) => {
 
         const onWinnerFound = (payload: any) => {
             console.log(`[Blink] Winner: Rank ${payload.rank} - ${payload.userId}`);
-            // You could add a toast here if you want: 
-            // Toast.show({ text1: 'Winner!', text2: `${payload.userName} got Rank ${payload.rank}` });
         };
 
         const onGameEnded = () => {
-            console.log('[Blink] Game Fully Ended!');
-            navigation.replace('BlinkResults', { gameCode, groupId });
+            navigation.navigate('BlinkResults', { gameCode, groupId });
         };
 
         socket.on('blink_state_update', onStateUpdate);

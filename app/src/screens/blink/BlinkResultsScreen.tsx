@@ -22,7 +22,7 @@ const BlinkResultsScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
     const { user } = useAuthStore();
-    const { gameCode } = route.params;
+    const { gameCode, groupId } = route.params;
 
     const [isLoading, setIsLoading] = useState(true);
     const [results, setResults] = useState<any[]>([]);
@@ -45,7 +45,7 @@ const BlinkResultsScreen = () => {
     };
 
     const handleClose = () => {
-        navigation.navigate('GameLobby', { gameType: 'blink' });
+        navigation.navigate('GameLobby', { gameType: 'blink', groupId });
     };
 
     if (isLoading) {
@@ -120,16 +120,16 @@ const BlinkResultsScreen = () => {
                                     key={player.userId}
                                     className={`flex-row items-center rounded-[32px] border ${isTablet ? 'p-8' : 'p-4'} ${player.userId === user?.id ? 'border-[#b30069]' : ''}`}
                                     style={isTop3
-                                        ? { 
-                                            backgroundColor: player.userId === user?.id ? '#fdf0f7' : topStyle!.bg, 
-                                            borderColor: player.userId === user?.id ? '#b30069' : topStyle!.border, 
-                                            elevation: 2 
-                                          }
-                                        : { 
-                                            backgroundColor: player.userId === user?.id ? '#fdf0f7' : '#ffffff', 
-                                            borderColor: player.userId === user?.id ? '#f1ede8', 
-                                            elevation: 0 
-                                          }
+                                        ? {
+                                            backgroundColor: player.userId === user?.id ? '#fdf0f7' : topStyle!.bg,
+                                            borderColor: player.userId === user?.id ? '#b30069' : topStyle!.border,
+                                            elevation: 2
+                                        }
+                                        : {
+                                            backgroundColor: player.userId === user?.id ? '#fdf0f7' : '#ffffff',
+                                            borderColor: player.userId === user?.id ? '#f1ede8' : '#ffffff',
+                                            elevation: 0
+                                        }
                                     }
                                 >
                                     {/* Rank */}

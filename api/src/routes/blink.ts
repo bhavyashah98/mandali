@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { scheduleBlinkActivation, cancelBlinkActivation } from '../services/blinkEngine';
+import { scheduleBlinkActivation, cancelBlinkActivation, preloadBlinkGame } from '../services/blinkEngine';
+import { activeBlinkGames } from '../services/blinkMemory';
 
 const router = Router();
 
@@ -381,6 +382,7 @@ router.post('/:gameId/start', authMiddleware, async (req: AuthRequest, res) => {
         // Schedule backend auto-activation after the countdown
         const io = req.app.get('io');
         scheduleBlinkActivation(io, gameId as string, delaySeconds * 1000);
+        await preloadBlinkGame(gameId as string);
 
         if (io) {
             io.to(game.game_code.toUpperCase()).emit('blink_game_starting', { gameCode: game.game_code });
@@ -436,6 +438,7 @@ router.post('/:gameId/cancel', authMiddleware, async (req: AuthRequest, res) => 
         if (error) throw error;
 
         cancelBlinkActivation(gameId as string);
+        activeBlinkGames.delete(updated.game_code.toUpperCase());
 
         const io = req.app.get('io');
         if (io) {
@@ -521,6 +524,8 @@ router.post('/:gameCode/end', authMiddleware, async (req: any, res: any) => {
 
         if (updateError) throw updateError;
 
+        activeBlinkGames.delete(gameCode.toUpperCase());
+
         // 3. Broadcast end event
         const io = req.app.get('io');
         if (io) {
@@ -542,7 +547,7 @@ router.post('/:gameCode/end', authMiddleware, async (req: any, res: any) => {
 router.get('/:gameCode/results', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const gameCode = (req.params.gameCode as string).toUpperCase();
-        
+
         // 1. Resolve game
         const { data: game, error: gameError } = await supabase
             .from('blink_games')
@@ -557,7 +562,7 @@ router.get('/:gameCode/results', authMiddleware, async (req: AuthRequest, res) =
             .from('game_results')
             .select('user_id, prize_name, prize_amount, users(name, avatar_url)')
             .eq('game_id', game.id)
-            .order('created_at', { ascending: true }); // Winners arrive in rank order
+            .order('won_at', { ascending: true }); // Winners arrive in rank order
 
         if (resultsError) throw resultsError;
 
@@ -574,6 +579,110 @@ router.get('/:gameCode/results', authMiddleware, async (req: AuthRequest, res) =
         res.json({ results: transformed });
     } catch (error: any) {
         console.error('[Blink] Results Fetch Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * GET ALL-TIME GROUP LEADERBOARD FOR BLINK
+ * Aggregates all game_results for a group across all Blink games
+ * Query param: ?period=all_time|this_month|this_year
+ */
+router.get('/group/:groupId/leaderboard', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const { groupId } = req.params;
+        const period = (req.query.period as string) || 'all_time';
+
+
+        // 1. Fetch all blink games for this group
+        const { data: games, error: gamesError } = await supabase
+            .from('blink_games')
+            .select('id')
+            .eq('group_id', groupId);
+
+        if (gamesError) throw gamesError;
+        if (!games || games.length === 0) return res.json({ leaderboard: [] });
+
+        const gameIds = games.map(g => g.id);
+
+        // 2. Fetch game results for these games
+        let query = supabase
+            .from('game_results')
+            .select(`
+                user_id,
+                prize_name,
+                prize_amount,
+                game_id,
+                won_at,
+                users(name, avatar_url)
+            `)
+            .in('game_id', gameIds);
+
+        // Apply date filter
+        const now = new Date();
+        if (period === 'this_month') {
+            const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+            query = query.gte('won_at', start);
+        } else if (period === 'this_year') {
+            const start = new Date(now.getFullYear(), 0, 1).toISOString();
+            query = query.gte('won_at', start);
+        }
+
+        const { data: results, error: resultsError } = await query;
+        if (resultsError) throw resultsError;
+
+        // 3. Count matches played per user in these games
+        const { data: players, error: playersError } = await supabase
+            .from('blink_players')
+            .select('user_id, game_id')
+            .in('game_id', gameIds);
+
+        if (playersError) throw playersError;
+
+        const matchesPlayedCount: Record<string, Set<string>> = {};
+        (players || []).forEach(p => {
+            if (!matchesPlayedCount[p.user_id]) {
+                matchesPlayedCount[p.user_id] = new Set();
+            }
+            matchesPlayedCount[p.user_id].add(p.game_id);
+        });
+
+        // 4. Aggregate results
+        const summary: Record<string, any> = {};
+        (results || []).forEach(row => {
+            const userData = Array.isArray(row.users) ? row.users[0] : row.users;
+
+            if (!summary[row.user_id]) {
+                summary[row.user_id] = {
+                    userId: row.user_id,
+                    name: userData?.name || 'Player',
+                    avatarUrl: userData?.avatar_url,
+                    totalWon: 0,
+                    winCount: 0,
+                    totalMatches: matchesPlayedCount[row.user_id]?.size || 0,
+                    prizes: [],
+                };
+            }
+            summary[row.user_id].totalWon += row.prize_amount;
+            summary[row.user_id].winCount += 1;
+            summary[row.user_id].prizes.push({
+                name: row.prize_name,
+                amount: row.prize_amount,
+                wonAt: row.won_at
+            });
+        });
+
+        const leaderboard = Object.values(summary)
+            .map((p: any) => ({
+                ...p,
+                totalMatches: matchesPlayedCount[p.userId]?.size || p.totalMatches,
+                prizes: p.prizes.sort((a: any, b: any) => new Date(b.wonAt).getTime() - new Date(a.wonAt).getTime())
+            }))
+            .sort((a, b) => b.winCount - a.winCount || b.totalWon - a.totalWon); // sort by win count, then total won
+
+        res.json({ leaderboard });
+    } catch (error: any) {
+        console.error('[Blink Leaderboard] Error:', error);
         res.status(500).json({ error: error.message });
     }
 });

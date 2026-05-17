@@ -1,5 +1,6 @@
 import { Server } from 'socket.io';
 import { supabase } from '../lib/supabase';
+import { activeBlinkGames, InMemoryBlinkPlayer, InMemoryBlinkGame } from './blinkMemory';
 
 // Track in-progress timers so we don't double-schedule
 const pendingActivations = new Map<string, NodeJS.Timeout>();
@@ -37,6 +38,98 @@ export const cancelBlinkActivation = (gameId: string) => {
 };
 
 /**
+ * Preloads a game's cards and players in RAM cache when the status becomes 'starting'.
+ * This completely avoids all database delays during the transition from countdown to active!
+ */
+export const preloadBlinkGame = async (gameId: string): Promise<InMemoryBlinkGame | null> => {
+    try {
+        console.log(`[BlinkEngine] Preloading game ${gameId} to RAM cache...`);
+
+        // 1. Fetch game
+        const { data: game, error: gameError } = await supabase
+            .from('blink_games')
+            .select('*')
+            .eq('id', gameId)
+            .single();
+
+        if (gameError || !game) {
+            console.error(`[BlinkEngine Preload] Game not found: ${gameId}`);
+            return null;
+        }
+
+        // 2. Fetch participants with names
+        const { data: participants } = await supabase
+            .from('blink_players')
+            .select('user_id, users(name)')
+            .eq('game_id', game.id);
+
+        if (!participants || participants.length < 1) {
+            console.error(`[BlinkEngine Preload] No participants for game ${gameId}`);
+            return null;
+        }
+
+        // 3. Fetch and shuffle cards
+        const { data: cards } = await supabase
+            .from('blink_cards')
+            .select('id, symbols')
+            .eq('symbols_per_card', game.symbols_per_card);
+
+        if (!cards || cards.length === 0) {
+            console.error(`[BlinkEngine Preload] No cards found for game ${gameId}`);
+            return null;
+        }
+
+        const shuffledCards = [...cards].sort(() => Math.random() - 0.5);
+        const initialCenterCard = shuffledCards.pop()!;
+
+        const playerUpdates = participants.map(p => {
+            const firstCard = shuffledCards.pop()!;
+            return {
+                userId: p.user_id,
+                name: (p as any).users?.name || 'Player',
+                currentCardId: firstCard.id,
+                currentCardSymbols: firstCard.symbols,
+                cardsRemaining: game.cards_per_player - 1
+            };
+        });
+
+        // 4. Construct memory structure
+        const playersMap = new Map<string, InMemoryBlinkPlayer>();
+        playerUpdates.forEach(p => {
+            playersMap.set(p.userId, {
+                userId: p.userId,
+                name: p.name,
+                currentCardId: p.currentCardId,
+                currentCardSymbols: p.currentCardSymbols,
+                cardsRemaining: p.cardsRemaining
+            });
+        });
+
+        const inMemoryGame: InMemoryBlinkGame = {
+            id: game.id,
+            groupId: game.group_id,
+            gameCode: game.game_code.toUpperCase(),
+            status: 'starting', // Set to starting initially, will be flipped to 'active' on activation
+            symbolsPerCard: game.symbols_per_card,
+            cardsPerPlayer: game.cards_per_player,
+            prizes: game.prizes || [],
+            currentCenterCardId: initialCenterCard.id,
+            currentCenterCardSymbols: initialCenterCard.symbols,
+            players: playersMap,
+            deck: shuffledCards.map(c => ({ id: c.id, symbols: c.symbols })),
+            winnersCount: 0
+        };
+
+        activeBlinkGames.set(game.game_code.toUpperCase(), inMemoryGame);
+        console.log(`[Blink Memory] 🚀 Successfully preloaded game "${game.game_code.toUpperCase()}" with ${inMemoryGame.deck.length} remaining cards in RAM.`);
+        return inMemoryGame;
+    } catch (error) {
+        console.error(`[BlinkEngine Preload] Unexpected error preloading game ${gameId}:`, error);
+        return null;
+    }
+};
+
+/**
  * Activates the game: distributes cards, sets status to 'active', emits socket events.
  */
 const activateBlinkGame = async (io: Server, gameId: string) => {
@@ -60,46 +153,39 @@ const activateBlinkGame = async (io: Server, gameId: string) => {
             return;
         }
 
-        // 2. Fetch participants
-        const { data: participants } = await supabase
-            .from('blink_players')
-            .select('user_id')
-            .eq('game_id', game.id);
+        const gameCode = game.game_code.toUpperCase();
+        let inMemoryGame: InMemoryBlinkGame | null | undefined = activeBlinkGames.get(gameCode);
 
-        if (!participants || participants.length < 1) {
-            console.error(`[BlinkEngine] No participants for game ${gameId}`);
+        // Fallback: If not preloaded during the countdown phase, preload it now
+        if (!inMemoryGame) {
+            console.log(`[BlinkEngine] Game ${gameCode} was not preloaded in memory. Loading now...`);
+            inMemoryGame = await preloadBlinkGame(gameId);
+        }
+
+        if (!inMemoryGame) {
+            console.error(`[BlinkEngine] Failed to load/preload game ${gameCode}`);
             return;
         }
 
-        // 3. Fetch and shuffle cards
-        const { data: cards } = await supabase
-            .from('blink_cards')
-            .select('id, symbols')
-            .eq('symbols_per_card', game.symbols_per_card);
+        // Flip status to active in RAM immediately
+        inMemoryGame.status = 'active';
 
-        if (!cards || cards.length === 0) {
-            console.error(`[BlinkEngine] No cards found for game ${gameId}`);
-            return;
-        }
+        // Prepare info for persistence from preloaded structures
+        const centerCardId = inMemoryGame.currentCenterCardId;
+        const playerUpdates = Array.from(inMemoryGame.players.values()).map(p => ({
+            userId: p.userId,
+            currentCardId: p.currentCardId,
+            cardsRemaining: p.cardsRemaining
+        }));
 
-        const shuffledCards = [...cards].sort(() => Math.random() - 0.5);
-        const initialCenterCard = shuffledCards.pop()!;
+        console.log(`[Blink Memory] 🚀 Activating game ${gameCode} in RAM and asynchronously syncing to Database...`);
 
-        const playerUpdates = participants.map(p => {
-            const firstCard = shuffledCards.pop()!;
-            return {
-                userId: p.user_id,
-                currentCardId: firstCard.id,
-                cardsRemaining: game.cards_per_player - 1
-            };
-        });
-
-        // 4. Update game status to active
+        // 5. Update game status to active in DB
         const { error: updateError } = await supabase
             .from('blink_games')
             .update({
                 status: 'active',
-                current_center_card: initialCenterCard.id,
+                current_center_card: centerCardId,
                 started_at: new Date().toISOString()
             })
             .eq('id', gameId);
@@ -109,7 +195,7 @@ const activateBlinkGame = async (io: Server, gameId: string) => {
             return;
         }
 
-        // 5. Assign cards to players
+        // 6. Assign cards to players in DB
         for (const p of playerUpdates) {
             await supabase
                 .from('blink_players')
@@ -121,8 +207,8 @@ const activateBlinkGame = async (io: Server, gameId: string) => {
                 .eq('user_id', p.userId);
         }
 
-        // 6. Broadcast to all clients
-        io.to(game.game_code.toUpperCase()).emit('blink_game_started', { gameCode: game.game_code });
+        // 7. Broadcast to all clients
+        io.to(gameCode).emit('blink_game_started', { gameCode: game.game_code });
         io.to(`group_${game.group_id}`).emit('blink_game_started', { gameCode: game.game_code, groupId: game.group_id });
 
         console.log(`[BlinkEngine] Game ${gameId} (${game.game_code}) is now ACTIVE`);

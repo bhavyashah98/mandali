@@ -49,41 +49,46 @@ export const BlinkCard = ({ symbols, isCenter = false, onSymbolPress, size }: Bl
 
     const cardRadius = size / 2;
 
-    // Card seed
-    const seed = symbols.reduce((acc, s) => acc + s, 0);
+    // Stable but random-per-instance shuffle of indices
+    const shuffledIndices = React.useMemo(() => {
+        const arr = symbols.map((_, i) => i);
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }, [symbols]);
+
 
     // Ring radius: where surrounding icons are placed
     const ringRadius = cardRadius * 0.62;
 
-    // Rotate the whole layout per card
-    const layoutRotation = (seed % 360) * (Math.PI / 180);
+    // Rotate the whole layout per card instance
+    const layoutRotation = React.useMemo(() => (Math.random() * 360) * (Math.PI / 180), [symbols]);
 
-    // ── Assign size tiers: 2 big, 4 medium, 2 small ──────────────────
-    const indices = symbols.map((_, i) => i);
-    const shuffled = [...indices].sort((a, b) => {
-        const ha = (symbols[a] * seed * 31 + a * 17) % 1000;
-        const hb = (symbols[b] * seed * 31 + b * 17) % 1000;
-        return ha - hb;
-    });
-    const tierMap = new Map<number, 'big' | 'medium' | 'small'>();
-    shuffled.forEach((origIdx, rank) => {
-        if (rank < 2) tierMap.set(origIdx, 'big');
-        else if (rank < 6) tierMap.set(origIdx, 'medium');
-        else tierMap.set(origIdx, 'small');
-    });
+    // ── Assign size tiers ───────────────────────────────────────────
+    const tierMap = React.useMemo(() => {
+        const tMap = new Map<number, 'big' | 'medium' | 'small'>();
+        // Just assign based on the shuffled order
+        shuffledIndices.forEach((origIdx, rank) => {
+            if (rank < 2) tMap.set(origIdx, 'big');
+            else if (rank < 6) tMap.set(origIdx, 'medium');
+            else tMap.set(origIdx, 'small');
+        });
+        return tMap;
+    }, [shuffledIndices]);
 
     // ── Icon size tiers scaled to card diameter ─────────────────────
     const TIER_SIZES = {
-        big:    [Math.round(size * 0.16), Math.round(size * 0.19)],
+        big: [Math.round(size * 0.16), Math.round(size * 0.19)],
         medium: [Math.round(size * 0.11), Math.round(size * 0.13)],
-        small:  [Math.round(size * 0.075), Math.round(size * 0.09)],
+        small: [Math.round(size * 0.075), Math.round(size * 0.09)],
     } as const;
 
     return (
         <View
-            className={`bg-white rounded-full items-center justify-center ${
-                isCenter ? 'border-[3px] border-[#b30069]' : 'border-[3px] border-stone-200'
-            }`}
+            className={`bg-white rounded-full items-center justify-center ${isCenter ? 'border-[3px] border-[#b30069]' : 'border-[3px] border-stone-200'
+                }`}
             style={{
                 width: size,
                 height: size,
@@ -98,32 +103,33 @@ export const BlinkCard = ({ symbols, isCenter = false, onSymbolPress, size }: Bl
                 className="absolute w-full h-full items-center justify-center"
                 pointerEvents="box-none"
             >
-                {symbols.map((sid, idx) => {
-                    const tier = tierMap.get(idx) ?? 'medium';
+                {shuffledIndices.map((sidIdx, renderIdx) => {
+                    const sid = symbols[sidIdx];
+                    const tier = tierMap.get(sidIdx) ?? 'medium';
                     const [minSz, maxSz] = TIER_SIZES[tier];
-                    const sizeNoise = (sid * 37 + idx * 11) % (maxSz - minSz + 1);
+                    const sizeNoise = (sid * 37 + sidIdx * 11) % (maxSz - minSz + 1);
                     const iconSize = minSz + sizeNoise;
 
                     let x = 0;
                     let y = 0;
 
-                    if (idx === 0) {
+                    if (renderIdx === 0) {
                         x = 0;
                         y = 0;
                     } else {
                         const surrounding = symbols.length - 1;
-                        const angle = layoutRotation + (idx - 1) * (2 * Math.PI / surrounding);
-                        const jitter = ((sid * 7 + idx * 13) % 14) - 7;
+                        const angle = layoutRotation + (renderIdx - 1) * (2 * Math.PI / surrounding);
+                        const jitter = ((sid * 7 + sidIdx * 13) % 14) - 7;
                         const dist = Math.min(ringRadius + jitter, cardRadius - iconSize / 2 - 6);
                         x = Math.cos(angle) * dist;
                         y = Math.sin(angle) * dist;
                     }
 
-                    const iconRotation = ((sid * 23 + idx * 17) % 71) - 35;
+                    const iconRotation = ((sid * 23 + sidIdx * 17) % 71) - 35;
 
                     return (
                         <TouchableOpacity
-                            key={`${sid}-${idx}`}
+                            key={`${sid}-${sidIdx}`}
                             onPress={() => handleSymbolPress(sid)}
                             disabled={isCenter}
                             className="absolute"
