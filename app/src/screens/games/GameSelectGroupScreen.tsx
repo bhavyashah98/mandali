@@ -1,21 +1,22 @@
 import React, { useCallback } from 'react';
-import { useIsTablet } from '../../hooks/useIsTablet';
-import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, RefreshControl, useWindowDimensions, Alert } from 'react-native';
+import { View, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSocket } from '../../hooks/useSocket';
 import { useQueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
-import { fetchGroups, getOptimizedImageUrl } from '../../lib/api';
-import MandaliCoin from '../../components/MandaliCoin';
-import { LinearGradient } from 'expo-linear-gradient';
+import { fetchGroups } from '../../lib/api';
+import {
+    Header,
+    TotalGloryCard,
+    EmptyState,
+    GroupItem,
+    ContextCardsContainer
+} from '../../components/games/select-group';
 
 const GameSelectGroupScreen = () => {
-    const navigation = useNavigation<any>();
     const socket = useSocket();
     const queryClient = useQueryClient();
-    const isTablet = useIsTablet();
     const { data: groups, isLoading, isRefetching, refetch } = useQuery({
         queryKey: ['groups'],
         queryFn: fetchGroups
@@ -43,238 +44,9 @@ const GameSelectGroupScreen = () => {
 
     const totalGlory = groups?.reduce((acc: number, g: any) => acc + (g.totalWinnings || 0), 0) || 0;
 
-    const renderTotalGloryCard = () => {
-        if (!groups || groups.length === 0) return <View className="h-4" />;
-        return (
-            <TouchableOpacity
-                activeOpacity={0.9}
-                onPress={() => Alert.alert(
-                    "Mandali Glory",
-                    "This represents your total social points won across all groups. These points are virtual and have no cash value."
-                )}
-                style={{ elevation: 10, shadowColor: '#b30069', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10 }}
-                className={`bg-[#b30069] rounded-[40px] mb-8 overflow-hidden ${isTablet ? 'p-12' : 'p-6'}`}
-            >
-                <LinearGradient
-                    colors={['rgba(255,255,255,0.15)', 'transparent']}
-                    className="absolute inset-0"
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                />
-                <View className="flex-row items-center justify-between">
-                    <View>
-                        <Text className={`text-white/70 font-body-bold uppercase tracking-widest ${isTablet ? 'text-2xl mb-4' : 'text-[10px] mb-1'}`}>Total Mandali Glory</Text>
-                        <View className="flex-row items-center">
-                            <Text className={`text-white font-headline-bold ${isTablet ? 'text-7xl' : 'text-3xl'}`}>
-                                {totalGlory.toLocaleString()}
-                            </Text>
-                            <MandaliCoin size={isTablet ? 48 : 24} style={{ marginLeft: 12 }} />
-                        </View>
-                    </View>
-                    <View 
-                        style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
-                        className={`rounded-[28px] items-center justify-center ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}
-                    >
-                        <MaterialIcons name="emoji-events" size={isTablet ? 48 : 24} color="white" />
-                    </View>
-                </View>
-            </TouchableOpacity>
-        );
-    };
-
-
-    const renderContextCards = () => (
-        <View className={`gap-4 flex-1 w-full pb-12 ${isTablet ? 'mt-12' : 'mt-4'}`}>
-            <View 
-                style={{ backgroundColor: 'rgba(231, 229, 228, 0.8)' }}
-                className={`h-[1px] w-full mb-${isTablet ? '12' : '4'} mt-2`} 
-            />
-            <View 
-                style={{ backgroundColor: 'rgba(179, 0, 105, 0.05)' }}
-                className={`rounded-[32px] ${isTablet ? 'p-12' : 'p-5'}`}
-            >
-                <MaterialIcons name="sports-esports" size={isTablet ? 48 : 24} color="#b30069" className="mb-4" />
-                <Text className={`font-headline-bold text-[#1c1c18] mb-2 ${isTablet ? 'text-3xl' : 'text-[15px]'}`}>Multiplayer Fun</Text>
-                <Text className={`font-body-medium text-stone-500 leading-relaxed ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
-                    Play classic games like Housie and Blink live with your Mandali circle.
-                </Text>
-            </View>
-            <View 
-                style={{ backgroundColor: 'rgba(179, 0, 105, 0.05)' }}
-                className={`rounded-[32px] ${isTablet ? 'p-12' : 'p-5'}`}
-            >
-                <MaterialIcons name="emoji-events" size={isTablet ? 48 : 24} color="#b30069" className="mb-4" />
-                <Text className={`font-headline-bold text-[#1c1c18] mb-2 ${isTablet ? 'text-3xl' : 'text-[15px]'}`}>Group Rewards</Text>
-                <Text className={`font-body-medium text-stone-500 leading-relaxed ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
-                    Compete for glory and climb the leaderboard in every group you join.
-                </Text>
-            </View>
-            <View 
-                style={{ backgroundColor: 'rgba(179, 0, 105, 0.05)' }}
-                className={`rounded-[32px] ${isTablet ? 'p-12' : 'p-5'}`}
-            >
-                <MaterialIcons name="notifications-active" size={isTablet ? 48 : 24} color="#b30069" className="mb-4" />
-                <Text className={`font-headline-bold text-[#1c1c18] mb-2 ${isTablet ? 'text-3xl' : 'text-[15px]'}`}>Real-time Play</Text>
-                <Text className={`font-body-medium text-stone-500 leading-relaxed ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
-                    Get notified as soon as a game starts and jump right into the action.
-                </Text>
-            </View>
-        </View>
-    );
-
-    const renderEmptyState = () => (
-        <View className="items-center w-full mb-12 mt-16 px-6">
-            <View 
-                style={{ backgroundColor: 'rgba(179, 0, 105, 0.05)' }}
-                className={`rounded-full items-center justify-center mb-8 ${isTablet ? 'w-40 h-40' : 'w-20 h-20'}`}
-            >
-                <MaterialIcons name="videogame-asset" size={isTablet ? 80 : 40} color="#b30069" />
-            </View>
-            <Text className={`font-headline-bold text-on-surface text-center mb-4 ${isTablet ? 'text-5xl' : 'text-2xl'}`}>No Mandali Found!</Text>
-            <Text className={`text-on-surface-variant text-center font-body-medium leading-relaxed mb-12 ${isTablet ? 'text-2xl px-20' : 'text-[15px]'}`}>
-                Games are better with friends and family. Create or join a Mandali to start playing!
-            </Text>
-
-            <View className="w-full gap-6">
-                <TouchableOpacity
-                    onPress={() => navigation.navigate('Groups', {
-                        screen: 'CreateGroup',
-                        params: {
-                            returnTo: {
-                                parent: 'Games',
-                                screen: 'GameSelectGroup',
-                            }
-                        }
-                    })}
-                    style={{ height: isTablet ? 110 : 64, elevation: 8, shadowColor: '#b30069', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 }}
-                    className="rounded-[32px] bg-[#b30069] flex-row items-center justify-center px-8"
-                >
-                    <Ionicons name="add-circle" size={isTablet ? 36 : 24} color="white" />
-                    <Text
-                        className="text-white font-headline-bold ml-4"
-                        style={{ fontSize: isTablet ? 32 : 20 }}
-                    >Create New Mandali</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    onPress={() => navigation.navigate('Groups', {
-                        screen: 'JoinGroup',
-                        params: {
-                            returnTo: {
-                                parent: 'Games',
-                                screen: 'GameSelectGroup',
-                            }
-                        }
-                    })}
-                    style={{ height: isTablet ? 110 : 64, borderColor: 'rgba(179, 0, 105, 0.1)' }}
-                    className="rounded-[32px] bg-[#fcecf2] flex-row items-center justify-center px-8 border"
-                >
-                    <Ionicons name="enter" size={isTablet ? 36 : 24} color="#b30069" />
-                    <Text
-                        className="text-[#b30069] font-headline-bold ml-4"
-                        style={{ fontSize: isTablet ? 32 : 20 }}
-                    >Join Existing Mandali</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
-
-    const renderGroupItem = ({ item }: { item: any }) => {
-        return (
-            <TouchableOpacity
-                onPress={() => navigation.navigate('GameSelection', { groupId: item.id })}
-                activeOpacity={0.7}
-                style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
-                className={`bg-white rounded-[32px] flex-row items-center border border-stone-100 mb-4 ${isTablet ? 'px-10 py-8' : 'px-4 py-4'}`}
-            >
-                {/* Group Avatar */}
-                <View className={`rounded-2xl overflow-hidden bg-stone-50 border border-stone-100 ${isTablet ? 'w-24 h-24' : 'w-16 h-16'}`}>
-                    {item.cover_photo_url ? (
-                        <Image
-                            source={{ uri: getOptimizedImageUrl(item.cover_photo_url, 'w_300,q_auto,f_auto') }}
-                            className="w-full h-full"
-                            resizeMode="cover"
-                        />
-                    ) : (
-                        <View 
-                            style={{ backgroundColor: 'rgba(179, 0, 105, 0.05)' }}
-                            className="w-full h-full items-center justify-center"
-                        >
-                            <Text
-                                className="font-headline-bold text-primary opacity-30"
-                                style={{ fontSize: isTablet ? 42 : 24 }}
-                            >
-                                {item.name.charAt(0).toUpperCase()}
-                            </Text>
-                        </View>
-                    )}
-                </View>
-
-                {/* Group Details */}
-                <View className="flex-1 ml-6 justify-center">
-                    <Text
-                        className="font-headline-bold text-[#1c1c18] mb-1.5"
-                        style={{ fontSize: isTablet ? 36 : 18 }}
-                        numberOfLines={1}
-                    >
-                        {item.name}
-                    </Text>
-                    <View className="flex-row items-center">
-                        <View 
-                            style={{ backgroundColor: 'rgba(179, 0, 105, 0.4)' }}
-                            className={`rounded-full mr-3 ${isTablet ? 'w-2.5 h-2.5' : 'w-1.5 h-1.5'}`} 
-                        />
-                        <Text className={`font-body-bold text-[#594048] opacity-60 ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
-                            {item.is_admin ? 'Admin • ' : ''}{item.memberCount || 0} Members
-                        </Text>
-                    </View>
-                    {item.totalWinnings > 0 && (
-                        <View className="flex-row items-center mt-1">
-                            <Text className={`font-headline-bold text-[#d97706] ${isTablet ? 'text-2xl' : 'text-[14px]'}`}>
-                                {item.totalWinnings.toLocaleString()}
-                            </Text>
-                            <MandaliCoin size={isTablet ? 24 : 14} style={{ marginLeft: 4 }} />
-                            <Text className={`font-body-bold text-[#d97706] ${isTablet ? 'text-2xl' : 'text-[14px]'}`} style={{ marginLeft: 4 }}>Won</Text>
-                        </View>
-                    )}
-                </View>
-
-                {/* Navigation Icon */}
-                <MaterialIcons name="chevron-right" size={isTablet ? 42 : 24} color="#b3006969" />
-            </TouchableOpacity>
-        );
-    };
-
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top']}>
-            <View className="px-6 py-4 flex-row items-center justify-center">
-                {/* Centered Header Section */}
-                <View
-                    className="items-center w-full"
-                    style={{
-                        marginTop: isTablet ? 30 : 12,
-                        marginBottom: isTablet ? 20 : 12
-                    }}
-                >
-                    <Text
-                        className="font-headline-bold text-[#1c1c18] text-center tracking-tight"
-                        style={{ fontSize: isTablet ? 72 : 42 }}
-                        adjustsFontSizeToFit
-                        numberOfLines={1}
-                    >
-                        Games
-                    </Text>
-                    <Text
-                        className="font-body-bold text-[#b30069] text-center tracking-[4px] uppercase"
-                        style={{
-                            fontSize: isTablet ? 20 : 12,
-                            marginTop: isTablet ? 8 : 4
-                        }}
-                    >
-                        Pick a Mandali
-                    </Text>
-                </View>
-            </View>
+            <Header />
 
             {isLoading ? (
                 <View className="flex-1 items-center justify-center">
@@ -283,11 +55,16 @@ const GameSelectGroupScreen = () => {
             ) : (
                 <FlatList
                     data={groups ? [...groups].sort((a, b) => (b.totalWinnings || 0) - (a.totalWinnings || 0)) : []}
-                    renderItem={renderGroupItem}
+                    renderItem={({ item }) => <GroupItem item={item} />}
                     keyExtractor={(item) => item.id}
-                    ListHeaderComponent={renderTotalGloryCard}
-                    ListEmptyComponent={renderEmptyState}
-                    ListFooterComponent={renderContextCards}
+                    ListHeaderComponent={() => (
+                        <TotalGloryCard 
+                            totalGlory={totalGlory} 
+                            hasGroups={!!(groups && groups.length > 0)} 
+                        />
+                    )}
+                    ListEmptyComponent={EmptyState}
+                    ListFooterComponent={ContextCardsContainer}
                     contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
@@ -305,3 +82,4 @@ const GameSelectGroupScreen = () => {
 };
 
 export default GameSelectGroupScreen;
+
