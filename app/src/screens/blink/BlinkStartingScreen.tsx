@@ -18,7 +18,6 @@ import ParticipantsList from '../../components/housie/starting/ParticipantsList'
 
 const BlinkStartingScreen = () => {
     const isTablet = useIsTablet();
-    const navigation = useNavigation<any>();
     const route = useRoute();
     const insets = useSafeAreaInsets();
     const { user } = useAuthStore();

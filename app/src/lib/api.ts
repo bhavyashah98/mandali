@@ -454,9 +454,9 @@ export const createBlinkGame = async (gameData: {
     }
 };
 
-export const cancelBlinkGame = async (gameId: string, reason?: string): Promise<any> => {
+export const cancelBlinkGame = async (gameCode: string, reason?: string): Promise<any> => {
     const headers = await getAuthHeaders();
-    const response = await axios.post(`${API_URL}/blink/games/${gameId}/cancel`, { reason }, { headers });
+    const response = await axios.post(`${API_URL}/blink/games/${gameCode.toUpperCase()}/cancel`, { reason }, { headers });
     return response.data;
 };
 
@@ -466,9 +466,9 @@ export const joinBlinkGame = async (gameCode: string): Promise<any> => {
     return response.data;
 };
 
-export const startBlinkGame = async (gameId: string): Promise<any> => {
+export const startBlinkGame = async (gameCode: string): Promise<any> => {
     const headers = await getAuthHeaders();
-    const response = await axios.post(`${API_URL}/blink/games/${gameId}/start`, {}, { headers });
+    const response = await axios.post(`${API_URL}/blink/games/${gameCode.toUpperCase()}/start`, {}, { headers });
     return response.data;
 };
 

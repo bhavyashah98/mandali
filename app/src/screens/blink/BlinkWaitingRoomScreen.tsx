@@ -6,8 +6,7 @@ import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 
 // Hooks
 import { useIsTablet } from '../../hooks/useIsTablet';
-import { useAuthStore } from '../../stores/authStore';
-import { useSocket } from '../../hooks/useSocket';
+
 import { useBlinkWaitingRoomData } from '../../hooks/blink/useBlinkWaitingRoomData';
 import { useBlinkWaitingRoomSync } from '../../hooks/blink/useBlinkWaitingRoomSync';
 
@@ -20,9 +19,7 @@ const BlinkWaitingRoomScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute();
     const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};
-    const { user } = useAuthStore();
     const primaryColor = '#b30069';
-    const socket = useSocket();
 
     const {
         game,
@@ -42,17 +39,18 @@ const BlinkWaitingRoomScreen = () => {
     });
 
     const handleStartGame = useCallback(async () => {
-        if (!game?.id) return;
+        if (!gameCode) return;
         try {
-            await startBlinkGame(game.id);
+            await startBlinkGame(gameCode);
         } catch (err: any) {
             Alert.alert('Error', err.message || 'Failed to start game');
         }
-    }, [game?.id]);
+    }, [gameCode]);
 
     const handleCancelGame = async () => {
+        if (!gameCode) return;
         try {
-            await cancelBlinkGame(game.id);
+            await cancelBlinkGame(gameCode);
             navigation.goBack();
         } catch (err) {
             Alert.alert('Error', 'Failed to cancel game');

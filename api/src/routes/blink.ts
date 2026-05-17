@@ -317,16 +317,16 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
  * START GAME
  * POST /blink/games/:gameId/start
  */
-router.post('/:gameId/start', authMiddleware, async (req: AuthRequest, res) => {
+router.post('/:gameCode/start', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const { gameId } = req.params;
+        const gameCode = (req.params.gameCode as string).toUpperCase();
         const userId = req.userId!;
 
         // 1. Fetch game settings
         const { data: game, error: gameError } = await supabase
             .from('blink_games')
             .select('*')
-            .eq('id', gameId)
+            .eq('game_code', gameCode)
             .single();
 
         if (gameError || !game) return res.status(404).json({ error: 'Game not found' });
@@ -352,7 +352,9 @@ router.post('/:gameId/start', authMiddleware, async (req: AuthRequest, res) => {
         const totalPrizePool = totalPlayers * 100;
         let prizes: any[] = [];
 
-        if (totalPlayers <= 2) {
+        if (totalPlayers === 1) {
+            prizes = [{ id: '1st', name: '1st Place', description: 'Fastest matcher', percentage: 20, amount: totalPrizePool, icon: 'emoji-events' }];
+        } else if (totalPlayers <= 2) {
             prizes = [{ id: '1st', name: '1st Place', description: 'Fastest matcher', percentage: 100, amount: totalPrizePool, icon: 'emoji-events' }];
         } else if (totalPlayers <= 5) {
             prizes = [
@@ -375,14 +377,14 @@ router.post('/:gameId/start', authMiddleware, async (req: AuthRequest, res) => {
                 starting_at: now.toISOString(),
                 activation_at: activationTime.toISOString()
             })
-            .eq('id', gameId);
+            .eq('id', game.id);
 
         if (updateError) throw updateError;
 
         // Schedule backend auto-activation after the countdown
         const io = req.app.get('io');
-        scheduleBlinkActivation(io, gameId as string, delaySeconds * 1000);
-        await preloadBlinkGame(gameId as string);
+        scheduleBlinkActivation(io, game.id, delaySeconds * 1000);
+        await preloadBlinkGame(game.id);
 
         if (io) {
             io.to(game.game_code.toUpperCase()).emit('blink_game_starting', { gameCode: game.game_code });
@@ -400,16 +402,16 @@ router.post('/:gameId/start', authMiddleware, async (req: AuthRequest, res) => {
 /**
  * CANCEL GAME
  */
-router.post('/:gameId/cancel', authMiddleware, async (req: AuthRequest, res) => {
+router.post('/:gameCode/cancel', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const { gameId } = req.params;
+        const gameCode = (req.params.gameCode as string).toUpperCase();
         const { reason } = req.body;
         const userId = req.userId!;
 
         const { data: game } = await supabase
             .from('blink_games')
-            .select('host_id, status, group_id')
-            .eq('id', gameId)
+            .select('id, host_id, status, group_id')
+            .eq('game_code', gameCode)
             .single();
 
         if (!game) {
@@ -431,13 +433,13 @@ router.post('/:gameId/cancel', authMiddleware, async (req: AuthRequest, res) => 
                 cancellation_reason: reason || 'Cancelled by host',
                 cancelled_by: userId
             })
-            .eq('id', gameId)
+            .eq('id', game.id)
             .select()
             .single();
 
         if (error) throw error;
 
-        cancelBlinkActivation(gameId as string);
+        cancelBlinkActivation(game.id as string);
         activeBlinkGames.delete(updated.game_code.toUpperCase());
 
         const io = req.app.get('io');
