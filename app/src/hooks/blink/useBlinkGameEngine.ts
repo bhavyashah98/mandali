@@ -74,9 +74,14 @@ export const useBlinkGameEngine = (gameCode: string, groupId?: string) => {
                 setParticipantsMap(prev => {
                     const player = prev[payload.u];
                     if (!player) return prev;
+                    const isNewlyFinished = payload.l === -1 && player.cardsLeft !== -1;
                     return {
                         ...prev,
-                        [payload.u]: { ...player, cardsLeft: payload.l }
+                        [payload.u]: {
+                            ...player,
+                            cardsLeft: payload.l,
+                            ...(isNewlyFinished ? { finishedAt: Date.now() } : {})
+                        }
                     };
                 });
             }

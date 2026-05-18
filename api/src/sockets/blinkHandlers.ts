@@ -104,6 +104,12 @@ export const registerBlinkHandlers = (io: Server, socket: Socket) => {
                     }
                 }
 
+                // Recycle the old center card to the bottom of the deck
+                game.deck.unshift({
+                    id: game.currentCenterCardId as string,
+                    symbols: [...game.currentCenterCardSymbols]
+                });
+
                 // 3. IMMEDIATELY UPDATE RAM STATE (Zero blocking/blocking DB wait!)
                 game.currentCenterCardId = newCenterCardId;
                 game.currentCenterCardSymbols = newCenterCardSymbols;

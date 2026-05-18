@@ -13,6 +13,7 @@ interface PlayerProgress {
     isLeading?: boolean;
     totalCards: number;
     id: string;
+    finishedAt?: number;
 }
 
 interface BlinkHeaderProps {
@@ -141,8 +142,13 @@ export const BlinkHeader = ({ players }: BlinkHeaderProps) => {
         isLeading: !isEarlyGame && p.cardsLeft === minCards
     }));
 
-    // Sort by cardsLeft ascending (leader first)
-    const sorted = [...playersWithStatus].sort((a, b) => a.cardsLeft - b.cardsLeft);
+    // Sort by cardsLeft ascending (leader first). If both are finished, the one who finished earlier goes first.
+    const sorted = [...playersWithStatus].sort((a, b) => {
+        if (a.cardsLeft === b.cardsLeft && a.cardsLeft === -1) {
+            return (a.finishedAt || Number.MAX_SAFE_INTEGER) - (b.finishedAt || Number.MAX_SAFE_INTEGER);
+        }
+        return a.cardsLeft - b.cardsLeft;
+    });
 
     const visible = sorted.slice(0, 5);
     const overflow = sorted.length - 5;
