@@ -9,6 +9,8 @@ import { useIsTablet } from '../../hooks/useIsTablet';
 import { useAuthStore } from '../../stores/authStore';
 import { useBlinkStartingData } from '../../hooks/blink/useBlinkStartingData';
 import { useBlinkStartingSync } from '../../hooks/blink/useBlinkStartingSync';
+import { useQueryClient } from '@tanstack/react-query';
+import { fetchBlinkGame, fetchBlinkPlayer } from '../../lib/api';
 
 // Reuse shared starting components (same as HousieStartingScreen)
 import CountdownHeader from '../../components/housie/starting/CountdownHeader';
@@ -22,6 +24,7 @@ const BlinkStartingScreen = () => {
     const insets = useSafeAreaInsets();
     const { user } = useAuthStore();
     const { gameCode, groupId } = route.params as { gameCode: string; groupId: string };
+    const queryClient = useQueryClient();
 
     const [activeTab, setActiveTab] = useState<'prizes' | 'players'>('prizes');
 
@@ -51,12 +54,26 @@ const BlinkStartingScreen = () => {
         ).start();
     }, [pulseAnim]);
 
-    // Fade in when data is ready
+    // Fade in when data is ready and aggressively prefetch game screen data
     useEffect(() => {
         if (!isLoading && game) {
             Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
+
+            // Prefetch game and player data aggressively so BlinkGameScreen loads instantly
+            queryClient.prefetchQuery({
+                queryKey: ['blinkGame', gameCode],
+                queryFn: () => fetchBlinkGame(gameCode)
+            });
+
+            const isParticipant = game.participants?.some((p: any) => p.id === user?.id);
+            if (isParticipant) {
+                queryClient.prefetchQuery({
+                    queryKey: ['blinkPlayer', gameCode],
+                    queryFn: () => fetchBlinkPlayer(gameCode)
+                });
+            }
         }
-    }, [isLoading, game, fadeAnim]);
+    }, [isLoading, game, fadeAnim, gameCode, user?.id, queryClient]);
 
     const prizes = game?.prizes || [];
     const participants = game?.participants || [];

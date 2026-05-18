@@ -69,7 +69,7 @@ export const useBlinkGameEngine = (gameCode: string, groupId?: string) => {
                 console.log(`[Blink Perf] Server processing took: ${payload.sd}ms`);
             }
             if (payload.c) setCenterSymbols(payload.c);
-            
+
             if (payload.u) {
                 setParticipantsMap(prev => {
                     const player = prev[payload.u];
@@ -87,7 +87,6 @@ export const useBlinkGameEngine = (gameCode: string, groupId?: string) => {
         };
 
         const onWinnerFound = (payload: any) => {
-            console.log(`[Blink] Winner: Rank ${payload.rank} - ${payload.userId}`);
             if (payload.userId === userId) {
                 setMyPrize({
                     rank: payload.rank,
@@ -98,7 +97,7 @@ export const useBlinkGameEngine = (gameCode: string, groupId?: string) => {
         };
 
         const onGameEnded = () => {
-            navigation.navigate('BlinkResults', { gameCode, groupId });
+            queryClient.invalidateQueries({ queryKey: ['blinkGame', gameCode] });
         };
 
         socket.on('blink_state_update', onStateUpdate);
@@ -112,7 +111,14 @@ export const useBlinkGameEngine = (gameCode: string, groupId?: string) => {
             socket.off('blink_winner', onWinnerFound);
             socket.off('blink_game_ended', onGameEnded);
         };
-    }, [gameCode, socket, navigation, groupId, userId]);
+    }, [gameCode, socket, navigation, groupId, userId, queryClient]);
+
+    // Handle explicit status change (e.g. from refetching)
+    useEffect(() => {
+        if (game?.status === 'ended') {
+            navigation.replace('BlinkResults', { gameCode, groupId });
+        }
+    }, [game?.status, navigation, gameCode, groupId]);
 
     const attemptMatch = useCallback((symbolId: number) => {
         if (!isParticipant) return;

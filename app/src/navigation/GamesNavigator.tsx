@@ -51,6 +51,7 @@ export const GamesNavigator = () => {
             <Stack.Screen name="HousieSpectator" component={HousieSpectatorScreen} />
 
             {/* Blink Flow */}
+            <Stack.Screen name="BlinkLobby" component={GameLobbyScreen} initialParams={{ gameType: 'blink' }} />
             <Stack.Screen name="BlinkJoin" component={BlinkJoinScreen} />
             <Stack.Screen name="BlinkWaitingRoom" component={BlinkWaitingRoomScreen} />
             <Stack.Screen name="BlinkStarting" component={BlinkStartingScreen} />

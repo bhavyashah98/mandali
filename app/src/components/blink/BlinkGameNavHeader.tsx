@@ -43,15 +43,15 @@ export const BlinkGameNavHeader = ({ gameCode, groupId }: BlinkGameNavHeaderProp
             'Are you sure you want to finish this Blink session?',
             [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Finish Game', style: 'destructive', onPress: async () => { 
-                    try {
-                        await endBlinkGame(gameCode);
-                    } catch (e) {
-                        console.error("Failed to end game early", e);
-                    } finally {
-                        navigation.replace('BlinkLeaderboard', { gameId: game?.id, groupId }); 
+                {
+                    text: 'Finish Game', style: 'destructive', onPress: async () => {
+                        try {
+                            await endBlinkGame(gameCode);
+                        } catch (e) {
+                            console.error("Failed to end game early", e);
+                        }
                     }
-                } },
+                },
             ]
         );
     };

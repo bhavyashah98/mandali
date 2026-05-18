@@ -43,9 +43,21 @@ export const RootNavigator = () => {
                 break;
             case 'housie':
                 navigationRef.current.navigate('Main', {
-                    screen: 'Housie',
+                    screen: 'Games',
                     params: {
                         screen: 'HousieLobby',
+                        params: {
+                            groupId: params.groupId,
+                            gameCode: params.gameCode
+                        }
+                    }
+                });
+                break;
+            case 'blink':
+                navigationRef.current.navigate('Main', {
+                    screen: 'Games',
+                    params: {
+                        screen: 'BlinkLobby',
                         params: {
                             groupId: params.groupId,
                             gameCode: params.gameCode
@@ -75,7 +87,7 @@ export const RootNavigator = () => {
         if (feature && segments.length > 0) {
             let params: any = {};
 
-            if (feature === 'housie') {
+            if (feature === 'housie' || feature === 'blink') {
                 params.gameCode = segments[0];
                 if (segments.length > 1) params.groupId = segments[1];
             } else {
