@@ -318,7 +318,7 @@ const GroupDetailScreen = () => {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        onPress={() => navigation.navigate('Housie', { screen: 'HousieLobby', params: { groupId: group.id } })}
+                        onPress={() => navigation.navigate('Games', { screen: 'GameSelection', params: { groupId: group.id } })}
                         style={{ flex: isTablet ? 1 : undefined, minWidth: isTablet ? '45%' : '100%', height: isTablet ? 180 : 84 }}
                         className={`bg-[#b30069] rounded-[32px] flex-row items-center shadow-lg shadow-primary/25 ${isTablet ? 'px-8' : 'px-6'}`}
                     >
@@ -331,8 +331,8 @@ const GroupDetailScreen = () => {
                                 style={{ fontSize: isTablet ? 36 : 18 }}
                                 adjustsFontSizeToFit
                                 numberOfLines={1}
-                            >Housie Gathering</Text>
-                            <Text className={`text-white/60 font-body-medium ${isTablet ? 'text-xl mt-1.5' : 'text-xs'}`}>Gather everyone for a game</Text>
+                            >Games</Text>
+                            <Text className={`text-white/60 font-body-medium ${isTablet ? 'text-xl mt-1.5' : 'text-xs'}`}>Gather everyone for games</Text>
                         </View>
                         <MaterialIcons name="chevron-right" size={isTablet ? 42 : 20} color="white" style={{ opacity: 0.6 }} />
                     </TouchableOpacity>

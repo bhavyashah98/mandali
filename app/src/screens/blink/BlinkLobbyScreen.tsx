@@ -41,7 +41,9 @@ export const BlinkLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProps
             } else {
                 navigation.navigate('BlinkJoin', { gameCode: game_code, groupId });
             }
-        } else if (status === 'starting' || status === 'active') {
+        } else if (status === 'starting') {
+            navigation.navigate('BlinkStarting', { gameCode: game_code, groupId });
+        } else if (status === 'active') {
             navigation.navigate('BlinkGame', { gameCode: game_code, groupId });
         }
     }, [navigation, data.userId, groupId]);

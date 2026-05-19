@@ -38,13 +38,36 @@ const CreateMemoryScreen = () => {
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
             allowsMultipleSelection: true,
-            selectionLimit: 5,
+            selectionLimit: 5 - selectedImages.length,
             quality: 0.8,
         });
 
         if (!result.canceled) {
             const uris = result.assets.map(asset => asset.uri);
             setSelectedImages([...selectedImages, ...uris].slice(0, 5));
+        }
+    };
+
+    const takePhoto = async () => {
+        const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+
+        if (permissionResult.granted === false) {
+            Alert.alert('Permission Required', 'You need to grant camera permissions to take a photo.');
+            return;
+        }
+
+        let result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'],
+            quality: 0.75,
+        });
+
+        if (!result.canceled) {
+            const uri = result.assets[0].uri;
+            if (selectedImages.length < 5) {
+                setSelectedImages([...selectedImages, uri]);
+            } else {
+                Alert.alert('Limit Reached', 'You can only select up to 5 moments at once.');
+            }
         }
     };
 
@@ -65,7 +88,7 @@ const CreateMemoryScreen = () => {
                 const result = await manipulateAsync(
                     uri,
                     [{ resize: { width: 1200 } }], // Downscale to 1200px (WhatsApp-style)
-                    { compress: 0.6, format: SaveFormat.JPEG } // 60% quality
+                    { compress: 0.75, format: SaveFormat.JPEG } // 75% quality
                 );
                 return result.uri;
             }));
@@ -138,20 +161,39 @@ const CreateMemoryScreen = () => {
 
                     {/* Image Selector Grid */}
                     <View className={`flex-row flex-wrap ${isTablet ? 'gap-6' : 'gap-3'}`}>
+                        {/* Camera Trigger */}
+                        {selectedImages.length < 5 && (
+                            <TouchableOpacity
+                                onPress={takePhoto}
+                                className={`bg-white border-2 border-dashed border-stone-200 rounded-[32px] items-center justify-center`}
+                                style={{
+                                    width: selectedImages.length === 0 ? (isTablet ? (width - 120 - 24) / 2 : (width - 48 - 12) / 2) : GRID_SIZE,
+                                    height: selectedImages.length === 0 ? (isTablet ? 300 : 180) : GRID_SIZE
+                                }}
+                            >
+                                <View className={`rounded-full bg-[#e8f3fe] items-center justify-center mb-6 ${isTablet ? 'w-24 h-24' : 'w-10 h-10'}`}>
+                                    <MaterialIcons name="camera-alt" size={isTablet ? 48 : 20} color="#0057b3" />
+                                </View>
+                                <Text className={`text-stone-400 font-body-bold uppercase tracking-widest text-center ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Camera</Text>
+                            </TouchableOpacity>
+                        )}
+
                         {/* Gallery Trigger */}
-                        <TouchableOpacity
-                            onPress={pickImages}
-                            className={`bg-white border-2 border-dashed border-stone-200 rounded-[32px] items-center justify-center`}
-                            style={{
-                                width: selectedImages.length === 0 ? (isTablet ? width - 120 : width - 48) : GRID_SIZE,
-                                height: selectedImages.length === 0 ? (isTablet ? 300 : 180) : GRID_SIZE
-                            }}
-                        >
-                            <View className={`rounded-full bg-[#fde8f3] items-center justify-center mb-6 ${isTablet ? 'w-24 h-24' : 'w-10 h-10'}`}>
-                                <MaterialIcons name="add-a-photo" size={isTablet ? 48 : 20} color="#b30069" />
-                            </View>
-                            <Text className={`text-stone-400 font-body-bold uppercase tracking-widest text-center ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Add Photos</Text>
-                        </TouchableOpacity>
+                        {selectedImages.length < 5 && (
+                            <TouchableOpacity
+                                onPress={pickImages}
+                                className={`bg-white border-2 border-dashed border-stone-200 rounded-[32px] items-center justify-center`}
+                                style={{
+                                    width: selectedImages.length === 0 ? (isTablet ? (width - 120 - 24) / 2 : (width - 48 - 12) / 2) : GRID_SIZE,
+                                    height: selectedImages.length === 0 ? (isTablet ? 300 : 180) : GRID_SIZE
+                                }}
+                            >
+                                <View className={`rounded-full bg-[#fde8f3] items-center justify-center mb-6 ${isTablet ? 'w-24 h-24' : 'w-10 h-10'}`}>
+                                    <MaterialIcons name="photo-library" size={isTablet ? 48 : 20} color="#b30069" />
+                                </View>
+                                <Text className={`text-stone-400 font-body-bold uppercase tracking-widest text-center ${isTablet ? 'text-xl' : 'text-[10px]'}`}>Library</Text>
+                            </TouchableOpacity>
+                        )}
                         {/* Selected Previews */}
                         {selectedImages.map((uri, idx) => (
                             <View key={idx} style={{ width: GRID_SIZE, height: GRID_SIZE }} className="rounded-[32px] overflow-hidden bg-stone-100 shadow-sm border border-white">

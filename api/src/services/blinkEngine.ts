@@ -330,6 +330,25 @@ export const preloadBlinkGame = async (gameId: string): Promise<InMemoryBlinkGam
             };
         });
 
+        // Save generated cards to Database immediately during preload to avoid game-over screen flickering on frontend
+        await supabase
+            .from('blink_games')
+            .update({
+                current_center_card: initialCenterCard.id
+            })
+            .eq('id', game.id);
+
+        for (const p of playerUpdates) {
+            await supabase
+                .from('blink_players')
+                .update({
+                    cards_remaining: p.cardsRemaining,
+                    current_card_id: p.currentCardId
+                })
+                .eq('game_id', game.id)
+                .eq('user_id', p.userId);
+        }
+
         // 4. Construct memory structure
         const playersMap = new Map<string, InMemoryBlinkPlayer>();
         playerUpdates.forEach(p => {

@@ -29,13 +29,24 @@ const GameLobbyScreen = () => {
 
     const groupName = groupData?.group?.name || 'This Mandali';
 
+    // Custom back navigation to guarantee stack resets to exactly [GameSelectGroup, GameSelection]
+    const handleBack = () => {
+        navigation.reset({
+            index: 1,
+            routes: [
+                { name: 'GameSelectGroup' },
+                { name: 'GameSelection', params: { groupId } }
+            ]
+        });
+    };
+
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>
             {/* Top Header Shell (Common) */}
             <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                 <View style={{ width: isTablet ? 64 : 44 }}>
                     <TouchableOpacity
-                        onPress={() => navigation.goBack()}
+                        onPress={handleBack}
                         className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                     >
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color={config.primaryColor} style={{ marginLeft: isTablet ? 12 : 5 }} />

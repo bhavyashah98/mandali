@@ -171,7 +171,14 @@ const BlinkWaitingRoomScreen = () => {
 
             {/* Sticky Footer */}
             <View className="absolute bottom-0 w-full px-6 pt-4 pb-10 bg-[#fdf9f3] border-t border-stone-100">
-                {isHost ? (
+                {game?.status === 'scheduled' ? (
+                    <View className="items-center py-4">
+                        <ActivityIndicator color={primaryColor} size="small" />
+                        <Text className="text-stone-400 font-body-bold mt-2 text-center">
+                            Match will automatically start at {new Date(game?.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                    </View>
+                ) : isHost ? (
                     <View className="w-full">
                         <TouchableOpacity
                             onPress={handleStartGame}

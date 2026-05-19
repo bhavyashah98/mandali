@@ -25,6 +25,7 @@
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Allow Mandali to select and upload photos from your gallery to your group memories.",
         "NSPhotoLibraryAddUsageDescription": "Allow Mandali to save shared photos from your group memories to your device.",
+        "NSCameraUsageDescription": "Allow Mandali to use your camera to take photos and add them to group memories.",
         "NSUserNotificationUsageDescription": "Stay updated with memories and game updates.",
         "ITSAppUsesNonExemptEncryption": false,
         "UISupportedInterfaceOrientations": [
@@ -74,6 +75,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
+        "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.VIBRATE"
       ]
