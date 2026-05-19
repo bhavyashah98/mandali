@@ -25,10 +25,12 @@ export const useGroupHisaabData = (groupId: string) => {
         queryFn: api.fetchHisaabBalances
     });
 
-    useFocusEffect(useCallback(() => {
-        refetchLedger();
-        refetchBalances();
-    }, [refetchLedger, refetchBalances]));
+    useFocusEffect(
+        useCallback(() => {
+            queryClient.invalidateQueries({ queryKey: ['hisaab-ledger', groupId] });
+            queryClient.invalidateQueries({ queryKey: ['hisaab-balances'] });
+        }, [groupId, queryClient])
+    );
 
     const currentGroupBalanceInfo = rawBalances.find((b: any) => b.groupId === groupId);
     const groupBalance = currentGroupBalanceInfo ? currentGroupBalanceInfo.netBalance : 0;

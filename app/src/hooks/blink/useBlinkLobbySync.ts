@@ -32,7 +32,7 @@ export const useBlinkLobbySync = (groupId: string | undefined) => {
             'blink_game_created',
             'blink_game_scheduled',
             'blink_game_starting',
-            'blink_game_activated',
+            'blink_game_started',
             'blink_game_ended',
             'blink_player_joined'
         ];

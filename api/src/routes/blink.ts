@@ -1,7 +1,13 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { scheduleBlinkActivation, cancelBlinkActivation, preloadBlinkGame } from '../services/blinkEngine';
+import { 
+    scheduleBlinkActivation, 
+    cancelBlinkActivation, 
+    preloadBlinkGame,
+    scheduleBlinkGameStart,
+    cancelScheduledBlinkGame
+} from '../services/blinkEngine';
 import { activeBlinkGames } from '../services/blinkMemory';
 import { sendGroupPushNotification } from '../lib/push';
 
@@ -142,6 +148,9 @@ router.post('/schedule', authMiddleware, async (req: AuthRequest, res) => {
         }, { onConflict: 'game_id,user_id' });
 
         if (hostJoinError) throw hostJoinError;
+
+        // Schedule backend start in-memory
+        scheduleBlinkGameStart(game.game_code, game.scheduled_at, game.group_id, game.host_id, game.title);
 
         // 4. Notify via socket to group
         const io = req.app.get('io');
@@ -505,6 +514,7 @@ router.post('/:gameCode/cancel', authMiddleware, async (req: AuthRequest, res) =
         if (error) throw error;
 
         cancelBlinkActivation(game.id as string);
+        cancelScheduledBlinkGame(gameCode);
         activeBlinkGames.delete(updated.game_code.toUpperCase());
 
         const io = req.app.get('io');

@@ -9,7 +9,7 @@ export const useHisaabHomeData = () => {
         isRefetching: isRefreshingBalances,
         refetch: refetchBalances
     } = useQuery({
-        queryKey: ['hisaab', 'balances'],
+        queryKey: ['hisaab-balances'],
         queryFn: api.fetchHisaabBalances
     });
 
@@ -33,15 +33,34 @@ export const useHisaabHomeData = () => {
     const totalBalance = groupBalances.reduce((acc: number, curr: any) => acc + (curr.net_balance || curr.netBalance), 0);
 
     const processedGroups = useMemo(() => {
-        return groupBalances.map((balance: any) => {
+        const mapped = groupBalances.map((balance: any) => {
             const groupInfo = groups.find((g: any) => g.id === (balance.group_id || balance.groupId));
             return {
                 groupId: balance.group_id || balance.groupId,
                 name: groupInfo?.name,
-                netBalance: balance.net_balance || balance.netBalance,
+                netBalance: balance.net_balance || balance.netBalance || 0,
                 avatar: groupInfo?.cover_photo_url,
                 lastActivity: balance.last_activity
             };
+        });
+
+        return mapped.sort((a: any, b: any) => {
+            const balA = a.netBalance;
+            const balB = b.netBalance;
+
+            // 1. You are owed (positive) comes first
+            // 2. You owe (negative) comes second
+            // 3. Settled up (zero) comes last
+
+            if (balA > 0 && balB <= 0) return -1;
+            if (balA <= 0 && balB > 0) return 1;
+            if (balA < 0 && balB === 0) return -1;
+            if (balA === 0 && balB < 0) return 1;
+
+            // Tie-breakers:
+            if (balA > 0 && balB > 0) return balB - balA; // Descending for owed to you (largest first)
+            if (balA < 0 && balB < 0) return balB - balA;
+            return 0;
         });
     }, [groupBalances, groups]);
 
