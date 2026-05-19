@@ -81,6 +81,11 @@ const CreateMemoryScreen = () => {
             return;
         }
 
+        if (!story.trim()) {
+            Alert.alert('Story Required', 'Please share the story or caption behind this moment.');
+            return;
+        }
+
         setIsUploading(true);
         try {
             // 0. Auto-compress images aggressively to ensure they are well under 1MB
@@ -213,7 +218,7 @@ const CreateMemoryScreen = () => {
 
                     {/* Story Input */}
                     <View className="mt-10">
-                        <Text className={`text-[#594048] font-headline-bold mb-6 ${isTablet ? 'text-4xl' : 'text-lg'}`}>The Story Behind the Moment</Text>
+                        <Text className={`text-[#594048] font-headline-bold mb-6 ${isTablet ? 'text-4xl' : 'text-lg'}`}>The Story Behind the Moment <Text className="text-red-500 font-headline-bold">*</Text></Text>
                         <View
                             className="bg-white rounded-[32px] p-8 shadow-sm border border-stone-100"
                             style={{ minHeight: isTablet ? 300 : 120 }}

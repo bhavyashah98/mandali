@@ -156,4 +156,186 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
     }
 });
 
+/**
+ * GET /memories/:id/comments
+ * Fetch comments for a specific memory
+ */
+router.get('/:id/comments', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const { data, error } = await supabase
+            .from('memory_comments')
+            .select(`
+                *,
+                user:user_id(name, avatar_url)
+            `)
+            .eq('memory_id', id)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        res.json({ comments: data });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /memories/:id/comments
+ * Add a comment to a specific memory
+ */
+router.post('/:id/comments', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const { comment } = req.body;
+        const userId = req.userId;
+
+        if (!comment || comment.trim() === '') {
+            return res.status(400).json({ error: 'Comment content cannot be empty' });
+        }
+
+        const { data, error } = await supabase
+            .from('memory_comments')
+            .insert({
+                memory_id: id,
+                user_id: userId,
+                comment: comment.trim()
+            })
+            .select(`
+                *,
+                user:user_id(name, avatar_url)
+            `)
+            .single();
+
+        if (error) throw error;
+        res.json(data);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * DELETE /memories/comments/:commentId
+ * Delete a comment (only owner can delete)
+ */
+router.delete('/comments/:commentId', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const { commentId } = req.params;
+        const userId = req.userId;
+
+        const { error } = await supabase
+            .from('memory_comments')
+            .delete()
+            .eq('id', commentId)
+            .eq('user_id', userId);
+
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * GET /memories/:id/reactions
+ * Fetch reactions count and user details
+ */
+router.get('/:id/reactions', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.userId;
+
+        const { data, error } = await supabase
+            .from('memory_reactions')
+            .select(`
+                *,
+                user:user_id(name, avatar_url)
+            `)
+            .eq('memory_id', id);
+
+        if (error) throw error;
+
+        // Group and count reactions
+        const summary: Record<string, number> = {};
+        let userReaction: string | null = null;
+
+        data?.forEach((row: any) => {
+            summary[row.reaction] = (summary[row.reaction] || 0) + 1;
+            if (row.user_id === userId) {
+                userReaction = row.reaction;
+            }
+        });
+
+        res.json({
+            reactions: data || [],
+            summary,
+            userReaction
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /memories/:id/reactions
+ * Toggle or update reaction on a memory
+ */
+router.post('/:id/reactions', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const { reaction } = req.body;
+        const userId = req.userId;
+
+        if (!reaction || reaction.trim() === '') {
+            return res.status(400).json({ error: 'Reaction cannot be empty' });
+        }
+
+        // Check if there is an existing reaction by this user on this memory
+        const { data: existing, error: fetchError } = await supabase
+            .from('memory_reactions')
+            .select('*')
+            .eq('memory_id', id)
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (fetchError) throw fetchError;
+
+        if (existing) {
+            if (existing.reaction === reaction) {
+                // Same reaction: toggle off (delete)
+                const { error: deleteError } = await supabase
+                    .from('memory_reactions')
+                    .delete()
+                    .eq('id', existing.id);
+                if (deleteError) throw deleteError;
+                return res.json({ success: true, action: 'removed', reaction: null });
+            } else {
+                // Different reaction: update
+                const { data: updated, error: updateError } = await supabase
+                    .from('memory_reactions')
+                    .update({ reaction })
+                    .eq('id', existing.id)
+                    .select()
+                    .single();
+                if (updateError) throw updateError;
+                return res.json({ success: true, action: 'updated', reaction: updated.reaction });
+            }
+        } else {
+            // No reaction: insert
+            const { data: inserted, error: insertError } = await supabase
+                .from('memory_reactions')
+                .insert({
+                    memory_id: id,
+                    user_id: userId,
+                    reaction
+                })
+                .select()
+                .single();
+            if (insertError) throw insertError;
+            return res.json({ success: true, action: 'added', reaction: inserted.reaction });
+        }
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 export default router;

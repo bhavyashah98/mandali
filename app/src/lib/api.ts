@@ -341,6 +341,38 @@ export const deleteMemory = async (memoryId: string) => {
     return response.data;
 };
 
+// --- MEMORY COMMENTS API ---
+export const fetchMemoryComments = async (memoryId: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/memories/${memoryId}/comments`, { headers });
+    return response.data.comments;
+};
+
+export const createMemoryComment = async (memoryId: string, comment: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/memories/${memoryId}/comments`, { comment }, { headers });
+    return response.data;
+};
+
+export const deleteMemoryComment = async (commentId: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.delete(`${API_URL}/memories/comments/${commentId}`, { headers });
+    return response.data;
+};
+
+// --- MEMORY REACTIONS API ---
+export const fetchMemoryReactions = async (memoryId: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/memories/${memoryId}/reactions`, { headers });
+    return response.data;
+};
+
+export const toggleMemoryReaction = async (memoryId: string, reaction: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/memories/${memoryId}/reactions`, { reaction }, { headers });
+    return response.data;
+};
+
 // --- MODERATION API ---
 export const reportContent = async (reportData: { contentId: string, groupId: string, reason?: string, contentType?: string }) => {
     const headers = await getAuthHeaders();

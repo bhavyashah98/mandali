@@ -37,7 +37,7 @@ const MemoriesScreen = () => {
         refetch
     } = useInfiniteQuery({
         queryKey: ['memories', groupId],
-        queryFn: ({ pageParam = 0 }) => fetchMemories(groupId!, pageParam, 30),
+        queryFn: ({ pageParam = 0 }) => fetchMemories(groupId!, pageParam, 10),
         getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.page + 1 : undefined,
         enabled: !!groupId,
         initialPageParam: 0,
@@ -139,13 +139,13 @@ const MemoriesScreen = () => {
     }, [onThisDayMemories, groupedMemories, COLUMN_COUNT]);
 
     const openDetail = useCallback((url: string, memoryId: string) => {
-        const index = flattenedMemories.findIndex(fm => fm.url === url && fm.memory.id === memoryId);
         navigation.navigate('MemoryDetail', {
-            memories: flattenedMemories,
-            initialIndex: index >= 0 ? index : 0,
+            groupId,
+            initialMemoryId: memoryId,
+            initialPhotoUrl: url,
             groupName: group?.group?.name || 'Mandali'
         });
-    }, [flattenedMemories, navigation, group?.group?.name]);
+    }, [groupId, navigation, group?.group?.name]);
 
     const RENDER_MAP = useMemo<Record<string, React.FC<any>>>(() => ({
         on_this_day: OnThisDaySection,

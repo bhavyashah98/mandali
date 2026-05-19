@@ -22,7 +22,6 @@ export const MemoriesNavigator = () => {
             <Stack.Screen 
                 name="MemoryDetail" 
                 component={MemoryDetailScreen} 
-                options={{ ...TransitionPresets.ModalSlideFromBottomIOS }} 
             />
         </Stack.Navigator>
     );
