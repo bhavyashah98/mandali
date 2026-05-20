@@ -131,7 +131,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
         const groupsWithMeta = await Promise.all(
             groups.map(async (group: any) => {
-                const [memberCountRes, winningsRes] = await Promise.all([
+                const [memberCountRes, winningsRes, memoryCountRes] = await Promise.all([
                     supabase
                         .from('group_members')
                         .select('*', { count: 'exact', head: true })
@@ -140,7 +140,12 @@ router.get('/', async (req: AuthRequest, res) => {
                         .from('game_results')
                         .select('prize_amount')
                         .eq('group_id', group.id)
-                        .eq('user_id', userId)
+                        .eq('user_id', userId),
+                    supabase
+                        .from('memories')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('group_id', group.id)
+                        .eq('is_hidden', false)
                 ]);
 
                 const totalWinnings = (winningsRes.data || []).reduce((acc: number, curr: any) => acc + (curr.prize_amount || 0), 0);
@@ -151,6 +156,7 @@ router.get('/', async (req: AuthRequest, res) => {
                     memberCount: memberCountRes.count || 0,
                     myRole: membership?.role || 'member',
                     totalWinnings,
+                    memoryCount: memoryCountRes.count || 0,
                 };
             })
         );

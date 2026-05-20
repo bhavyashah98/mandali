@@ -104,42 +104,29 @@ export const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
         }
     }, [memory.memory_date, memory.created_at]);
 
-    // Fetch comments summary
-    const { data: comments = [] } = useQuery({
-        queryKey: ['memoryComments', memory.id],
-        queryFn: () => fetchMemoryComments(memory.id),
-        enabled: !!memory.id
-    });
-
-    // Fetch reactions
-    const { data: reactionsData } = useQuery({
-        queryKey: ['memoryReactions', memory.id],
-        queryFn: () => fetchMemoryReactions(memory.id),
-        enabled: !!memory.id
-    });
+    const commentCount = memory.commentCount || 0;
+    const baseSummary = memory.reactionsSummary || {};
+    const apiUserReaction = memory.userReaction || null;
 
     const [optimisticUserReaction, setOptimisticUserReaction] = useState<string | null>(null);
 
     React.useEffect(() => {
-        if (reactionsData) {
-            setOptimisticUserReaction(reactionsData.userReaction);
-        }
-    }, [reactionsData]);
+        setOptimisticUserReaction(apiUserReaction);
+    }, [apiUserReaction]);
 
     const summary = useMemo(() => {
-        const baseSummary = { ...(reactionsData?.summary || {}) };
-        const apiUserReaction = reactionsData?.userReaction || null;
+        const currentSummary = { ...baseSummary };
 
         if (optimisticUserReaction !== apiUserReaction) {
-            if (apiUserReaction && baseSummary[apiUserReaction] > 0) {
-                baseSummary[apiUserReaction]--;
+            if (apiUserReaction && currentSummary[apiUserReaction] > 0) {
+                currentSummary[apiUserReaction]--;
             }
             if (optimisticUserReaction) {
-                baseSummary[optimisticUserReaction] = (baseSummary[optimisticUserReaction] || 0) + 1;
+                currentSummary[optimisticUserReaction] = (currentSummary[optimisticUserReaction] || 0) + 1;
             }
         }
-        return baseSummary;
-    }, [reactionsData, optimisticUserReaction]);
+        return currentSummary;
+    }, [baseSummary, apiUserReaction, optimisticUserReaction]);
 
     const totalReactions = useMemo(() => {
         return Object.values(summary).reduce((acc: number, val: any) => acc + val, 0);
@@ -295,7 +282,8 @@ export const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
                             }}
                             renderItem={({ item: url }) => (
                                 <SnapbackZoom
-                                    scrollRef={scrollRef}
+                                    scrollRef={scrollRef
+                                    }
                                     style={{ width, height: width }}
                                     onDoubleTap={handleImagePress}
                                 >
@@ -374,8 +362,8 @@ export const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
                         className="flex-row items-center gap-1 active:scale-125"
                     >
                         <Ionicons name="chatbubble-outline" size={24} color="#1c1c18" />
-                        {comments.length > 0 && (
-                            <Text className="text-stone-700 font-headline-bold text-xs ml-0.5">{comments.length}</Text>
+                        {commentCount > 0 && (
+                            <Text className="text-stone-700 font-headline-bold text-xs ml-0.5">{commentCount}</Text>
                         )}
                     </TouchableOpacity>
 
@@ -396,29 +384,20 @@ export const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
             {/* Story / Caption */}
             <View className="px-4 mt-2">
                 <Text className="text-stone-900 font-body-medium text-sm leading-relaxed">
-                    <Text className="font-headline-bold mr-1.5">{uploaderName}</Text>
+                    <Text className="font-headline-bold mr-1.5">{uploaderName} </Text>
                     {memory.story || ''}
                 </Text>
             </View>
 
             {/* Comments Inline Preview */}
-            {comments.length > 0 && (
+            {/* Comments Inline Preview */}
+            {commentCount > 0 && (
                 <View className="px-4 mt-2">
                     <TouchableOpacity onPress={() => onOpenComments(memory.id)}>
                         <Text className="text-xs font-body-bold text-[#b30069]/85 mb-1.5">
-                            View all {comments.length} comments
+                            View all {commentCount} comments
                         </Text>
                     </TouchableOpacity>
-                    {comments.slice(-1).map((c: any) => (
-                        <Text
-                            key={c.id}
-                            className="text-stone-700 font-body-medium text-xs leading-relaxed"
-                            numberOfLines={1}
-                        >
-                            <Text className="font-body-bold mr-1.5">{c.user?.name || 'User'} </Text>
-                            {c.comment}
-                        </Text>
-                    ))}
                 </View>
             )}
         </View>

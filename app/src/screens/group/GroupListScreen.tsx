@@ -1,22 +1,24 @@
 // lib
-import React, { useCallback } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useNavigation, } from '@react-navigation/native';
+import { useNavigation, useIsFocused, useFocusEffect } from '@react-navigation/native';
 import { Image } from 'expo-image';
 
 //hooks
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSocket } from '../../hooks/useSocket';
-import { useFocusEffect } from '@react-navigation/native';
 
 //api
 import { fetchGroups, getOptimizedImageUrl } from '../../lib/api';
+import { SearchBar } from '../../components/common/SearchBar';
+import { MandaliCard } from '../../components/common/MandaliCard';
 
 const GroupListScreen = () => {
     const navigation = useNavigation<any>();
+    const isFocused = useIsFocused();
     const isTablet = useIsTablet();
     const socket = useSocket();
     const queryClient = useQueryClient();
@@ -25,6 +27,16 @@ const GroupListScreen = () => {
         queryKey: ['groups'],
         queryFn: fetchGroups,
     });
+
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const filteredGroups = useMemo(() => {
+        if (!groups) return [];
+        if (!searchQuery.trim()) return groups;
+        return groups.filter((g: any) =>
+            g.name?.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [groups, searchQuery]);
 
     useFocusEffect(
         useCallback(() => {
@@ -63,51 +75,48 @@ const GroupListScreen = () => {
                 </View>
             </View>
 
+            {/* Centered Header Section */}
+            <View
+                className="items-center w-full"
+                style={{
+                    marginTop: isTablet ? 40 : 20,
+                    marginBottom: isTablet ? 40 : 20
+                }}
+            >
+                <Text
+                    className="font-headline-bold text-on-surface text-center tracking-tight text-[#1c1c18]"
+                    style={{ fontSize: isTablet ? 72 : 38 }}
+                    adjustsFontSizeToFit
+                    numberOfLines={1}
+                >
+                    My Mandalis
+                </Text>
+                <Text
+                    className="font-body-medium text-on-surface-variant text-center leading-relaxed opacity-60"
+                    style={{
+                        fontSize: isTablet ? 24 : 15,
+                        marginTop: isTablet ? 24 : 12,
+                        paddingHorizontal: isTablet ? 120 : 32
+                    }}
+                >
+                    Relive your moments and manage your circles
+                </Text>
+            </View>
+
+            <SearchBar
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search Mandalis..."
+            />
+
             <ScrollView
                 className="flex-1"
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 60 }}
                 refreshControl={
-                    <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#b30069" />
+                    <RefreshControl refreshing={isFocused ? isRefetching : false} onRefresh={refetch} tintColor="#b30069" />
                 }
             >
-                {/* Centered Header Section */}
-                <View
-                    className="items-center w-full"
-                    style={{
-                        marginTop: isTablet ? 40 : 20,
-                        marginBottom: isTablet ? 40 : 20
-                    }}
-                >
-                    <Text
-                        className="font-headline-bold text-on-surface text-center tracking-tight text-[#1c1c18]"
-                        style={{ fontSize: isTablet ? 72 : 38 }}
-                        adjustsFontSizeToFit
-                        numberOfLines={1}
-                    >
-                        My Mandalis
-                    </Text>
-                    <Text
-                        className="font-body-medium text-on-surface-variant text-center leading-relaxed opacity-60"
-                        style={{
-                            fontSize: isTablet ? 24 : 15,
-                            marginTop: isTablet ? 24 : 12,
-                            paddingHorizontal: isTablet ? 120 : 32
-                        }}
-                    >
-                        Relive your moments and manage your circles
-                    </Text>
-                    <View
-                        className="bg-primary/20 rounded-full"
-                        style={{
-                            height: 4,
-                            width: isTablet ? 120 : 40,
-                            marginTop: isTablet ? 40 : 24
-                        }}
-                    />
-                </View>
-
-
                 {/* Loading state */}
                 {isLoading && groups.length === 0 && (
                     <View className="py-20 items-center justify-center">
@@ -128,95 +137,13 @@ const GroupListScreen = () => {
 
                 {/* Group List (Vertical stacking) */}
                 <View style={{ gap: isTablet ? 20 : 12 }}>
-                    {groups.map((group: any) => (
-                        <TouchableOpacity
+                    {filteredGroups.map((group: any) => (
+                        <MandaliCard
                             key={group.id}
-                            onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
-                            activeOpacity={0.7}
-                            className={`bg-white rounded-[24px] px-${isTablet ? '6' : '4'} py-${isTablet ? '6' : '4'} flex-row items-center border border-stone-100 shadow-sm`}
-                            style={{ elevation: 2 }}
-                        >
-                            {/* Group Avatar */}
-                            <View className={`rounded-[28px] overflow-hidden bg-stone-50 border border-stone-100 ${isTablet ? 'w-28 h-28' : 'w-16 h-16'}`}>
-                                {group.cover_photo_url ? (
-                                    <Image
-                                        source={{ uri: getOptimizedImageUrl(group.cover_photo_url, 'w_300,q_auto,f_auto') }}
-                                        style={{ width: '100%', height: '100%' }}
-                                        contentFit="cover"
-                                    />
-                                ) : (
-                                    <View className="w-full h-full items-center justify-center bg-primary/5">
-                                        <Text className={`font-headline-bold text-primary opacity-30 ${isTablet ? 'text-5xl' : 'text-xl'}`}>
-                                            {group.name.charAt(0).toUpperCase()}
-                                        </Text>
-                                    </View>
-                                )}
-                            </View>
-
-                            {/* Group Details */}
-                            <View className="flex-1 ml-8 justify-center">
-                                <Text className={`font-headline-bold text-[#1c1c18] mb-2 ${isTablet ? 'text-4xl' : 'text-lg'}`} numberOfLines={1}>
-                                    {group.name}
-                                </Text>
-                                <View className="flex-row items-center">
-                                    <View className={`rounded-full bg-primary/40 mr-3 ${isTablet ? 'w-3 h-3' : 'w-1.5 h-1.5'}`} />
-                                    <Text className={`font-body-bold text-[#594048] opacity-60 ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
-                                        {group.is_admin ? 'Admin • ' : ''}{group.memberCount || 0} Members
-                                    </Text>
-                                </View>
-                            </View>
-
-                            {/* Navigation Icon */}
-                            <MaterialIcons name="chevron-right" size={isTablet ? 48 : 24} color="#b3006969" />
-                        </TouchableOpacity>
+                            item={group}
+                            onPress={(id) => navigation.navigate('GroupDetail', { groupId: id })}
+                        />
                     ))}
-                </View>
-
-                {/* Primary Action Section - Stacked High-Density Rows */}
-                <View className={`mt-12 gap-6`}>
-                    <TouchableOpacity
-                        onPress={() => navigation.navigate('CreateGroup', { returnTo: { screen: 'GroupList' } })}
-                        activeOpacity={0.9}
-                        style={{
-                            height: isTablet ? 110 : 64,
-                            elevation: 8,
-                            shadowColor: '#b30069',
-                            shadowOffset: { width: 0, height: 4 },
-                            shadowOpacity: 0.2,
-                            shadowRadius: 8
-                        }}
-                        className="rounded-[32px] overflow-hidden bg-[#b30069] flex-row items-center justify-center px-8"
-                    >
-                        <MaterialIcons name="add-circle" size={isTablet ? 42 : 24} color="white" />
-                        <Text
-                            className="text-white font-headline-bold ml-4"
-                            style={{ fontSize: isTablet ? 32 : 20 }}
-                            adjustsFontSizeToFit
-                            numberOfLines={1}
-                        >
-                            Create New Mandali
-                        </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        onPress={() => navigation.navigate('JoinGroup', { returnTo: { screen: 'GroupList' } })}
-                        activeOpacity={0.7}
-                        style={{
-                            height: isTablet ? 110 : 64,
-                            borderWidth: 2,
-                            borderColor: '#b3006915'
-                        }}
-                        className="rounded-[32px] bg-[#fcecf2] flex-row items-center justify-center px-8"
-                    >
-                        <MaterialIcons name="qr-code-scanner" size={isTablet ? 42 : 24} color="#b30069" />
-                        <Text
-                            className={`text-[#b30069] font-headline-bold ml-4 ${isTablet ? 'text-3xl' : 'text-xl'}`}
-                            adjustsFontSizeToFit
-                            numberOfLines={1}
-                        >
-                            Join with Invite
-                        </Text>
-                    </TouchableOpacity>
                 </View>
 
                 <View
@@ -232,6 +159,41 @@ const GroupListScreen = () => {
                 </View>
 
             </ScrollView>
+
+            {/* Floating Action Buttons - Bottom Right */}
+            <View style={{ position: 'absolute', bottom: isTablet ? 40 : 24, right: isTablet ? 32 : 24, gap: 12, alignItems: 'flex-end' }}>
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('JoinGroup', { returnTo: { screen: 'GroupList' } })}
+                    activeOpacity={0.7}
+                    style={{
+                        elevation: 4,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 4,
+                    }}
+                    className={`bg-white border border-[#b30069]/10 rounded-full flex-row items-center ${isTablet ? 'px-6 py-4' : 'px-5 py-3.5'}`}
+                >
+                    <MaterialIcons name="qr-code-scanner" size={isTablet ? 28 : 20} color="#b30069" />
+                    <Text className={`text-[#b30069] font-headline-bold ml-2.5 ${isTablet ? 'text-2xl' : 'text-base'}`}>Join Mandali</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('CreateGroup', { returnTo: { screen: 'GroupList' } })}
+                    activeOpacity={0.9}
+                    style={{
+                        elevation: 6,
+                        shadowColor: '#b30069',
+                        shadowOffset: { width: 0, height: 3 },
+                        shadowOpacity: 0.25,
+                        shadowRadius: 6,
+                    }}
+                    className={`bg-[#b30069] rounded-full flex-row items-center ${isTablet ? 'px-6 py-4' : 'px-5 py-3.5'}`}
+                >
+                    <MaterialIcons name="add" size={isTablet ? 30 : 22} color="white" />
+                    <Text className={`text-white font-headline-bold ml-2 ${isTablet ? 'text-2xl' : 'text-base'}`}>Create New</Text>
+                </TouchableOpacity>
+            </View>
         </SafeAreaView>
     );
 };

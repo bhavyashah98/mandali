@@ -143,7 +143,11 @@ const MemoryDetailScreen = () => {
         if (visibleMemories.length > 0 && !hasScrolledRef.current && relativeInitialIndex >= 0) {
             hasScrolledRef.current = true;
             setTimeout(() => {
-                scrollRef.current?.scrollToIndex({ index: relativeInitialIndex, animated: false });
+                scrollRef.current?.scrollToIndex({
+                    index: relativeInitialIndex,
+                    animated: false,
+                    viewPosition: 0
+                });
             }, 100);
         }
     }, [visibleMemories, relativeInitialIndex]);
@@ -332,14 +336,21 @@ const MemoryDetailScreen = () => {
                     minIndexForVisible: 0,
                     autoscrollToTopThreshold: 0
                 }}
-                getItemLayout={(data, index) => ({
-                    length: width + 230,
-                    offset: (width + 230) * index,
-                    index
-                })}
+                getItemLayout={(data, index) => {
+                    const cardHeight = width + 180;
+                    return {
+                        length: cardHeight,
+                        offset: cardHeight * index,
+                        index
+                    };
+                }}
                 onScrollToIndexFailed={(info) => {
                     setTimeout(() => {
-                        scrollRef.current?.scrollToIndex({ index: info.index, animated: false });
+                        scrollRef.current?.scrollToIndex({
+                            index: info.index,
+                            animated: false,
+                            viewPosition: 0
+                        });
                     }, 50);
                 }}
                 ListFooterComponent={

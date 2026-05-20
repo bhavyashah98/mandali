@@ -18,7 +18,7 @@ const MemoriesScreen = () => {
     const COLUMN_COUNT = isTablet ? 5 : 3;
     const navigation = useNavigation<any>();
     const route = useRoute();
-    const params = route.params as { groupId: string } | undefined;
+    const params = route.params as { groupId: string; initialMemoryId?: string } | undefined;
     const groupId = params?.groupId;
     const today = useMemo(() => new Date(), []);
 
@@ -146,6 +146,43 @@ const MemoriesScreen = () => {
             groupName: group?.group?.name || 'Mandali'
         });
     }, [groupId, navigation, group?.group?.name]);
+
+    const initialMemoryId = params?.initialMemoryId;
+
+    // Auto-navigate to specific memory if initialMemoryId is provided (e.g. from deep link / push notification)
+    useEffect(() => {
+        if (initialMemoryId && allMemories.length > 0) {
+            const targetMemory = allMemories.find(m => String(m.id) === String(initialMemoryId));
+            if (targetMemory) {
+                let firstUrl = '';
+                try {
+                    let urls: string[] = [];
+                    if (targetMemory.image_urls) {
+                        if (Array.isArray(targetMemory.image_urls)) {
+                            urls = targetMemory.image_urls;
+                        } else if (typeof targetMemory.image_urls === 'string') {
+                            if (targetMemory.image_urls.startsWith('{')) {
+                                urls = targetMemory.image_urls.slice(1, -1).split(',').map((s: string) => s.trim().replace(/^"|"$/g, ''));
+                            } else {
+                                urls = JSON.parse(targetMemory.image_urls);
+                            }
+                        }
+                    }
+                    if (urls.length > 0) {
+                        firstUrl = urls[0];
+                    }
+                } catch (e) {
+                    console.error('[Memories] Error parsing image_urls for auto-navigate:', e);
+                }
+
+                // Clear the param to prevent redirect loop on back navigation
+                navigation.setParams({ initialMemoryId: undefined });
+
+                // Open detail
+                openDetail(firstUrl, targetMemory.id);
+            }
+        }
+    }, [initialMemoryId, allMemories, openDetail, navigation]);
 
     const RENDER_MAP = useMemo<Record<string, React.FC<any>>>(() => ({
         on_this_day: OnThisDaySection,

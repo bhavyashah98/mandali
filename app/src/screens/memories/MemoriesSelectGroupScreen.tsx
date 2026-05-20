@@ -1,20 +1,42 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, RefreshControl, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { fetchGroups, getOptimizedImageUrl } from '../../lib/api';
+import { fetchGroups } from '../../lib/api';
+import { SearchBar } from '../../components/common/SearchBar';
+import { MandaliCard } from '../../components/common/MandaliCard';
 
 const MemoriesSelectGroupScreen = () => {
     const navigation = useNavigation<any>();
     const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
+    const [searchQuery, setSearchQuery] = useState('');
+
     const { data: groups, isLoading, isRefetching, refetch } = useQuery({
         queryKey: ['groups'],
         queryFn: fetchGroups
     });
+
+    const filteredGroups = useMemo(() => {
+        if (!groups) return [];
+        
+        let result = groups;
+        if (searchQuery.trim()) {
+            result = groups.filter((g: any) =>
+                g.name?.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+        }
+        
+        // Sort groups by memory count (highest first)
+        return [...result].sort((a: any, b: any) => {
+            const countA = a.memoryCount || 0;
+            const countB = b.memoryCount || 0;
+            return countB - countA; // Descending order
+        });
+    }, [groups, searchQuery]);
 
     const renderContextCards = () => (
         <View className={`gap-4 flex-1 w-full pb-12 ${isTablet ? 'mt-12' : 'mt-4'}`}>
@@ -89,52 +111,18 @@ const MemoriesSelectGroupScreen = () => {
 
     const renderGroupItem = ({ item }: { item: any }) => {
         return (
-            <TouchableOpacity
-                onPress={() => navigation.navigate('MemoriesHome', { groupId: item.id })}
-                activeOpacity={0.7}
-                className={`bg-white rounded-[32px] flex-row items-center border border-stone-100 shadow-sm mb-4 ${isTablet ? 'px-10 py-8' : 'px-4 py-4'}`}
-                style={{ elevation: 2 }}
-            >
-                {/* Group Avatar */}
-                <View className={`rounded-2xl overflow-hidden bg-stone-50 border border-stone-100 ${isTablet ? 'w-24 h-24' : 'w-16 h-16'}`}>
-                    {item.cover_photo_url ? (
-                        <Image
-                            source={{ uri: getOptimizedImageUrl(item.cover_photo_url, 'w_300,q_auto,f_auto') }}
-                            className="w-full h-full"
-                            resizeMode="cover"
-                        />
-                    ) : (
-                        <View className="w-full h-full items-center justify-center bg-primary/5">
-                            <Text 
-                                className="font-headline-bold text-primary opacity-30"
-                                style={{ fontSize: isTablet ? 42 : 24 }}
-                            >
-                                {item.name.charAt(0).toUpperCase()}
-                            </Text>
-                        </View>
-                    )}
-                </View>
-
-                {/* Group Details */}
-                <View className="flex-1 ml-6 justify-center">
-                    <Text 
-                        className="font-headline-bold text-[#1c1c18] mb-1.5" 
-                        style={{ fontSize: isTablet ? 36 : 18 }}
-                        numberOfLines={1}
-                    >
-                        {item.name}
-                    </Text>
+            <MandaliCard 
+                item={item} 
+                onPress={(id) => navigation.navigate('MemoriesHome', { groupId: id })}
+                customSubtitle={
                     <View className="flex-row items-center">
-                        <View className={`rounded-full bg-primary/40 mr-3 ${isTablet ? 'w-2.5 h-2.5' : 'w-1.5 h-1.5'}`} />
+                        <View style={{ backgroundColor: 'rgba(179, 0, 105, 0.4)' }} className={`rounded-full mr-3 ${isTablet ? 'w-2.5 h-2.5' : 'w-1.5 h-1.5'}`} />
                         <Text className={`font-body-bold text-[#594048] opacity-60 ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
-                            {item.is_admin ? 'Admin • ' : ''}{item.memberCount || 0} Members
+                            {item.memoryCount || 0} Memories
                         </Text>
                     </View>
-                </View>
-
-                {/* Navigation Icon */}
-                <MaterialIcons name="chevron-right" size={isTablet ? 42 : 24} color="#b3006969" />
-            </TouchableOpacity>
+                }
+            />
         );
     };
 
@@ -167,18 +155,24 @@ const MemoriesSelectGroupScreen = () => {
                 </Text>
             </View>
 
+            <SearchBar 
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search Mandalis..."
+            />
+
             {isLoading ? (
                 <View className="flex-1 items-center justify-center">
                     <ActivityIndicator color="#b30069" size="large" />
                 </View>
             ) : (
                 <FlatList
-                    data={groups}
+                    data={filteredGroups}
                     renderItem={renderGroupItem}
                     keyExtractor={(item) => item.id}
                     ListEmptyComponent={renderEmptyState}
                     ListFooterComponent={renderContextCards}
-                    contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 40 }}
+                    contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 40, gap: isTablet ? 16 : 12 }}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
                         <RefreshControl 

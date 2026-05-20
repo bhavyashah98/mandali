@@ -21,7 +21,7 @@ const HisaabBalanceCard = ({ totalBalance }: HisaabBalanceCardProps) => {
                 "This is the sum of what you owe and what others owe you across all your Mandali groups."
             )}
             style={{ elevation: 10, shadowColor: '#b30069', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10 }}
-            className={`bg-[#b30069] rounded-[40px] mb-8 overflow-hidden ${isTablet ? 'p-12' : 'p-6'}`}
+            className={`bg-[#b30069] rounded-[40px] overflow-hidden ${isTablet ? 'p-12' : 'p-6'}`}
         >
             <LinearGradient
                 colors={['rgba(255,255,255,0.15)', 'transparent']}
@@ -43,14 +43,14 @@ const HisaabBalanceCard = ({ totalBalance }: HisaabBalanceCardProps) => {
                         </Text>
                     )}
                 </View>
-                <View 
+                <View
                     style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
                     className={`rounded-[28px] items-center justify-center ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}
                 >
-                    <MaterialIcons 
-                        name={isSettled ? "account-balance-wallet" : isOwed ? "trending-up" : "trending-down"} 
-                        size={isTablet ? 48 : 24} 
-                        color="white" 
+                    <MaterialIcons
+                        name={isSettled ? "account-balance-wallet" : isOwed ? "trending-up" : "trending-down"}
+                        size={isTablet ? 48 : 24}
+                        color="white"
                     />
                 </View>
             </View>

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { sendGroupPushNotification } from '../lib/push';
+import { sendGroupPushNotification, sendUserPushNotification } from '../lib/push';
 
 const router = Router();
 
@@ -57,8 +57,49 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
 
         if (error) throw error;
 
+        let enrichedMemories = [];
+        if (data && data.length > 0) {
+            const memoryIds = data.map((m: any) => m.id);
+
+            // Fetch comments by memory_id to count them
+            const { data: commentsData } = await supabase
+                .from('memory_comments')
+                .select('memory_id')
+                .in('memory_id', memoryIds);
+
+            const commentCounts = (commentsData || []).reduce((acc: any, curr: any) => {
+                acc[curr.memory_id] = (acc[curr.memory_id] || 0) + 1;
+                return acc;
+            }, {});
+
+            // Fetch reactions by memory_id to aggregate
+            const { data: reactionsData } = await supabase
+                .from('memory_reactions')
+                .select('memory_id, reaction, user_id')
+                .in('memory_id', memoryIds);
+
+            const reactionsSummary = (reactionsData || []).reduce((acc: any, curr: any) => {
+                if (!acc[curr.memory_id]) acc[curr.memory_id] = { summary: {}, userReaction: null };
+                const memorySummary = acc[curr.memory_id];
+                
+                memorySummary.summary[curr.reaction] = (memorySummary.summary[curr.reaction] || 0) + 1;
+                if (curr.user_id === userId) {
+                    memorySummary.userReaction = curr.reaction;
+                }
+                
+                return acc;
+            }, {});
+
+            enrichedMemories = data.map((m: any) => ({
+                ...m,
+                commentCount: commentCounts[m.id] || 0,
+                reactionsSummary: reactionsSummary[m.id]?.summary || {},
+                userReaction: reactionsSummary[m.id]?.userReaction || null
+            }));
+        }
+
         res.json({
-            memories: data,
+            memories: enrichedMemories,
             totalCount: count,
             page,
             hasMore: count ? (from + (data?.length || 0)) < count : false
@@ -125,7 +166,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
             userId!, 
             '✨ New Memory Shared!', 
             'Someone just added a new memory to your group. Tap to view it!',
-            { type: 'memory', groupId, url: `mandali://memories/${groupId}` }
+            { type: 'memory', groupId, url: `mandali://memories/${groupId}/${data.id}` }
         ).catch((err: any) => console.error('[Push Failed]:', err));
 
         res.json(data);
@@ -207,6 +248,26 @@ router.post('/:id/comments', authMiddleware, async (req: AuthRequest, res) => {
             .single();
 
         if (error) throw error;
+
+        // Send notification to memory owner
+        if (data) {
+            const { data: memory } = await supabase
+                .from('memories')
+                .select('user_id, group_id')
+                .eq('id', id)
+                .single();
+
+            if (memory && memory.user_id && memory.user_id !== userId) {
+                const commenterName = data.user?.name || 'Someone';
+                sendUserPushNotification(
+                    memory.user_id,
+                    '💬 New Comment',
+                    `${commenterName} commented on your memory.`,
+                    { type: 'memory_comment', memoryId: id, groupId: memory.group_id, url: `mandali://memories/${memory.group_id}/${id}` }
+                ).catch(err => console.error('[Push Failed]:', err));
+            }
+        }
+
         res.json(data);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -331,6 +392,30 @@ router.post('/:id/reactions', authMiddleware, async (req: AuthRequest, res) => {
                 .select()
                 .single();
             if (insertError) throw insertError;
+
+            // Notify memory owner
+            const { data: memory } = await supabase
+                .from('memories')
+                .select('user_id, group_id')
+                .eq('id', id)
+                .single();
+
+            if (memory && memory.user_id && memory.user_id !== userId) {
+                const { data: reactor } = await supabase
+                    .from('users')
+                    .select('name')
+                    .eq('id', userId)
+                    .single();
+
+                const reactorName = reactor?.name || 'Someone';
+                sendUserPushNotification(
+                    memory.user_id,
+                    '❤️ New Reaction',
+                    `${reactorName} reacted to your memory.`,
+                    { type: 'memory_reaction', memoryId: id, groupId: memory.group_id, url: `mandali://memories/${memory.group_id}/${id}` }
+                ).catch(err => console.error('[Push Failed]:', err));
+            }
+
             return res.json({ success: true, action: 'added', reaction: inserted.reaction });
         }
     } catch (error: any) {

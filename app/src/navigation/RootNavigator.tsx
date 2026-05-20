@@ -68,7 +68,7 @@ export const RootNavigator = () => {
             case 'memories':
                 navigationRef.current.navigate('Main', {
                     screen: 'Memories',
-                    params: { screen: 'MemoriesHome', params: { groupId: params.id } }
+                    params: { screen: 'MemoriesHome', params: { groupId: params.id, initialMemoryId: params.memoryId } }
                 });
                 break;
         }
@@ -92,6 +92,9 @@ export const RootNavigator = () => {
                 if (segments.length > 1) params.groupId = segments[1];
             } else {
                 params.id = segments[0];
+                if (segments.length > 1) {
+                    params.memoryId = segments[1];
+                }
             }
 
             if (isAppReady && isAuthenticated && !isProfileIncomplete) {

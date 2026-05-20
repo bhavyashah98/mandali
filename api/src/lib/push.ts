@@ -96,3 +96,52 @@ export const sendGroupPushNotification = async (
         console.error('[Push] Fatal Error:', err.response?.data || err.message);
     }
 };
+
+export const sendUserPushNotification = async (
+    targetUserId: string,
+    title: string,
+    body: string,
+    data?: any
+) => {
+    try {
+        console.log(`[Push] Starting direct push for user ${targetUserId}`);
+
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('expo_push_token, name')
+            .eq('id', targetUserId)
+            .single();
+
+        if (error) {
+            console.error(`[Push] Failed to fetch user ${targetUserId}:`, error);
+            return;
+        }
+
+        const token = user?.expo_push_token;
+        if (!token || typeof token !== 'string' || !token.startsWith('ExponentPushToken')) {
+            console.log(`[Push] User ${user?.name || targetUserId} does not have a valid Expo push token.`);
+            return;
+        }
+
+        const message = {
+            to: token,
+            sound: 'default',
+            title,
+            body,
+            data: data || {},
+            channelId: 'default',
+        };
+
+        const response = await axios.post('https://exp.host/--/api/v2/push/send', [message], {
+            headers: {
+                'Accept': 'application/json',
+                'Accept-encoding': 'gzip, deflate',
+                'Content-Type': 'application/json',
+            }
+        });
+
+        console.log(`[Push] Successfully sent 1 message to Expo. Response Status: ${response.status}`);
+    } catch (err: any) {
+        console.error('[Push] Fatal Error sending direct push:', err.response?.data || err.message);
+    }
+};

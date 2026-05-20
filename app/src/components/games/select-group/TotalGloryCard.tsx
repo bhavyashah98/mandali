@@ -25,7 +25,7 @@ export const TotalGloryCard: React.FC<TotalGloryCardProps> = ({ totalGlory, hasG
                 "This represents your total social points won across all groups. These points are virtual and have no cash value."
             )}
             style={{ elevation: 10, shadowColor: '#b30069', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10 }}
-            className={`bg-[#b30069] rounded-[40px] mb-8 overflow-hidden ${isTablet ? 'p-12' : 'p-6'}`}
+            className={`bg-[#b30069] rounded-[40px] overflow-hidden ${isTablet ? 'p-12' : 'p-6'}`}
         >
             <LinearGradient
                 colors={['rgba(255,255,255,0.15)', 'transparent']}
@@ -43,7 +43,7 @@ export const TotalGloryCard: React.FC<TotalGloryCardProps> = ({ totalGlory, hasG
                         <MandaliCoin size={isTablet ? 48 : 24} style={{ marginLeft: 12 }} />
                     </View>
                 </View>
-                <View 
+                <View
                     style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
                     className={`rounded-[28px] items-center justify-center ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}
                 >
