@@ -371,126 +371,128 @@ const MemoryDetailScreen = () => {
                 transparent
                 onRequestClose={() => setActiveCommentMemoryId(null)}
             >
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                <TouchableOpacity
+                    activeOpacity={1}
+                    onPress={() => setActiveCommentMemoryId(null)}
                     className="flex-1 bg-black/5 justify-end"
                 >
-                    <TouchableOpacity
-                        style={StyleSheet.absoluteFillObject}
-                        activeOpacity={1}
-                        onPress={() => setActiveCommentMemoryId(null)}
-                    />
-                    <View
-                        className="bg-white border-t border-stone-200 rounded-t-[30px] px-5 pt-4"
-                        style={{
-                            height: height * 0.5,
-                            paddingBottom: Math.max(insets.bottom, 16)
-                        }}
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        className="w-full"
                     >
-                        <View className="w-12 h-1 bg-stone-200 rounded-full self-center mb-4" />
-                        <View className="flex-row items-center justify-between pb-3.5 border-b border-stone-100">
-                            <Text className="text-stone-900 font-headline-bold text-xl">Comments</Text>
-                            <TouchableOpacity
-                                onPress={() => setActiveCommentMemoryId(null)}
-                                className="w-9 h-9 rounded-full bg-stone-100 items-center justify-center"
-                            >
-                                <Ionicons name="close" size={22} color="#b30069" />
-                            </TouchableOpacity>
-                        </View>
-
-                        {isActiveCommentsLoading ? (
-                            <View className="py-20 justify-center items-center">
-                                <ActivityIndicator size="medium" color="#b30069" />
+                        <TouchableOpacity
+                            activeOpacity={1}
+                            className="bg-white border-t border-stone-200 rounded-t-[30px] px-5 pt-4"
+                            style={{
+                                height: height * 0.5,
+                                paddingBottom: Math.max(insets?.bottom || 0, 16)
+                            }}
+                        >
+                            <View className="w-12 h-1 bg-stone-200 rounded-full self-center mb-4" />
+                            <View className="flex-row items-center justify-between pb-3.5 border-b border-stone-100">
+                                <Text className="text-stone-900 font-headline-bold text-xl">Comments</Text>
+                                <TouchableOpacity
+                                    onPress={() => setActiveCommentMemoryId(null)}
+                                    className="w-9 h-9 rounded-full bg-stone-100 items-center justify-center"
+                                >
+                                    <Ionicons name="close" size={22} color="#b30069" />
+                                </TouchableOpacity>
                             </View>
-                        ) : (
-                            <FlatList
-                                data={activeComments}
-                                keyExtractor={(item, index) => item.id || index.toString()}
-                                style={{ flex: 1 }}
-                                contentContainerStyle={{ paddingVertical: 12 }}
-                                renderItem={({ item }) => {
-                                    const isCommentOwner = user?.id === item.user_id;
-                                    return (
-                                        <View className="flex-row items-start py-2.5">
-                                            <View className="w-9 h-9 rounded-full border border-stone-200 overflow-hidden mt-1">
-                                                {item.user?.avatar_url ? (
-                                                    <Image
-                                                        source={{ uri: getOptimizedImageUrl(item.user.avatar_url, 'w_80,h_80,c_fill,q_auto') }}
-                                                        style={{ width: '100%', height: '100%' }}
-                                                    />
-                                                ) : (
-                                                    <View className="w-full h-full bg-stone-50 items-center justify-center">
-                                                        <Ionicons name="person" size={14} color="#b30069" />
-                                                    </View>
-                                                )}
-                                            </View>
-                                            <View className="flex-1 bg-stone-50 rounded-[20px] px-4 py-3 ml-3 border border-stone-100">
-                                                <View className="flex-row items-center justify-between">
-                                                    <View className="flex-row items-center flex-1">
-                                                        <Text className="text-stone-900 font-headline-bold text-sm">{item.user?.name || 'User'}</Text>
-                                                        {item.created_at && (
-                                                            <Text className="text-stone-400 font-body-medium text-[11px] ml-2">
-                                                                • {formatCommentTime(item.created_at)}
-                                                            </Text>
-                                                        )}
-                                                    </View>
-                                                    {isCommentOwner && (
-                                                        <TouchableOpacity
-                                                            onPress={() => handleDeleteComment(item.id)}
-                                                            className="p-1"
-                                                        >
-                                                            <Ionicons name="trash-outline" size={14} color="#ef4444" />
-                                                        </TouchableOpacity>
+
+                            {isActiveCommentsLoading ? (
+                                <View className="py-20 justify-center items-center">
+                                    <ActivityIndicator size="large" color="#b30069" />
+                                </View>
+                            ) : (
+                                <FlatList
+                                    data={activeComments}
+                                    keyExtractor={(item, index) => item.id || index.toString()}
+                                    style={{ flex: 1 }}
+                                    contentContainerStyle={{ paddingVertical: 12 }}
+                                    renderItem={({ item }) => {
+                                        const isCommentOwner = user?.id === item.user_id;
+                                        return (
+                                            <View className="flex-row items-start py-2.5">
+                                                <View className="w-9 h-9 rounded-full border border-stone-200 overflow-hidden mt-1">
+                                                    {item.user?.avatar_url ? (
+                                                        <Image
+                                                            source={{ uri: getOptimizedImageUrl(item.user.avatar_url, 'w_80,h_80,c_fill,q_auto') }}
+                                                            style={{ width: '100%', height: '100%' }}
+                                                        />
+                                                    ) : (
+                                                        <View className="w-full h-full bg-stone-50 items-center justify-center">
+                                                            <Ionicons name="person" size={14} color="#b30069" />
+                                                        </View>
                                                     )}
                                                 </View>
-                                                <Text className="text-stone-700 font-body-medium text-sm mt-0.5 leading-normal">{item.comment}</Text>
+                                                <View className="flex-1 bg-stone-50 rounded-[20px] px-4 py-3 ml-3 border border-stone-100">
+                                                    <View className="flex-row items-center justify-between">
+                                                        <View className="flex-row items-center flex-1">
+                                                            <Text className="text-stone-900 font-headline-bold text-sm">{item.user?.name || 'User'}</Text>
+                                                            {item.created_at && (
+                                                                <Text className="text-stone-400 font-body-medium text-[11px] ml-2">
+                                                                    • {formatCommentTime(item.created_at)}
+                                                                </Text>
+                                                            )}
+                                                        </View>
+                                                        {isCommentOwner && (
+                                                            <TouchableOpacity
+                                                                onPress={() => handleDeleteComment(item.id)}
+                                                                className="p-1"
+                                                            >
+                                                                <Ionicons name="trash-outline" size={14} color="#ef4444" />
+                                                            </TouchableOpacity>
+                                                        )}
+                                                    </View>
+                                                    <Text className="text-stone-700 font-body-medium text-sm mt-0.5 leading-normal">{item.comment}</Text>
+                                                </View>
                                             </View>
+                                        );
+                                    }}
+                                    ListEmptyComponent={
+                                        <View className="py-16 items-center justify-center">
+                                            <Ionicons name="chatbubbles-outline" size={44} color="#e8c4d8" />
+                                            <Text className="text-stone-400 font-headline-bold text-sm mt-3">No comments yet</Text>
                                         </View>
-                                    );
-                                }}
-                                ListEmptyComponent={
-                                    <View className="py-16 items-center justify-center">
-                                        <Ionicons name="chatbubbles-outline" size={44} color="#e8c4d8" />
-                                        <Text className="text-stone-400 font-headline-bold text-sm mt-3">No comments yet</Text>
-                                    </View>
-                                }
-                            />
-                        )}
-
-                        {/* Input bar */}
-                        <View className="flex-row items-center border-t border-stone-100 pt-2.5 bg-white">
-                            <View className="flex-1 bg-stone-50 border border-stone-200 rounded-[20px] px-4 py-1 mr-2.5 flex-row items-center">
-                                <TextInput
-                                    placeholder="Add a comment..."
-                                    placeholderTextColor="#a09d96"
-                                    value={newCommentText}
-                                    onChangeText={setNewCommentText}
-                                    className="flex-1 text-stone-900 font-body-medium text-[14px] py-1 max-h-[80px]"
-                                    maxLength={500}
-                                    selectionColor="#b30069"
-                                    multiline
+                                    }
                                 />
-                            </View>
-                            <TouchableOpacity
-                                onPress={handleSendComment}
-                                disabled={!newCommentText.trim() || addCommentMutation.isPending}
-                                className={`w-9 h-9 rounded-full items-center justify-center ${
-                                    newCommentText.trim() && !addCommentMutation.isPending ? 'bg-[#b30069]' : 'bg-stone-100'
-                                }`}
-                            >
-                                {addCommentMutation.isPending ? (
-                                    <ActivityIndicator size="small" color={newCommentText.trim() ? "white" : "#a09d96"} />
-                                ) : (
-                                    <Ionicons
-                                        name="arrow-up"
-                                        size={18}
-                                        color={newCommentText.trim() && !addCommentMutation.isPending ? 'white' : '#a09d96'}
+                            )}
+
+                            {/* Input bar */}
+                            <View className="flex-row items-center border-t border-stone-100 pt-2.5 bg-white">
+                                <View className="flex-1 bg-stone-50 border border-stone-200 rounded-[20px] px-4 py-1 mr-2.5 flex-row items-center">
+                                    <TextInput
+                                        placeholder="Add a comment..."
+                                        placeholderTextColor="#a09d96"
+                                        value={newCommentText}
+                                        onChangeText={setNewCommentText}
+                                        className="flex-1 text-stone-900 font-body-medium text-[14px] py-1 max-h-[80px]"
+                                        maxLength={500}
+                                        selectionColor="#b30069"
+                                        multiline
                                     />
-                                )}
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </KeyboardAvoidingView>
+                                </View>
+                                <TouchableOpacity
+                                    onPress={handleSendComment}
+                                    disabled={!newCommentText.trim() || addCommentMutation.isPending}
+                                    className={`w-9 h-9 rounded-full items-center justify-center ${
+                                        newCommentText.trim() && !addCommentMutation.isPending ? 'bg-[#b30069]' : 'bg-stone-100'
+                                    }`}
+                                >
+                                    {addCommentMutation.isPending ? (
+                                        <ActivityIndicator size="small" color={newCommentText.trim() ? "white" : "#a09d96"} />
+                                    ) : (
+                                        <Ionicons
+                                            name="arrow-up"
+                                            size={18}
+                                            color={newCommentText.trim() && !addCommentMutation.isPending ? 'white' : '#a09d96'}
+                                        />
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </TouchableOpacity>
+                    </KeyboardAvoidingView>
+                </TouchableOpacity>
             </Modal>
 
             {/* Reactions List Modal */}
