@@ -2,6 +2,7 @@ import express from 'express';
 import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import * as hisaabService from '../services/hisaab.service';
+import { sendUserPushNotification } from '../lib/push';
 
 const router = express.Router();
 
@@ -128,6 +129,68 @@ router.get('/ledger/:groupId', async (req: AuthRequest, res) => {
 });
 
 // ──────────────────────────────────────────────
+// GET /hisaab/expense/:id — Get details of a single expense (including creator/participants/group/members)
+// ──────────────────────────────────────────────
+router.get('/expense/:id', async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data: expense, error: expErr } = await supabase
+            .from('expenses')
+            .select(`
+                *,
+                payer:users!paid_by(name),
+                adder:users!added_by(name),
+                groups!group_id(name),
+                expense_participants(*, users:user_id(name))
+            `)
+            .eq('id', id)
+            .single();
+
+        if (expErr || !expense) {
+            return res.status(404).json({ error: 'Expense not found' });
+        }
+
+        const formatted = {
+            id: expense.id,
+            description: expense.description,
+            amount: expense.amount,
+            paidBy: expense.paid_by,
+            paidByName: (expense.payer as any)?.name || 'Unknown',
+            addedBy: expense.added_by || expense.paid_by,
+            addedByName: (expense.adder as any)?.name || (expense.payer as any)?.name || 'Unknown',
+            type: 'expense',
+            expenseType: expense.expense_type || 'split_and_settle',
+            createdAt: expense.created_at,
+            participants: expense.expense_participants.map((p: any) => ({
+                userId: p.user_id,
+                amount: p.amount,
+                userName: p.users?.name
+            }))
+        };
+
+        // Fetch group members as well
+        const { data: groupMembers } = await supabase
+            .from('group_members')
+            .select('user_id, users(name)')
+            .eq('group_id', expense.group_id);
+
+        res.json({
+            expense: formatted,
+            groupName: (expense.groups as any)?.name || 'Unknown',
+            groupId: expense.group_id,
+            members: (groupMembers || []).map((m: any) => ({
+                id: m.user_id,
+                name: m.users?.name || 'Unknown'
+            }))
+        });
+    } catch (err) {
+        console.error('[Hisaab] Get single expense error:', err);
+        res.status(500).json({ error: 'Failed to fetch expense details' });
+    }
+});
+
+// ──────────────────────────────────────────────
 // GET /hisaab/members/:groupId — Pairwise & Simplified Balances
 // ──────────────────────────────────────────────
 router.get('/members/:groupId', async (req: AuthRequest, res) => {
@@ -199,6 +262,30 @@ router.post('/expense', async (req: AuthRequest, res) => {
         }));
 
         await supabase.from('expense_participants').insert(partToInsert);
+
+        // Fetch creator's user name
+        const { data: adderUser } = await supabase
+            .from('users')
+            .select('name')
+            .eq('id', userId)
+            .single();
+        const adderName = adderUser?.name || 'Someone';
+
+        // Notify each involved participant
+        participants.forEach((p: any) => {
+            if (p.userId === userId) return;
+
+            const title = `${adderName} added ₹${amount} for ${description || 'expense'}`;
+            const body = `Your share: ₹${p.amount}`;
+            
+            sendUserPushNotification(
+                p.userId,
+                title,
+                body,
+                { url: `mandali://hisaab/${expense.id}` }
+            ).catch((err: any) => console.error('[Push Failed]:', err));
+        });
+
         res.status(201).json({ message: 'Expense added' });
     } catch (err) {
         res.status(500).json({ error: 'Failed to record expense' });

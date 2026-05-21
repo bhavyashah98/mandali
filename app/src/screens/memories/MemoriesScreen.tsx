@@ -4,8 +4,8 @@ import { View, Text, FlatList, TouchableOpacity, useWindowDimensions, ActivityIn
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
-import { fetchMemories, fetchGroupDetail, getOptimizedImageUrl } from '../../lib/api';
+import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { fetchMemories, fetchGroupDetail, getOptimizedImageUrl, markMemoriesAsSeen } from '../../lib/api';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import OnThisDaySection from '../../components/memories/OnThisDaySection';
@@ -21,6 +21,16 @@ const MemoriesScreen = () => {
     const params = route.params as { groupId: string; initialMemoryId?: string } | undefined;
     const groupId = params?.groupId;
     const today = useMemo(() => new Date(), []);
+    const queryClient = useQueryClient();
+
+    // Mark memories as seen when entering the group and refresh unseen count
+    React.useEffect(() => {
+        if (groupId) {
+            markMemoriesAsSeen(groupId).then(() => {
+                queryClient.invalidateQueries({ queryKey: ['groups'] });
+            }).catch(console.error);
+        }
+    }, [groupId, queryClient]);
 
     const { data: group } = useQuery({
         queryKey: ['groupDetail', groupId],

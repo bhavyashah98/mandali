@@ -1,10 +1,13 @@
 import React from 'react';
+import { View } from 'react-native';
 import { useIsTablet } from '../hooks/useIsTablet';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWindowDimensions } from 'react-native';
 import { useConfig } from '../context/ConfigContext';
+import { useQuery } from '@tanstack/react-query';
+import { fetchGroups } from '../lib/api';
 
 import { GroupNavigator } from './GroupNavigator';
 import { GamesNavigator } from './GamesNavigator';
@@ -19,6 +22,12 @@ export const TabNavigator = () => {
     const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
     const { isHisaabEnabled } = useConfig();
+
+    const { data: groups } = useQuery({
+        queryKey: ['groups'],
+        queryFn: fetchGroups,
+    });
+    const totalUnseen = (groups || []).reduce((sum: number, g: any) => sum + (g.unseenCount || 0), 0);
 
     return (
         <Tab.Navigator
@@ -65,7 +74,11 @@ export const TabNavigator = () => {
         >
             <Tab.Screen name="Groups" component={GroupNavigator} />
             <Tab.Screen name="Games" component={GamesNavigator} />
-            <Tab.Screen name="Memories" component={MemoriesNavigator} />
+            <Tab.Screen
+                name="Memories"
+                component={MemoriesNavigator}
+                options={totalUnseen > 0 ? { tabBarBadge: totalUnseen, tabBarBadgeStyle: { backgroundColor: '#b30069', fontSize: 10, minWidth: 18, height: 18 } } : {}}
+            />
             {isHisaabEnabled && (
                 <Tab.Screen name="Hisaab" component={HisaabNavigator} />
             )}

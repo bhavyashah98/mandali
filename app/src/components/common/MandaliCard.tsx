@@ -14,6 +14,7 @@ interface MandaliCardProps {
         avatar?: string | null;
         is_admin?: boolean;
         memberCount?: number;
+        unseenCount?: number;
     };
     onPress: (id: string, name: string) => void;
     customSubtitle?: React.ReactNode;
@@ -64,6 +65,9 @@ export const MandaliCard: React.FC<MandaliCardProps> = ({ item, onPress, customS
                         <Text className={`font-body-bold text-[#594048] opacity-60 ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
                             {item.is_admin ? 'Admin • ' : ''}{item.memberCount || 0} Members
                         </Text>
+                        {item.unseenCount != null && item.unseenCount > 0 && (
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#b30069', marginLeft: 8 }} />
+                        )}
                     </View>
                 )}
                 {customBottomNode}

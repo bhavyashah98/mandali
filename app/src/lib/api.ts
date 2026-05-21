@@ -70,6 +70,12 @@ export const joinGroup = async (inviteCode: string) => {
     return response.data;
 };
 
+export const markMemoriesAsSeen = async (groupId: string) => {
+    const headers = await getAuthHeaders();
+    await axios.post(`${API_URL}/groups/${groupId}/seen-memories`, {}, { headers });
+};
+
+
 /**
  * Optimizes Cloudinary retrieval URLs by injecting delivery transformations.
  * Allows grabbing the exact size needed from the CDN (e.g. 'w_400,q_auto,f_auto' for thumbnails)
@@ -450,6 +456,12 @@ export const deleteHisaabSettlement = async (id: string) => {
 export const updateHisaabExpense = async (id: string, expenseData: any) => {
     const headers = await getAuthHeaders();
     const response = await axios.put(`${API_URL}/hisaab/expense/${id}`, expenseData, { headers });
+    return response.data;
+};
+
+export const fetchHisaabExpenseDetail = async (id: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/hisaab/expense/${id}`, { headers });
     return response.data;
 };
 

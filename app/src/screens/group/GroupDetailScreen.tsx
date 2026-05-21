@@ -1,7 +1,7 @@
 //lib
 import React, { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Share, Alert, Modal, Pressable, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Share, Alert, Modal, Pressable, RefreshControl, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -130,13 +130,13 @@ const GroupDetailScreen = () => {
     const handleShareLink = async () => {
         if (!data?.group.invite_code) return;
         try {
-            // Custom scheme link (reliable for opening the app directly if installed)
-            const appUrl = `mandali://join/${data.group.invite_code}`;
-            // Universal Link (for SEO and fallback to web if app not installed)
+            // Universal web link (opens app directly if installed, fallback to web page)
             const webUrl = `https://api.mandaliapp.com/join/${data.group.invite_code}`;
+            const inviterName = currentUser?.name || 'Someone';
+            const message = `${inviterName} invited you to ${data.group.name} on Mandali\n\n📸 Share memories\n🎮 Play Games together\n💸 Split expenses\n\nJoin Group → ${webUrl}`;
 
             await Share.share({
-                message: `Join our Mandali circle!\n\nTap to join directly:\n${appUrl}\n\nWeb Link:\n${webUrl}\n\nInvite code: ${data.group.invite_code}`,
+                message,
             });
         } catch (err) {
             console.error('[Share] Error:', err);
@@ -336,7 +336,6 @@ const GroupDetailScreen = () => {
                         </View>
                         <MaterialIcons name="chevron-right" size={isTablet ? 42 : 20} color="white" style={{ opacity: 0.6 }} />
                     </TouchableOpacity>
-
                     <TouchableOpacity
                         onPress={handleShareLink}
                         style={{ width: '100%', height: isTablet ? 180 : 84 }}

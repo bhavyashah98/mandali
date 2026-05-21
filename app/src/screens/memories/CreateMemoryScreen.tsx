@@ -93,7 +93,7 @@ const CreateMemoryScreen = () => {
                 const result = await manipulateAsync(
                     uri,
                     [{ resize: { width: 1200 } }], // Downscale to 1200px (WhatsApp-style)
-                    { compress: 0.75, format: SaveFormat.JPEG } // 75% quality
+                    { compress: 0.9, format: SaveFormat.JPEG }
                 );
                 return result.uri;
             }));

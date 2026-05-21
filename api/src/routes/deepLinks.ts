@@ -5,9 +5,9 @@ const router = express.Router();
  * Landing page for group invitation links
  * If the app doesn't intercept the Universal/App Link, the user lands here.
  */
-router.get(['/join/:id', '/housie/:id', '/memories/:id'], (req, res) => {
+router.get(['/join/:id', '/housie/:id', '/memories/:id', '/hisaab/:id'], (req, res) => {
     const { id } = req.params;
-    const type = req.path.split('/')[1]; // join, housie, or memories
+    const type = req.path.split('/')[1]; // join, housie, memories, or hisaab
     const userAgent = req.headers['user-agent'] || '';
     
     const isAndroid = /Android/i.test(userAgent);
@@ -42,6 +42,10 @@ router.get(['/join/:id', '/housie/:id', '/memories/:id'], (req, res) => {
         title = "New Memory Shared!";
         subtitle = "Someone shared a new memory in your group. Take a look!";
         btnText = "View Memories";
+    } else if (type === 'hisaab') {
+        title = "New Split Expense!";
+        subtitle = "A new expense has been recorded in your group. Take a look at your share!";
+        btnText = "View Expense Detail";
     }
 
     const html = `

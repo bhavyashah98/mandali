@@ -36,7 +36,7 @@ export const RootNavigator = () => {
                         screen: 'JoinGroup', 
                         params: { 
                             inviteCode: params.id,
-                            returnTo: { screen: 'GroupList' }
+                            returnTo: { screen: 'GroupDetail' }
                         } 
                     }
                 });
@@ -69,6 +69,18 @@ export const RootNavigator = () => {
                 navigationRef.current.navigate('Main', {
                     screen: 'Memories',
                     params: { screen: 'MemoriesHome', params: { groupId: params.id, initialMemoryId: params.memoryId } }
+                });
+                break;
+            case 'hisaab':
+                navigationRef.current.navigate('Main', {
+                    screen: 'Hisaab',
+                    params: {
+                        screen: 'ExpenseDetail',
+                        params: {
+                            expenseId: params.id,
+                            isFromDeepLink: true
+                        }
+                    }
                 });
                 break;
         }

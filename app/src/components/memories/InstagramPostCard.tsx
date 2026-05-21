@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, memo } from 'react';
 import {
     View,
     Text,
@@ -17,15 +17,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 
+//Image
+import PinchableImage from '../common/PinchableImage';
+
 import {
     fetchMemoryComments,
     fetchMemoryReactions,
     toggleMemoryReaction,
     getOptimizedImageUrl
 } from '../../lib/api';
-import { SnapbackZoom } from 'react-native-zoom-toolkit';
 
 interface InstagramPostCardProps {
+    id: string;
     memory: any;
     scrollRef: any;
     currentUser: any;
@@ -37,7 +40,7 @@ interface InstagramPostCardProps {
     onReport: (id: string, groupId: string) => void;
 }
 
-export const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
+const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
     memory,
     scrollRef,
     currentUser,
@@ -55,7 +58,6 @@ export const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
     const uploaderAvatar = memory.user?.avatar_url;
     const isOwner = currentUser?.id === memory.user_id;
 
-    const lastTap = useRef<number>(0);
     const heartScale = useRef(new Animated.Value(0)).current;
     const [showHeartPop, setShowHeartPop] = useState(false);
 
@@ -108,39 +110,72 @@ export const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
     const baseSummary = memory.reactionsSummary || {};
     const apiUserReaction = memory.userReaction || null;
 
-    const [optimisticUserReaction, setOptimisticUserReaction] = useState<string | null>(null);
-
-    React.useEffect(() => {
-        setOptimisticUserReaction(apiUserReaction);
-    }, [apiUserReaction]);
-
-    const summary = useMemo(() => {
-        const currentSummary = { ...baseSummary };
-
-        if (optimisticUserReaction !== apiUserReaction) {
-            if (apiUserReaction && currentSummary[apiUserReaction] > 0) {
-                currentSummary[apiUserReaction]--;
-            }
-            if (optimisticUserReaction) {
-                currentSummary[optimisticUserReaction] = (currentSummary[optimisticUserReaction] || 0) + 1;
-            }
-        }
-        return currentSummary;
-    }, [baseSummary, apiUserReaction, optimisticUserReaction]);
-
-    const totalReactions = useMemo(() => {
-        return Object.values(summary).reduce((acc: number, val: any) => acc + val, 0);
-    }, [summary]);
-
-    const isLiked = !!optimisticUserReaction;
-
     // Toggle Reaction Mutation
     const reactionMutation = useMutation({
         mutationFn: () => toggleMemoryReaction(memory.id, '❤️'),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['memoryReactions', memory.id] });
+        onMutate: async () => {
+            await queryClient.cancelQueries({
+                queryKey: ['memories']
+            });
+
+            const previousData = queryClient.getQueriesData({
+                queryKey: ['memories']
+            });
+
+            queryClient.setQueriesData(
+                { queryKey: ['memories'] },
+                (oldData: any) => {
+                    if (!oldData) return oldData;
+
+                    return {
+                        ...oldData,
+                        pages: oldData.pages.map((page: any) => ({
+                            ...page,
+                            memories: page.memories.map((m: any) => {
+                                if (m.id !== memory.id) return m;
+
+                                const alreadyLiked = !!m.userReaction;
+
+                                return {
+                                    ...m,
+                                    userReaction: alreadyLiked ? null : '❤️',
+
+                                    reactionsSummary: {
+                                        ...m.reactionsSummary,
+                                        '❤️': Math.max(
+                                            0,
+                                            (m.reactionsSummary?.['❤️'] || 0) +
+                                            (alreadyLiked ? -1 : 1)
+                                        )
+                                    }
+                                };
+                            })
+                        }))
+                    };
+                }
+            );
+
+            return { previousData };
+        },
+
+        onError: (_err, _vars, context) => {
+            if (context?.previousData) {
+                context.previousData.forEach(([queryKey, data]: any) => {
+                    queryClient.setQueryData(queryKey, data);
+                });
+            }
+        },
+
+        onSettled: () => {
+            queryClient.invalidateQueries({
+                queryKey: ['memories']
+            });
         }
     });
+
+    const totalReactions = Object.values(memory.reactionsSummary).reduce((acc: number, val: any) => acc + val, 0);
+
+    const isLiked = !!memory.userReaction;
 
     // Double tap heart pop animation
     const animateHeartPop = () => {
@@ -164,14 +199,14 @@ export const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
     };
 
     const handleLikePress = () => {
-        setOptimisticUserReaction((prev) => (prev === '❤️' ? null : '❤️'));
         reactionMutation.mutate();
     };
 
     const handleImagePress = () => {
-        setOptimisticUserReaction((prev) => (prev === '❤️' ? null : '❤️'));
         reactionMutation.mutate();
-        animateHeartPop();
+        if (!isLiked) {
+            animateHeartPop();
+        }
     };
 
     // Handle Share
@@ -235,6 +270,16 @@ export const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
         );
     };
 
+    const avatarUri = useMemo(() => ({ uri: getOptimizedImageUrl(uploaderAvatar, 'w_100,h_100,c_fill,q_auto,f_auto') }), [uploaderAvatar]);
+
+    const optimizedSources = useMemo(() => {
+        const map = new Map();
+        imageUrls.forEach(url => {
+            map.set(url, { uri: getOptimizedImageUrl(url, 'w_600,h_600,c_fill,q_auto:good,f_auto,dpr_auto') });
+        });
+        return map;
+    }, [imageUrls]);
+
     return (
         <View className="w-full bg-white mb-6 border-b border-stone-100 pb-4">
             {/* Header */}
@@ -243,7 +288,7 @@ export const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
                     <View className="w-9 h-9 rounded-full border border-stone-200 overflow-hidden mr-3">
                         {uploaderAvatar ? (
                             <Image
-                                source={{ uri: getOptimizedImageUrl(uploaderAvatar, 'w_100,h_100,c_fill,q_auto,f_auto') }}
+                                source={avatarUri}
                                 style={{ width: '100%', height: '100%' }}
                                 contentFit="cover"
                             />
@@ -281,19 +326,10 @@ export const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
                                 setActiveDot(index);
                             }}
                             renderItem={({ item: url }) => (
-                                <SnapbackZoom
-                                    scrollRef={scrollRef
-                                    }
+                                <PinchableImage source={optimizedSources.get(url)}
                                     style={{ width, height: width }}
-                                    onDoubleTap={handleImagePress}
-                                >
-                                    <Image
-                                        source={{ uri: getOptimizedImageUrl(url, 'w_900,h_900,c_fill,q_auto,f_auto') }}
-                                        style={{ width, height: width }}
-                                        contentFit="cover"
-                                        cachePolicy="memory-disk"
-                                    />
-                                </SnapbackZoom>
+                                    id={url}
+                                />
                             )}
                             keyExtractor={(item, index) => `${item}_${index}`}
                         />
@@ -309,18 +345,10 @@ export const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
                         </View>
                     </View>
                 ) : imageUrls.length === 1 ? (
-                    <SnapbackZoom
-                        scrollRef={scrollRef}
+                    <PinchableImage source={optimizedSources.get(imageUrls[0])}
                         style={{ width, height: width }}
-                        onDoubleTap={handleImagePress}
-                    >
-                        <Image
-                            source={{ uri: getOptimizedImageUrl(imageUrls[0], 'w_900,h_900,c_fill,q_auto,f_auto') }}
-                            style={{ width, height: width }}
-                            contentFit="cover"
-                            cachePolicy="memory-disk"
-                        />
-                    </SnapbackZoom>
+                        id={imageUrls[0]}
+                    />
                 ) : (
                     <View className="w-full h-full justify-center items-center">
                         <Ionicons name="image-outline" size={48} color="#e8c4d8" />
@@ -403,3 +431,5 @@ export const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
         </View>
     );
 };
+
+export default memo(InstagramPostCard);

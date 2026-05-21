@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import * as api from '../../lib/api';
@@ -22,7 +22,42 @@ const ExpenseDetailScreen = () => {
     const { user } = useAuthStore();
     const queryClient = useQueryClient();
 
-    const { item, groupId, groupName, members } = route.params;
+    const { item: initialItem, groupId: initialGroupId, groupName: initialGroupName, members: initialMembers, expenseId, isFromDeepLink } = route.params || {};
+
+    const { data: deepLinkData, isLoading: isDeepLinkLoading, error: deepLinkError } = useQuery({
+        queryKey: ['hisaab-expense', expenseId],
+        queryFn: async () => {
+            if (!expenseId) return null;
+            return api.fetchHisaabExpenseDetail(expenseId);
+        },
+        enabled: !!isFromDeepLink && !!expenseId
+    });
+
+    if (isFromDeepLink && isDeepLinkLoading) {
+        return (
+            <SafeAreaView className="flex-1 bg-[#fdf9f3] justify-center items-center">
+                <ActivityIndicator size="large" color="#b30069" />
+            </SafeAreaView>
+        );
+    }
+
+    if (isFromDeepLink && (deepLinkError || !deepLinkData)) {
+        return (
+            <SafeAreaView className="flex-1 bg-[#fdf9f3] justify-center items-center px-6">
+                <Text className="font-headline-bold text-lg text-on-surface text-center mb-4">
+                    Expense Not Found
+                </Text>
+                <TouchableOpacity onPress={() => navigation.goBack()} className="bg-primary px-6 py-3 rounded-full">
+                    <Text className="text-white font-headline-bold">Go Back</Text>
+                </TouchableOpacity>
+            </SafeAreaView>
+        );
+    }
+
+    const item = isFromDeepLink ? deepLinkData?.expense : initialItem;
+    const groupId = isFromDeepLink ? deepLinkData?.groupId : initialGroupId;
+    const groupName = isFromDeepLink ? deepLinkData?.groupName : initialGroupName;
+    const members = isFromDeepLink ? deepLinkData?.members : initialMembers;
 
     const isSettlement = item.type === 'settlement';
     const isPaidByMe = item.paidBy === user.id;

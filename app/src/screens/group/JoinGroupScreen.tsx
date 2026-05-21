@@ -27,11 +27,11 @@ const JoinGroupScreen = () => {
                 {
                     text: 'Great!',
                     onPress: () => {
-                        const finalParams = { ...returnTo.params, groupId: data.group.id };
-                        if (returnTo.parent) {
+                        const finalParams = { ...returnTo?.params, groupId: data.group.id };
+                        if (returnTo?.parent) {
                             navigation.replace(returnTo.parent, { screen: returnTo.screen, params: finalParams });
                         } else {
-                            navigation.replace(returnTo.screen, finalParams);
+                            navigation.replace(returnTo?.screen || 'GroupDetail', finalParams);
                         }
                     }
                 }

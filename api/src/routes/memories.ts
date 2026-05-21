@@ -410,8 +410,8 @@ router.post('/:id/reactions', authMiddleware, async (req: AuthRequest, res) => {
                 const reactorName = reactor?.name || 'Someone';
                 sendUserPushNotification(
                     memory.user_id,
-                    '❤️ New Reaction',
-                    `${reactorName} reacted to your memory.`,
+                    '❤️ Photo Liked',
+                    `${reactorName} liked your photo`,
                     { type: 'memory_reaction', memoryId: id, groupId: memory.group_id, url: `mandali://memories/${memory.group_id}/${id}` }
                 ).catch(err => console.error('[Push Failed]:', err));
             }

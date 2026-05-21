@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { getOptimizedImageUrl } from '../../lib/api';
 
 const MemoryGridItem = ({ photo, COLUMN_COUNT, openDetail }: any) => {
-    const gridUrl = getOptimizedImageUrl(photo.url, 'c_fill,w_300,h_300,q_auto,f_auto');
+    const gridUrl = getOptimizedImageUrl(photo.url, 'c_fill,w_300,h_300,q_auto,f_auto,dpr_auto');
     const blurUrl = getOptimizedImageUrl(photo.url, 'w_50,h_50,e_blur:2000,q_10');
 
     return (

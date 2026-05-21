@@ -104,7 +104,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
         const { data: memberships, error: memberError } = await supabase
             .from('group_members')
-            .select('group_id, role')
+            .select('group_id, role, last_seen_memories_at')
             .eq('user_id', userId);
 
         if (memberError) {
@@ -131,7 +131,22 @@ router.get('/', async (req: AuthRequest, res) => {
 
         const groupsWithMeta = await Promise.all(
             groups.map(async (group: any) => {
-                const [memberCountRes, winningsRes, memoryCountRes] = await Promise.all([
+                const membership = memberships.find((m: any) => m.group_id === group.id);
+                const lastSeenAt = membership?.last_seen_memories_at;
+
+                // Build unseen memories query: uploaded by others, after last seen
+                let unseenQuery = supabase
+                    .from('memories')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('group_id', group.id)
+                    .eq('is_hidden', false)
+                    .neq('user_id', userId);
+
+                if (lastSeenAt) {
+                    unseenQuery = unseenQuery.gt('created_at', lastSeenAt);
+                }
+
+                const [memberCountRes, winningsRes, memoryCountRes, unseenRes] = await Promise.all([
                     supabase
                         .from('group_members')
                         .select('*', { count: 'exact', head: true })
@@ -145,11 +160,11 @@ router.get('/', async (req: AuthRequest, res) => {
                         .from('memories')
                         .select('*', { count: 'exact', head: true })
                         .eq('group_id', group.id)
-                        .eq('is_hidden', false)
+                        .eq('is_hidden', false),
+                    unseenQuery,
                 ]);
 
                 const totalWinnings = (winningsRes.data || []).reduce((acc: number, curr: any) => acc + (curr.prize_amount || 0), 0);
-                const membership = memberships.find((m: any) => m.group_id === group.id);
 
                 return {
                     ...group,
@@ -157,6 +172,7 @@ router.get('/', async (req: AuthRequest, res) => {
                     myRole: membership?.role || 'member',
                     totalWinnings,
                     memoryCount: memoryCountRes.count || 0,
+                    unseenCount: unseenRes.count || 0,
                 };
             })
         );
@@ -208,6 +224,32 @@ router.get('/:id', async (req: AuthRequest, res) => {
             members: members || [],
             myRole: membership.role,
         });
+    } catch (err) {
+        console.error('[Groups] Unexpected error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ──────────────────────────────────────────────
+// POST /groups/:id/seen-memories — Mark memories as seen
+// ──────────────────────────────────────────────
+router.post('/:id/seen-memories', async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.userId!;
+
+        const { error } = await supabase
+            .from('group_members')
+            .update({ last_seen_memories_at: new Date().toISOString() })
+            .eq('group_id', id)
+            .eq('user_id', userId);
+
+        if (error) {
+            console.error('[Groups] Mark seen error:', error);
+            return res.status(500).json({ error: 'Failed to mark memories as seen' });
+        }
+
+        res.json({ success: true });
     } catch (err) {
         console.error('[Groups] Unexpected error:', err);
         res.status(500).json({ error: 'Internal server error' });
