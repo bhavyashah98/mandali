@@ -14,6 +14,7 @@ import { GamesNavigator } from './GamesNavigator';
 import { MemoriesNavigator } from './MemoriesNavigator';
 import { ProfileNavigator } from './ProfileNavigator';
 import { HisaabNavigator } from './HisaabNavigator';
+import { PlansNavigator } from './PlansNavigator';
 
 const Tab = createBottomTabNavigator();
 
@@ -21,7 +22,7 @@ export const TabNavigator = () => {
     const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
-    const { isHisaabEnabled } = useConfig();
+    const { isHisaabEnabled, isPlansEnabled } = useConfig();
 
     const { data: groups } = useQuery({
         queryKey: ['groups'],
@@ -65,6 +66,7 @@ export const TabNavigator = () => {
                     if (route.name === 'Groups') iconName = focused ? 'people' : 'people-outline';
                     else if (route.name === 'Games') iconName = focused ? 'game-controller' : 'game-controller-outline';
                     else if (route.name === 'Memories') iconName = focused ? 'images' : 'images-outline';
+                    else if (route.name === 'Plans') iconName = focused ? 'calendar' : 'calendar-outline';
                     else if (route.name === 'Hisaab') iconName = focused ? 'receipt' : 'receipt-outline';
                     else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
 
@@ -79,6 +81,11 @@ export const TabNavigator = () => {
                 component={MemoriesNavigator}
                 options={totalUnseen > 0 ? { tabBarBadge: totalUnseen, tabBarBadgeStyle: { backgroundColor: '#b30069', fontSize: 10, minWidth: 18, height: 18 } } : {}}
             />
+            {
+                isPlansEnabled && (
+                    <Tab.Screen name="Plans" component={PlansNavigator} />
+                )
+            }
             {isHisaabEnabled && (
                 <Tab.Screen name="Hisaab" component={HisaabNavigator} />
             )}

@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useEffect } from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
-import { View, Text, FlatList, TouchableOpacity, useWindowDimensions, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, useWindowDimensions, ActivityIndicator, RefreshControl, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -11,6 +11,7 @@ import { Image } from 'expo-image';
 import OnThisDaySection from '../../components/memories/OnThisDaySection';
 import SectionHeader from '../../components/memories/SectionHeader';
 import GridRow from '../../components/memories/GridRow';
+import { useMemorySelection } from '../../hooks/useMemorySelection';
 
 const MemoriesScreen = () => {
     const { width } = useWindowDimensions();
@@ -22,6 +23,28 @@ const MemoriesScreen = () => {
     const groupId = params?.groupId;
     const today = useMemo(() => new Date(), []);
     const queryClient = useQueryClient();
+
+    const {
+        selectedIds,
+        isSelectionMode,
+        toggleSelection,
+        clearSelection,
+        handleDelete,
+        isDeleting,
+    } = useMemorySelection(groupId || '');
+
+    // Exit selection mode on hardware back button press (Android)
+    useEffect(() => {
+        if (!isSelectionMode) return;
+
+        const onBackPress = () => {
+            clearSelection();
+            return true;
+        };
+
+        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => subscription.remove();
+    }, [isSelectionMode, clearSelection]);
 
     // Mark memories as seen when entering the group and refresh unseen count
     React.useEffect(() => {
@@ -203,8 +226,19 @@ const MemoriesScreen = () => {
     const renderItem = useCallback(({ item }: { item: any }) => {
         const Component = RENDER_MAP[item.type];
         if (!Component) return null;
-        return <Component item={item} isTablet={isTablet} today={today} COLUMN_COUNT={COLUMN_COUNT} openDetail={openDetail} />;
-    }, [RENDER_MAP, isTablet, today, COLUMN_COUNT, openDetail]);
+        return (
+            <Component 
+                item={item} 
+                isTablet={isTablet} 
+                today={today} 
+                COLUMN_COUNT={COLUMN_COUNT} 
+                openDetail={openDetail} 
+                selectedIds={selectedIds}
+                isSelectionMode={isSelectionMode}
+                toggleSelection={toggleSelection}
+            />
+        );
+    }, [RENDER_MAP, isTablet, today, COLUMN_COUNT, openDetail, selectedIds, isSelectionMode, toggleSelection]);
 
     if (isLoading && !infiniteData) {
         return (
@@ -218,34 +252,67 @@ const MemoriesScreen = () => {
         <View className="flex-1 bg-white">
             <SafeAreaView edges={['top']} className="bg-white" />
 
-            <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
-                <View style={{ width: isTablet ? 64 : 44 }}>
-                    <TouchableOpacity
-                        onPress={() => navigation.goBack()}
-                        className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
-                    >
-                        <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />
-                    </TouchableOpacity>
-                </View>
+            {isSelectionMode ? (
+                <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'} bg-[#b30069]/10 border-b border-[#b30069]/10`}>
+                    <View style={{ width: isTablet ? 64 : 44 }}>
+                        <TouchableOpacity
+                            onPress={clearSelection}
+                            className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                        >
+                            <Ionicons name="close" size={isTablet ? 28 : 22} color="#b30069" />
+                        </TouchableOpacity>
+                    </View>
 
-                <View className="flex-1 items-center">
-                    <Text className="font-headline-bold text-[#1c1c18] text-center" style={{ fontSize: isTablet ? 32 : 20 }} numberOfLines={1} adjustsFontSizeToFit>
-                        {group?.group?.name || 'Mandali'}
-                    </Text>
-                    <Text className="font-body-bold text-[#b30069] opacity-60 uppercase tracking-widest text-center" style={{ fontSize: isTablet ? 18 : 10, marginTop: isTablet ? 2 : 0 }}>
-                        Memories
-                    </Text>
-                </View>
+                    <View className="flex-1 items-center">
+                        <Text className="font-headline-bold text-[#b30069] text-center" style={{ fontSize: isTablet ? 28 : 18 }}>
+                            {selectedIds.size} Selected
+                        </Text>
+                    </View>
 
-                <View style={{ width: isTablet ? 64 : 44 }} className="items-end">
-                    <TouchableOpacity
-                        onPress={() => navigation.navigate('CreateMemory', { groupId })}
-                        className={`items-center justify-center rounded-full bg-[#b30069] shadow-md ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
-                    >
-                        <Ionicons name="add" size={isTablet ? 36 : 24} color="white" />
-                    </TouchableOpacity>
+                    <View style={{ width: isTablet ? 64 : 44 }} className="items-end">
+                        <TouchableOpacity
+                            onPress={handleDelete}
+                            disabled={isDeleting}
+                            className={`items-center justify-center rounded-full bg-red-600 shadow-md ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                        >
+                            {isDeleting ? (
+                                <ActivityIndicator size="small" color="white" />
+                            ) : (
+                                <MaterialIcons name="delete" size={isTablet ? 26 : 20} color="white" />
+                            )}
+                        </TouchableOpacity>
+                    </View>
                 </View>
-            </View>
+            ) : (
+                <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
+                    <View style={{ width: isTablet ? 64 : 44 }}>
+                        <TouchableOpacity
+                            onPress={() => navigation.goBack()}
+                            className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                        >
+                            <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />
+                        </TouchableOpacity>
+                    </View>
+
+                    <View className="flex-1 items-center">
+                        <Text className="font-headline-bold text-[#1c1c18] text-center" style={{ fontSize: isTablet ? 32 : 20 }} numberOfLines={1} adjustsFontSizeToFit>
+                            {group?.group?.name || 'Mandali'}
+                        </Text>
+                        <Text className="font-body-bold text-[#b30069] opacity-60 uppercase tracking-widest text-center" style={{ fontSize: isTablet ? 18 : 10, marginTop: isTablet ? 2 : 0 }}>
+                            Memories
+                        </Text>
+                    </View>
+
+                    <View style={{ width: isTablet ? 64 : 44 }} className="items-end">
+                        <TouchableOpacity
+                            onPress={() => navigation.navigate('CreateMemory', { groupId })}
+                            className={`items-center justify-center rounded-full bg-[#b30069] shadow-md ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                        >
+                            <Ionicons name="add" size={isTablet ? 36 : 24} color="white" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            )}
 
             <FlatList
                 data={listData}

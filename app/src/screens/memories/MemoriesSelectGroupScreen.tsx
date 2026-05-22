@@ -114,6 +114,7 @@ const MemoriesSelectGroupScreen = () => {
             <MandaliCard 
                 item={item} 
                 onPress={(id) => navigation.navigate('MemoriesHome', { groupId: id })}
+                showUnseenBadge={true}
                 customSubtitle={
                     <View className="flex-row items-center">
                         <View style={{ backgroundColor: 'rgba(179, 0, 105, 0.4)' }} className={`rounded-full mr-3 ${isTablet ? 'w-2.5 h-2.5' : 'w-1.5 h-1.5'}`} />

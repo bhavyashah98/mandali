@@ -18,9 +18,17 @@ import appVersionRoutes from './routes/appVersion';
 import hisaabRoutes from './routes/hisaab';
 import configRoutes from './routes/config';
 import blinkRoutes from './routes/blink';
+import plansRoutes from './routes/plans';
 import { supabase } from './lib/supabase';
 import { socketAuthMiddleware } from './middleware/socketAuth';
 import { appVersionGuard } from './middleware/appVersionGuard';
+
+import { registerChatHandlers } from './sockets/chatHandlers';
+import { registerHousieHandlers } from './sockets/housieHandlers';
+import { registerBlinkHandlers } from './sockets/blinkHandlers';
+import { initHousieEngine } from './services/housieEngine';
+import { initBlinkEngine } from './services/blinkEngine';
+import { initBirthdayCron } from './services/birthdayCron';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -64,6 +72,7 @@ app.use('/memories', memoriesRoutes);
 app.use('/hisaab', hisaabRoutes);
 app.use('/config', configRoutes);
 app.use('/blink/games', blinkRoutes);
+app.use('/plans', plansRoutes);
 app.use('/', legalRoutes);
 app.use('/', deepLinksRoutes);
 app.use('/moderation', moderationRoutes);
@@ -74,15 +83,11 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', message: 'Mandali API is running' });
 });
 
-import { registerChatHandlers } from './sockets/chatHandlers';
-import { registerHousieHandlers } from './sockets/housieHandlers';
-import { registerBlinkHandlers } from './sockets/blinkHandlers';
-import { initHousieEngine } from './services/housieEngine';
-import { initBlinkEngine } from './services/blinkEngine';
 
 // Initialize Background Engines
 initHousieEngine();
 initBlinkEngine();
+initBirthdayCron();
 
 // import { populateBlinkCards } from './utils/generateBlinkCards';
 // // Run one-off generation for Blink cards

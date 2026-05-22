@@ -27,6 +27,9 @@
         "NSPhotoLibraryAddUsageDescription": "Allow Mandali to save shared photos from your group memories to your device.",
         "NSCameraUsageDescription": "Allow Mandali to use your camera to take photos and add them to group memories.",
         "NSUserNotificationUsageDescription": "Stay updated with memories and game updates.",
+        "NSLocationWhenInUseUsageDescription": "Mandali uses your location to pick a place for your plan on the map.",
+        "NSLocationAlwaysUsageDescription": "Mandali uses your location to pick a place for your plan on the map.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Mandali uses your location to pick a place for your plan on the map.",
         "ITSAppUsesNonExemptEncryption": false,
         "UISupportedInterfaceOrientations": [
           "UIInterfaceOrientationPortrait"
@@ -77,7 +80,9 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
     "web": {
@@ -122,7 +127,16 @@
           }
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Mandali uses your location to pick a place for your plan on the map.",
+          "locationAlwaysAndWhenInUsePermission": "Mandali uses your location to pick a place for your plan on the map.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ]
     ],
     "extra": {
       "eas": {

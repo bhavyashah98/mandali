@@ -19,9 +19,10 @@ interface MandaliCardProps {
     onPress: (id: string, name: string) => void;
     customSubtitle?: React.ReactNode;
     customBottomNode?: React.ReactNode;
+    showUnseenBadge?: boolean;
 }
 
-export const MandaliCard: React.FC<MandaliCardProps> = ({ item, onPress, customSubtitle, customBottomNode }) => {
+export const MandaliCard: React.FC<MandaliCardProps> = ({ item, onPress, customSubtitle, customBottomNode, showUnseenBadge }) => {
     const isTablet = useIsTablet();
     
     // Some screens pass 'id', others pass 'groupId'
@@ -65,13 +66,37 @@ export const MandaliCard: React.FC<MandaliCardProps> = ({ item, onPress, customS
                         <Text className={`font-body-bold text-[#594048] opacity-60 ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
                             {item.is_admin ? 'Admin • ' : ''}{item.memberCount || 0} Members
                         </Text>
-                        {item.unseenCount != null && item.unseenCount > 0 && (
-                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#b30069', marginLeft: 8 }} />
-                        )}
                     </View>
                 )}
                 {customBottomNode}
             </View>
+
+            {/* WhatsApp-style Unseen Badge */}
+            {showUnseenBadge && item.unseenCount != null && item.unseenCount > 0 && (
+                <View 
+                    style={{ 
+                        backgroundColor: '#b30069', 
+                        minWidth: isTablet ? 36 : 22, 
+                        height: isTablet ? 36 : 22, 
+                        borderRadius: isTablet ? 18 : 11, 
+                        justifyContent: 'center', 
+                        alignItems: 'center',
+                        paddingHorizontal: isTablet ? 8 : 6,
+                        marginRight: isTablet ? 16 : 8,
+                    }}
+                >
+                    <Text 
+                        style={{ 
+                            color: 'white', 
+                            fontSize: isTablet ? 16 : 11,
+                            fontWeight: 'bold',
+                            textAlign: 'center',
+                        }}
+                    >
+                        {item.unseenCount}
+                    </Text>
+                </View>
+            )}
 
             {/* Navigation Icon */}
             <MaterialIcons name="chevron-right" size={isTablet ? 42 : 24} color="#b3006969" />

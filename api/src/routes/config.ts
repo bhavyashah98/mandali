@@ -9,6 +9,10 @@ router.get('/app-config', (req, res) => {
             android: process.env.HISAAB_ANDROID_ENABLED === 'true',
             ios: process.env.HISAAB_IOS_ENABLED === 'true',
         },
+        plans: {
+            android: process.env.PLANS_ANDROID_ENABLED === 'true',
+            ios: process.env.PLANS_IOS_ENABLED === 'true',
+        },
         minimumSupportedVersion: {
             android: process.env.MIN_SUPPORTED_ANDROID_VERSION,
             ios: process.env.MIN_SUPPORTED_IOS_VERSION,

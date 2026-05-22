@@ -12,6 +12,10 @@ interface GameConfigItem {
 }
 
 interface AppConfig {
+    plans: {
+        android: boolean;
+        ios: boolean;
+    };
     hisaab: {
         android: boolean;
         ios: boolean;
@@ -28,6 +32,7 @@ interface ConfigContextType {
     isLoading: boolean;
     isError: boolean;
     isHisaabEnabled: boolean;
+    isPlansEnabled: boolean;
     availableGames: GameConfigItem[];
 }
 
@@ -45,6 +50,11 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return Platform.OS === 'android' ? config.hisaab.android : config.hisaab.ios;
     }, [config]);
 
+    const isPlansEnabled = React.useMemo(() => {
+        if (!config) return false;
+        return Platform.OS === 'android' ? config.plans.android : config.plans.ios;
+    }, [config]);
+
     const availableGames = React.useMemo(() => {
         return config?.games || [];
     }, [config]);
@@ -56,6 +66,7 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 isLoading,
                 isError,
                 isHisaabEnabled,
+                isPlansEnabled,
                 availableGames,
             }}
         >

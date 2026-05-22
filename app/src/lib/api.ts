@@ -1,6 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAppVersionHeaders } from './appVersion';
+import type { CreatePlanPayload, Plan, PlanActivity, PlanStatus } from '../types/plans';
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -531,5 +532,33 @@ export const fetchBlinkPlayer = async (gameCode: string): Promise<any> => {
 export const endBlinkGame = async (gameCode: string): Promise<any> => {
     const headers = await getAuthHeaders();
     const response = await axios.post(`${API_URL}/blink/games/${gameCode.toUpperCase()}/end`, {}, { headers });
+    return response.data;
+};
+
+// --- PLANS API ---
+export const fetchPlanActivities = async (groupId: string, q?: string): Promise<{ activities: PlanActivity[] }> => {
+    const headers = await getAuthHeaders();
+    const params: Record<string, string> = { groupId };
+    if (q?.trim()) params.q = q.trim();
+    const response = await axios.get(`${API_URL}/plans/activities`, { headers, params });
+    return response.data;
+};
+
+export const createPlanActivity = async (groupId: string, name: string): Promise<{ activity: PlanActivity }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/plans/activities`, { groupId, name }, { headers });
+    return response.data;
+};
+
+export const createPlan = async (payload: CreatePlanPayload): Promise<{ plan: Plan }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/plans`, payload, { headers });
+    return response.data;
+};
+
+export const fetchPlans = async (status?: PlanStatus): Promise<{ plans: Plan[] }> => {
+    const headers = await getAuthHeaders();
+    const params = status ? { status } : {};
+    const response = await axios.get(`${API_URL}/plans`, { headers, params });
     return response.data;
 };
