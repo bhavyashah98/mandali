@@ -71,6 +71,13 @@ export const RootNavigator = () => {
                     params: { screen: 'MemoriesHome', params: { groupId: params.id, initialMemoryId: params.memoryId } }
                 });
                 break;
+            case 'plans':
+            case 'plan':
+                navigationRef.current.navigate('Main', {
+                    screen: 'Plans',
+                    params: { screen: 'PlanDetails', params: { planId: params.id } }
+                });
+                break;
             case 'hisaab':
                 navigationRef.current.navigate('Main', {
                     screen: 'Groups',

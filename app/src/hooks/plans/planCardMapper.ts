@@ -9,6 +9,7 @@ function formatDaysLabel(status: PlanStatus, startsAt: string): string {
     const start = new Date(startsAt);
     const now = new Date();
     const diffMs = start.getTime() - now.getTime();
+    if (diffMs < 1000 * 60 * 60 * 24) return 'Today';
     const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
     if (days <= 0) return 'Today';
     if (days === 1) return '1 day left';

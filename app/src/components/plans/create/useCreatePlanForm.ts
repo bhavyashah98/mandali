@@ -40,6 +40,9 @@ export function useCreatePlanForm(onCreated: () => void) {
         if (!activity) return Alert.alert('Choose Activity', 'Please select or create an activity.');
         if (!selectedDate || !selectedTime) return Alert.alert('Date & time', 'Please pick a date and time.');
         const startsAt = mergeDateAndTime(selectedDate, selectedTime);
+        if (startsAt <= new Date()) {
+            return Alert.alert('Pick a future time', 'Please choose a time later than now.');
+        }
         createMutation.mutate({
             groupId: selectedGroup.id,
             activityId: activity.id,

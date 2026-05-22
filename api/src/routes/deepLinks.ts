@@ -5,9 +5,9 @@ const router = express.Router();
  * Landing page for group invitation links
  * If the app doesn't intercept the Universal/App Link, the user lands here.
  */
-router.get(['/join/:id', '/housie/:id', '/memories/:id', '/hisaab/:id'], (req, res) => {
+router.get(['/join/:id', '/housie/:id', '/memories/:id', '/hisaab/:id', '/plans/:id'], (req, res) => {
     const { id } = req.params;
-    const type = req.path.split('/')[1]; // join, housie, memories, or hisaab
+    const type = req.path.split('/')[1]; // join, housie, memories, hisaab, or plans
     const userAgent = req.headers['user-agent'] || '';
     
     const isAndroid = /Android/i.test(userAgent);
@@ -46,6 +46,10 @@ router.get(['/join/:id', '/housie/:id', '/memories/:id', '/hisaab/:id'], (req, r
         title = "New Split Expense!";
         subtitle = "A new expense has been recorded in your group. Take a look at your share!";
         btnText = "View Expense Detail";
+    } else if (type === 'plans') {
+        title = "Mandali Plan Update";
+        subtitle = "A plan in your group needs your attention. Open Mandali to see the details.";
+        btnText = "View Plan";
     }
 
     const html = `

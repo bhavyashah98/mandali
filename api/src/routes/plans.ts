@@ -8,6 +8,7 @@ import {
     loadRsvpsByPlanIds,
     PlanRsvpStatus,
 } from './planRsvpHelpers';
+import { sendPlanScheduledNotification } from '../services/planLifecycleCron';
 
 const router = Router();
 
@@ -173,8 +174,14 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         if (Number.isNaN(starts.getTime())) {
             return res.status(400).json({ error: 'Invalid startsAt' });
         }
+        if (starts <= new Date()) {
+            return res.status(400).json({ error: 'Plan start time must be later than now.' });
+        }
 
         const ends = resolveEndsAt(starts, endsAt);
+        if (Number.isNaN(ends.getTime()) || ends <= starts) {
+            return res.status(400).json({ error: 'Plan end time must be after the start time.' });
+        }
 
         let resolvedActivityId = activityId as string | undefined;
         let label = typeof activityLabel === 'string' ? activityLabel.trim() : '';
@@ -229,6 +236,9 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         if (error) throw error;
 
         await insertHostRsvp(plan.id, userId);
+        sendPlanScheduledNotification(plan).catch((notificationError) => {
+            console.error('[Plans] Failed to send scheduled plan notification:', notificationError);
+        });
 
         const status = resolvePlanStatus(plan);
         const rsvpsMap = await loadRsvpsByPlanIds([plan.id]);

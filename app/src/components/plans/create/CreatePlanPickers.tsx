@@ -1,6 +1,7 @@
 import React from 'react';
 import { MandaliDatePicker } from '../../MandaliDatePicker';
 import { startOfDay } from '../planChipFormat';
+import { roundToQuarterHour, todayStart } from './createPlanDate';
 
 interface CreatePlanPickersProps {
     showDatePicker: boolean;
@@ -20,7 +21,7 @@ const CreatePlanPickers = (props: CreatePlanPickersProps) => (
             visible={props.showDatePicker}
             mode="date"
             value={props.selectedDate || new Date()}
-            minimumDate={new Date()}
+            minimumDate={todayStart()}
             title="Pick date"
             onConfirm={(date) => {
                 props.onDateChange(startOfDay(date));
@@ -33,8 +34,9 @@ const CreatePlanPickers = (props: CreatePlanPickersProps) => (
             mode="time"
             value={props.selectedTime || props.fallbackTime}
             title="Pick time"
+            minuteInterval={15}
             onConfirm={(time) => {
-                props.onTimeChange(time);
+                props.onTimeChange(roundToQuarterHour(time));
                 props.setShowTimePicker(false);
             }}
             onCancel={() => props.setShowTimePicker(false)}

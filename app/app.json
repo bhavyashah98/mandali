@@ -2,7 +2,7 @@
   "expo": {
     "name": "Mandali",
     "slug": "mandali",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,11 +13,15 @@
       "resizeMode": "contain",
       "backgroundColor": "#fdf9f3"
     },
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "ios": {
       "supportsTablet": true,
       "requireFullScreen": true,
       "bundleIdentifier": "com.mandaliapp.mandali",
-      "buildNumber": "9",
+      "buildNumber": "11",
       "googleServicesFile": "./GoogleService-Info.plist",
       "associatedDomains": [
         "applinks:api.mandaliapp.com"
@@ -42,7 +46,7 @@
     },
     "android": {
       "package": "com.mandaliapp.mandali",
-      "versionCode": 9,
+      "versionCode": 11,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -83,7 +87,12 @@
         "android.permission.VIBRATE",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBLUn3uIoQh1oMhhuZ4lbeFldGUHOYmzog"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

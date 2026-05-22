@@ -12,7 +12,7 @@ const addButtonStyle = {
 
 const PlansHeader = ({ isTablet, onCreate }: { isTablet: boolean; onCreate: () => void }) => (
     <View className={`flex-row items-center justify-between px-6 ${isTablet ? 'pt-8 pb-5' : 'pt-4 pb-4'}`}>
-        <View>
+        <View className="flex-1 pr-4">
             <Text className="font-headline-bold text-[#1c1c18]" style={{ fontSize: isTablet ? 40 : 30 }}>
                 Plans
             </Text>
@@ -24,7 +24,7 @@ const PlansHeader = ({ isTablet, onCreate }: { isTablet: boolean; onCreate: () =
             onPress={onCreate}
             activeOpacity={0.9}
             className="rounded-full bg-[#b30069] items-center justify-center"
-            style={{ width: isTablet ? 64 : 52, height: isTablet ? 64 : 52, ...addButtonStyle }}
+            style={{ width: isTablet ? 64 : 52, height: isTablet ? 64 : 52, flexShrink: 0, ...addButtonStyle }}
         >
             <MaterialIcons name="add" size={isTablet ? 34 : 28} color="white" />
         </TouchableOpacity>
