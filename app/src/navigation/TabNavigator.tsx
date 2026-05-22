@@ -1,10 +1,8 @@
 import React from 'react';
-import { View } from 'react-native';
 import { useIsTablet } from '../hooks/useIsTablet';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useWindowDimensions } from 'react-native';
 import { useConfig } from '../context/ConfigContext';
 import { useQuery } from '@tanstack/react-query';
 import { fetchGroups } from '../lib/api';
@@ -13,16 +11,14 @@ import { GroupNavigator } from './GroupNavigator';
 import { GamesNavigator } from './GamesNavigator';
 import { MemoriesNavigator } from './MemoriesNavigator';
 import { ProfileNavigator } from './ProfileNavigator';
-import { HisaabNavigator } from './HisaabNavigator';
 import { PlansNavigator } from './PlansNavigator';
 
 const Tab = createBottomTabNavigator();
 
 export const TabNavigator = () => {
     const insets = useSafeAreaInsets();
-    const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
-    const { isHisaabEnabled, isPlansEnabled } = useConfig();
+    const { isPlansEnabled } = useConfig();
 
     const { data: groups } = useQuery({
         queryKey: ['groups'],
@@ -67,7 +63,6 @@ export const TabNavigator = () => {
                     else if (route.name === 'Games') iconName = focused ? 'game-controller' : 'game-controller-outline';
                     else if (route.name === 'Memories') iconName = focused ? 'images' : 'images-outline';
                     else if (route.name === 'Plans') iconName = focused ? 'calendar' : 'calendar-outline';
-                    else if (route.name === 'Hisaab') iconName = focused ? 'receipt' : 'receipt-outline';
                     else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
 
                     return <Ionicons name={iconName} size={isTablet ? 44 : 26} color={color} />;
@@ -75,20 +70,17 @@ export const TabNavigator = () => {
             })}
         >
             <Tab.Screen name="Groups" component={GroupNavigator} />
+            {
+                isPlansEnabled && (
+                    <Tab.Screen name="Plans" component={PlansNavigator} />
+                )
+            }
             <Tab.Screen name="Games" component={GamesNavigator} />
             <Tab.Screen
                 name="Memories"
                 component={MemoriesNavigator}
                 options={totalUnseen > 0 ? { tabBarBadge: totalUnseen, tabBarBadgeStyle: { backgroundColor: '#b30069', fontSize: 10, minWidth: 18, height: 18 } } : {}}
             />
-            {
-                isPlansEnabled && (
-                    <Tab.Screen name="Plans" component={PlansNavigator} />
-                )
-            }
-            {isHisaabEnabled && (
-                <Tab.Screen name="Hisaab" component={HisaabNavigator} />
-            )}
             <Tab.Screen name="Profile" component={ProfileNavigator} />
         </Tab.Navigator>
     );

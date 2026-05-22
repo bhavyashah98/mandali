@@ -1,7 +1,7 @@
 //lib
 import React, { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Share, Alert, Modal, Pressable, RefreshControl, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Share, Alert, Modal, Pressable, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -15,6 +15,7 @@ import { fetchGroupDetail, leaveGroup, deleteGroup, transferOwnership, fetchBloc
 import { useAuthStore } from '../../stores/authStore';
 import { useSocket } from '../../hooks/useSocket';
 import { useSocketRoom } from '../../hooks/useSocketRoom';
+import { useConfig } from '../../context/ConfigContext';
 
 const GroupDetailScreen = () => {
     const navigation = useNavigation<any>();
@@ -24,6 +25,7 @@ const GroupDetailScreen = () => {
     const { user: currentUser } = useAuthStore();
     const isTablet = useIsTablet();
     const socket = useSocket();
+    const { isHisaabEnabled } = useConfig();
     const [showTransferModal, setShowTransferModal] = useState(false);
     const [showModMenu, setShowModMenu] = useState(false);
     const [modTargetUser, setModTargetUser] = useState<{ id: string, name: string, isBlocked: boolean } | null>(null);
@@ -133,7 +135,7 @@ const GroupDetailScreen = () => {
             // Universal web link (opens app directly if installed, fallback to web page)
             const webUrl = `https://api.mandaliapp.com/join/${data.group.invite_code}`;
             const inviterName = currentUser?.name || 'Someone';
-            const message = `${inviterName} invited you to ${data.group.name} on Mandali\n\n📸 Share memories\n🎮 Play Games together\n💸 Split expenses\n\nJoin Group → ${webUrl}`;
+            const message = `${inviterName} invited you to ${data.group.name} on Mandali\n\nJoin Group → ${webUrl}`;
 
             await Share.share({
                 message,
@@ -297,48 +299,30 @@ const GroupDetailScreen = () => {
                     style={{ gap: 16 }}
                     className={isTablet ? "flex-row flex-wrap" : "gap-4"}
                 >
-                    <TouchableOpacity
-                        onPress={() => navigation.navigate('Memories', { screen: 'MemoriesHome', params: { groupId: group.id } })}
-                        style={{ flex: isTablet ? 1 : undefined, minWidth: isTablet ? '45%' : '100%', height: isTablet ? 180 : 84 }}
-                        className={`bg-[#fcecf2] rounded-[32px] flex-row items-center border border-primary/5 shadow-sm ${isTablet ? 'px-8' : 'px-6'}`}
-                    >
-                        <View className={`bg-white rounded-[24px] items-center justify-center mr-6 shadow-sm shadow-primary/10 ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}>
-                            <Ionicons name="images" size={isTablet ? 48 : 24} color="#b30069" />
-                        </View>
-                        <View className="flex-1">
-                            <Text
-                                className="font-headline-bold text-[#b30069]"
-                                style={{ fontSize: isTablet ? 36 : 18 }}
-                                adjustsFontSizeToFit
-                                numberOfLines={1}
-                            >Shared Memories</Text>
-                            <Text className={`text-[#b30069]/60 font-body-medium ${isTablet ? 'text-xl mt-1.5' : 'text-xs'}`}>Relive your best moments</Text>
-                        </View>
-                        <MaterialIcons name="chevron-right" size={isTablet ? 42 : 20} color="#b3006969" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        onPress={() => navigation.navigate('Games', { screen: 'GameSelection', params: { groupId: group.id } })}
-                        style={{ flex: isTablet ? 1 : undefined, minWidth: isTablet ? '45%' : '100%', height: isTablet ? 180 : 84 }}
-                        className={`bg-[#b30069] rounded-[32px] flex-row items-center shadow-lg shadow-primary/25 ${isTablet ? 'px-8' : 'px-6'}`}
-                    >
-                        <View className={`bg-white rounded-[24px] items-center justify-center mr-6 ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}>
-                            <Ionicons name="game-controller" size={isTablet ? 48 : 24} color="#b30069" />
-                        </View>
-                        <View className="flex-1">
-                            <Text
-                                className="font-headline-bold text-white"
-                                style={{ fontSize: isTablet ? 36 : 18 }}
-                                adjustsFontSizeToFit
-                                numberOfLines={1}
-                            >Games</Text>
-                            <Text className={`text-white/60 font-body-medium ${isTablet ? 'text-xl mt-1.5' : 'text-xs'}`}>Gather everyone for games</Text>
-                        </View>
-                        <MaterialIcons name="chevron-right" size={isTablet ? 42 : 20} color="white" style={{ opacity: 0.6 }} />
-                    </TouchableOpacity>
+                    {isHisaabEnabled && (
+                        <TouchableOpacity
+                            onPress={() => navigation.navigate('GroupHisaab', { groupId: group.id, groupName: group.name })}
+                            style={{ flex: isTablet ? 1 : undefined, minWidth: isTablet ? '45%' : '100%', height: isTablet ? 180 : 84 }}
+                            className={`bg-[#fcecf2] rounded-[32px] flex-row items-center border border-primary/5 shadow-sm ${isTablet ? 'px-8' : 'px-6'}`}
+                        >
+                            <View className={`bg-white rounded-[24px] items-center justify-center mr-6 shadow-sm shadow-primary/10 ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}>
+                                <Ionicons name="receipt" size={isTablet ? 48 : 24} color="#b30069" />
+                            </View>
+                            <View className="flex-1">
+                                <Text
+                                    className="font-headline-bold text-[#b30069]"
+                                    style={{ fontSize: isTablet ? 36 : 18 }}
+                                    adjustsFontSizeToFit
+                                    numberOfLines={1}
+                                >Hisaab</Text>
+                                <Text className={`text-[#b30069]/60 font-body-medium ${isTablet ? 'text-xl mt-1.5' : 'text-xs'}`}>Split and settle expenses</Text>
+                            </View>
+                            <MaterialIcons name="chevron-right" size={isTablet ? 42 : 20} color="#b3006969" />
+                        </TouchableOpacity>
+                    )}
                     <TouchableOpacity
                         onPress={handleShareLink}
-                        style={{ width: '100%', height: isTablet ? 180 : 84 }}
+                        style={{ flex: isTablet ? 1 : undefined, minWidth: isTablet ? '45%' : '100%', height: isTablet ? 180 : 84 }}
                         className={`bg-[#1c1c18] rounded-[32px] flex-row items-center shadow-lg shadow-black/15 ${isTablet ? 'px-8' : 'px-6'}`}
                     >
                         <View className={`bg-white/10 rounded-[24px] items-center justify-center mr-6 ${isTablet ? 'w-24 h-24' : 'w-12 h-12'}`}>

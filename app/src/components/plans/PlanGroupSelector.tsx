@@ -19,7 +19,11 @@ const PlanGroupSelector = ({ selected, onSelect, isTablet }: PlanGroupSelectorPr
 
     const items: AsyncSelectItem[] = useMemo(() => {
         const term = search.trim().toLowerCase();
-        const mapped = (groups as any[]).map((g) => ({ id: g.id, name: g.name }));
+        const mapped = (groups as any[]).map((g) => ({
+            id: g.id,
+            name: g.name,
+            imageUrl: g.cover_photo_url || g.avatar || null,
+        }));
         if (!term) return mapped;
         return mapped.filter((g) => g.name.toLowerCase().includes(term));
     }, [groups, search]);

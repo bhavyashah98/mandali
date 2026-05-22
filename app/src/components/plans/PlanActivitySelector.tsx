@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { PlanActivity } from '../../types/plans';
+import { getActivityIcon, PLAN_ACTIVITY_SUGGESTIONS } from '../../constants/planActivityIcons';
 import { usePlanActivities } from '../../hooks/plans/usePlanActivities';
 import PlanAsyncSelect, { AsyncSelectItem } from './PlanAsyncSelect';
 
 export type SelectedPlanActivity = PlanActivity;
+
+const SUGGESTION_PREFIX = 'suggestion:';
 
 interface PlanActivitySelectorProps {
     groupId: string | null;
@@ -24,13 +27,35 @@ const PlanActivitySelector = ({ groupId, selected, onSelect, isTablet }: PlanAct
         groupId ? search : ''
     );
 
-    const items: AsyncSelectItem[] = activities.map((a) => ({ id: a.id, name: a.name }));
+    const savedItems: AsyncSelectItem[] = activities.map((a) => ({
+        id: a.id,
+        name: a.name,
+        icon: getActivityIcon(a.name),
+    }));
 
-    const handleAddCustom = async () => {
-        const trimmed = customName.trim();
-        if (!groupId || !trimmed) return;
+    const suggestionItems: AsyncSelectItem[] = useMemo(() => {
+        if (!groupId || search.trim()) return [];
+        const existing = new Set(activities.map((a) => a.name.trim().toLowerCase()));
+        return PLAN_ACTIVITY_SUGGESTIONS.filter((name) => !existing.has(name.toLowerCase())).map((name) => ({
+            id: `${SUGGESTION_PREFIX}${name}`,
+            name,
+            icon: getActivityIcon(name),
+        }));
+    }, [groupId, search, activities]);
+
+    const items: AsyncSelectItem[] = useMemo(
+        () => [...savedItems, ...suggestionItems],
+        [savedItems, suggestionItems]
+    );
+
+    const selectedItem: AsyncSelectItem | null = selected
+        ? { id: selected.id, name: selected.name, icon: getActivityIcon(selected.name) }
+        : null;
+
+    const handleAddByName = async (name: string) => {
+        if (!groupId) return;
         try {
-            const { activity } = await createActivity({ name: trimmed });
+            const { activity } = await createActivity({ name });
             onSelect(activity);
             setCustomName('');
             setShowCustomInput(false);
@@ -38,6 +63,24 @@ const PlanActivitySelector = ({ groupId, selected, onSelect, isTablet }: PlanAct
         } catch {
             // parent may show alert
         }
+    };
+
+    const handleAddCustom = async () => {
+        const trimmed = customName.trim();
+        if (!trimmed) return;
+        await handleAddByName(trimmed);
+    };
+
+    const handleSelect = async (item: AsyncSelectItem | null) => {
+        if (!item) {
+            onSelect(null);
+            return;
+        }
+        if (item.id.startsWith(SUGGESTION_PREFIX)) {
+            await handleAddByName(item.name);
+            return;
+        }
+        onSelect({ id: item.id, name: item.name });
     };
 
     const dropdownFooter = groupId ? (
@@ -96,12 +139,12 @@ const PlanActivitySelector = ({ groupId, selected, onSelect, isTablet }: PlanAct
     return (
         <PlanAsyncSelect
             label="Choose Activity"
-            icon="restaurant"
+            icon="event"
             placeholder="Select activity"
             searchPlaceholder="Search activities..."
             items={items}
-            selected={selected}
-            onSelect={(item) => onSelect(item as SelectedPlanActivity | null)}
+            selected={selectedItem}
+            onSelect={handleSelect}
             search={search}
             onSearchChange={setSearch}
             isLoading={isLoading}
@@ -110,6 +153,7 @@ const PlanActivitySelector = ({ groupId, selected, onSelect, isTablet }: PlanAct
             disabledHint="Select a Mandali first"
             isTablet={isTablet}
             dropdownFooter={dropdownFooter}
+            getItemIcon={(item) => getActivityIcon(item.name)}
         />
     );
 };

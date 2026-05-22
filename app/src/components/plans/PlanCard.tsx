@@ -1,87 +1,128 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import type { Plan } from '../../types/plans';
+import { Image } from 'expo-image';
+import { getOptimizedImageUrl } from '../../lib/api';
+import type { PlanRsvpUser, PlanRsvpStatus } from '../../types/plans';
+import PlanAvatarStack from './card/PlanAvatarStack';
+import PlanCardBadge from './card/PlanCardBadge';
+import PlanCardMeta from './card/PlanCardMeta';
+
+export interface PlanCardPlan {
+    id: string;
+    groupId: string;
+    activityLabel: string;
+    activityIcon?: keyof typeof MaterialIcons.glyphMap;
+    startsAt: string;
+    location?: string | null;
+    locationDetail?: string | null;
+    placeId?: string | null;
+    status: 'upcoming' | 'live' | 'past';
+    groupName: string;
+    groupCoverUrl?: string | null;
+    going?: PlanRsvpUser[];
+    goingCount?: number;
+    placePhotoUrl?: string | null;
+    groupDescription?: string | null;
+    createdBy?: string;
+    creatorName?: string | null;
+    creatorAvatarUrl?: string | null;
+    isHost?: boolean;
+    hasRsvp?: boolean;
+    myRsvp?: { status: PlanRsvpStatus; note?: string | null } | null;
+    daysLabel?: string;
+    section?: string;
+}
 
 interface PlanCardProps {
-    plan: Plan;
+    plan: PlanCardPlan;
     isTablet: boolean;
     showLiveBadge?: boolean;
+    onPress?: () => void;
 }
 
-function formatPlanDateTime(startsAt: string) {
-    const d = new Date(startsAt);
-    const day = d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
-    const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-    return `${day} · ${time}`;
-}
+const cardStyle = { shadowColor: '#b30069', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3 };
 
-const PlanCard = ({ plan, isTablet, showLiveBadge }: PlanCardProps) => {
-    return (
-        <View
-            className="bg-white border border-stone-100 rounded-[24px] mb-4 overflow-hidden"
-            style={{
-                elevation: 3,
-                shadowColor: '#b30069',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.08,
-                shadowRadius: 12,
-            }}
-        >
-            <View className={`${isTablet ? 'p-8' : 'p-5'}`}>
-                <View className="flex-row items-start justify-between mb-3">
-                    <View className="flex-row items-center flex-1 mr-2">
-                        <View
-                            className={`rounded-2xl items-center justify-center mr-3 ${isTablet ? 'w-14 h-14' : 'w-11 h-11'} bg-[#b30069]/10`}
-                        >
-                            <MaterialIcons name="event" size={isTablet ? 28 : 22} color="#b30069" />
-                        </View>
-                        <View className="flex-1">
-                            <Text
-                                className="font-headline-bold text-[#1c1c18]"
-                                style={{ fontSize: isTablet ? 26 : 18 }}
-                                numberOfLines={1}
-                            >
-                                {plan.activityLabel}
+const PlanCard = ({ plan, isTablet, showLiveBadge, onPress }: PlanCardProps) => (
+    <TouchableOpacity
+        activeOpacity={0.86}
+        onPress={onPress}
+        disabled={!onPress}
+        className="bg-white border border-stone-100 rounded-[20px] mb-4 overflow-hidden"
+        style={cardStyle}
+    >
+        <View className={isTablet ? 'p-7' : 'p-5'}>
+            <View className="flex-row items-center mb-4 pb-3 border-b border-stone-100/80">
+                <View
+                    className={`overflow-hidden bg-stone-50 border border-stone-100 ${isTablet ? 'w-11 h-11' : 'w-10 h-10'}`}
+                    style={{ borderRadius: 14 }}
+                >
+                    {plan.groupCoverUrl ? (
+                        <Image
+                            source={{ uri: getOptimizedImageUrl(plan.groupCoverUrl, 'w_300,q_auto,f_auto') }}
+                            style={{ width: '100%', height: '100%' }}
+                            contentFit="cover"
+                        />
+                    ) : (
+                        <View className="flex-1 items-center justify-center bg-[#b30069]/5">
+                            <Text className="font-headline-bold text-[#b30069]" style={{ fontSize: isTablet ? 18 : 15, opacity: 0.4 }}>
+                                {plan.groupName.charAt(0).toUpperCase()}
                             </Text>
-                            <Text
-                                className="font-body-medium text-[#594048] mt-0.5"
-                                style={{ fontSize: isTablet ? 16 : 13 }}
-                            >
-                                {formatPlanDateTime(plan.startsAt)}
-                            </Text>
-                        </View>
-                    </View>
-                    {showLiveBadge && plan.status === 'live' && (
-                        <View className="bg-[#b30069] px-3 py-1 rounded-full">
-                            <Text className="font-body-bold text-white text-[10px] uppercase tracking-widest">Live</Text>
                         </View>
                     )}
                 </View>
-
-                {plan.location ? (
-                    <View className="flex-row items-center mb-3">
-                        <MaterialIcons name="place" size={isTablet ? 20 : 16} color="#a8a29e" />
+                <View className="flex-1 ml-3 justify-center">
+                    <Text
+                        className="font-body-bold text-[#1c1c18]"
+                        style={{ fontSize: isTablet ? 15 : 13 }}
+                        numberOfLines={1}
+                    >
+                        {plan.groupName}
+                    </Text>
+                </View>
+                {plan.creatorName ? (
+                    <View className="flex-row items-center ml-3 max-w-[42%]">
+                        <View
+                            className={`rounded-full overflow-hidden bg-[#fdeaf4] items-center justify-center ${isTablet ? 'w-8 h-8' : 'w-7 h-7'}`}
+                        >
+                            {plan.creatorAvatarUrl ? (
+                                <Image
+                                    source={{ uri: getOptimizedImageUrl(plan.creatorAvatarUrl, 'w_120,q_auto,f_auto') }}
+                                    style={{ width: '100%', height: '100%' }}
+                                    contentFit="cover"
+                                />
+                            ) : (
+                                <Text className="font-body-bold text-[#b30069]" style={{ fontSize: isTablet ? 13 : 11 }}>
+                                    {plan.creatorName.charAt(0).toUpperCase()}
+                                </Text>
+                            )}
+                        </View>
                         <Text
-                            className="font-body-regular text-[#594048] ml-1.5 flex-1"
-                            style={{ fontSize: isTablet ? 15 : 13 }}
+                            className="font-body-bold text-[#594048] ml-2 flex-shrink"
+                            style={{ fontSize: isTablet ? 13 : 11 }}
                             numberOfLines={1}
                         >
-                            {plan.location}
+                            {plan.creatorName}
                         </Text>
                     </View>
                 ) : null}
+            </View>
 
-                <View className="flex-row">
-                    <View className="bg-[#fdf9f3] border border-stone-100 px-3 py-1.5 rounded-full">
-                        <Text className="font-body-bold text-[#b30069] text-[11px] uppercase tracking-wider">
-                            {plan.groupName}
-                        </Text>
+            <View className="flex-row items-start justify-between mb-3">
+                <View className="flex-row items-center flex-1 mr-3">
+                    <View className={`${isTablet ? 'w-14 h-14' : 'w-12 h-12'} rounded-2xl items-center justify-center mr-3 bg-[#b30069]/10`}>
+                        <MaterialIcons name={plan.activityIcon || 'event'} size={isTablet ? 28 : 23} color="#b30069" />
+                    </View>
+                    <View className="flex-1">
+                        <Text className="font-headline-bold text-[#1c1c18]" style={{ fontSize: isTablet ? 26 : 18 }} numberOfLines={1}>{plan.activityLabel}</Text>
+                        <PlanCardMeta {...plan} isTablet={isTablet} />
                     </View>
                 </View>
+                <PlanCardBadge label={plan.daysLabel} live={showLiveBadge && plan.status === 'live'} />
             </View>
+            <PlanAvatarStack going={plan.going} goingCount={plan.goingCount} />
         </View>
-    );
-};
+    </TouchableOpacity>
+);
 
 export default PlanCard;

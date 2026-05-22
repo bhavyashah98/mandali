@@ -1,11 +1,15 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
+import {
+    formatPlanPayload,
+    insertHostRsvp,
+    loadMyRsvp,
+    loadRsvpsByPlanIds,
+    PlanRsvpStatus,
+} from './planRsvpHelpers';
 
 const router = Router();
-
-/** Starter labels for new groups; stored in plan_activities like any other entry */
-const DEFAULT_ACTIVITY_NAMES = ['Kitty', 'Get-together'];
 
 const PLAN_DURATION_MS = 3 * 60 * 60 * 1000;
 
@@ -41,23 +45,12 @@ function computePlanStatus(startsAt: Date, endsAt: Date, now = new Date()): Plan
     return 'live';
 }
 
-async function ensureDefaultActivities(groupId: string, userId: string): Promise<void> {
-    const { count, error: countError } = await supabase
-        .from('plan_activities')
-        .select('id', { count: 'exact', head: true })
-        .eq('group_id', groupId);
+function resolvePlanStatus(row: any, now = new Date()): PlanStatus {
+    if (['upcoming', 'live', 'past'].includes(row.status)) {
+        return row.status as PlanStatus;
+    }
 
-    if (countError) throw countError;
-    if ((count ?? 0) > 0) return;
-
-    const rows = DEFAULT_ACTIVITY_NAMES.map((name) => ({
-        group_id: groupId,
-        name,
-        created_by: userId,
-    }));
-
-    const { error } = await supabase.from('plan_activities').insert(rows);
-    if (error) throw error;
+    return computePlanStatus(new Date(row.starts_at), new Date(row.ends_at), now);
 }
 
 async function findOrCreateActivity(
@@ -104,10 +97,6 @@ router.get('/activities', authMiddleware, async (req: AuthRequest, res) => {
 
         if (!(await assertGroupMember(groupId, userId))) {
             return res.status(403).json({ error: 'You are not a member of this group.' });
-        }
-
-        if (!q.trim()) {
-            await ensureDefaultActivities(groupId, userId);
         }
 
         let query = supabase
@@ -169,7 +158,7 @@ router.post('/activities', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const userId = req.userId!;
-        const { groupId, activityId, activityLabel, activityName, startsAt, endsAt, location } =
+        const { groupId, activityId, activityLabel, activityName, startsAt, endsAt, location, placeId, placePhotoUrl } =
             req.body;
 
         if (!groupId || !startsAt) {
@@ -214,38 +203,38 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
 
         if (!label) label = activityRow.name;
 
+        const insertPayload: Record<string, unknown> = {
+            group_id: groupId,
+            created_by: userId,
+            activity_id: resolvedActivityId,
+            activity_label: label,
+            starts_at: starts.toISOString(),
+            ends_at: ends.toISOString(),
+            location: location ? String(location).trim() : null,
+            status: computePlanStatus(starts, ends),
+        };
+        if (placeId) insertPayload.place_id = String(placeId);
+        if (placePhotoUrl) insertPayload.place_photo_url = String(placePhotoUrl);
+
         const { data: plan, error } = await supabase
             .from('plans')
-            .insert({
-                group_id: groupId,
-                created_by: userId,
-                activity_id: resolvedActivityId,
-                activity_label: label,
-                starts_at: starts.toISOString(),
-                ends_at: ends.toISOString(),
-                location: location ? String(location).trim() : null,
-            })
+            .insert(insertPayload)
             .select(`
                 *,
-                group:group_id(id, name)
+                group:group_id(id, name, description, cover_photo_url),
+                creator:created_by(name, avatar_url)
             `)
             .single();
 
         if (error) throw error;
 
-        const status = computePlanStatus(starts, ends);
+        await insertHostRsvp(plan.id, userId);
+
+        const status = resolvePlanStatus(plan);
+        const rsvpsMap = await loadRsvpsByPlanIds([plan.id]);
+        const myRsvp = await loadMyRsvp(plan.id, userId);
         res.status(201).json({
-            plan: {
-                id: plan.id,
-                groupId: plan.group_id,
-                groupName: (plan as any).group?.name,
-                activityId: plan.activity_id,
-                activityLabel: plan.activity_label,
-                startsAt: plan.starts_at,
-                endsAt: plan.ends_at,
-                location: plan.location,
-                status,
-            },
+            plan: formatPlanPayload(plan, status, userId, rsvpsMap[plan.id], myRsvp),
         });
     } catch (err: any) {
         console.error('[Plans] POST plan error:', err);
@@ -270,7 +259,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
             .from('plans')
             .select(`
                 *,
-                group:group_id(id, name),
+                group:group_id(id, name, description, cover_photo_url),
                 creator:created_by(name, avatar_url)
             `)
             .in('group_id', groupIds)
@@ -278,24 +267,13 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
 
         if (error) throw error;
 
+        const planIds = (rows || []).map((r) => r.id);
+        const rsvpsMap = await loadRsvpsByPlanIds(planIds);
+
         const now = new Date();
         const withStatus = (rows || []).map((row) => {
-            const startsAt = new Date(row.starts_at);
-            const endsAt = new Date(row.ends_at);
-            const status = computePlanStatus(startsAt, endsAt, now);
-            return {
-                id: row.id,
-                groupId: row.group_id,
-                groupName: (row as any).group?.name || 'Mandali',
-                activityId: row.activity_id,
-                activityLabel: row.activity_label,
-                startsAt: row.starts_at,
-                endsAt: row.ends_at,
-                location: row.location,
-                createdBy: row.created_by,
-                creatorName: (row as any).creator?.name,
-                status,
-            };
+            const status = resolvePlanStatus(row, now);
+            return formatPlanPayload(row, status, userId, rsvpsMap[row.id], null);
         });
 
         let filtered = withStatus;
@@ -318,6 +296,155 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
 });
 
 /**
+ * POST /plans/:id/rsvp — one RSVP per member (cannot change after submit)
+ */
+router.post('/:id/rsvp', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.userId!;
+        const { id } = req.params;
+        const status = req.body?.status as PlanRsvpStatus;
+        const note = typeof req.body?.note === 'string' ? req.body.note.trim() : null;
+
+        if (!['going', 'maybe', 'cant_go'].includes(status)) {
+            return res.status(400).json({ error: 'Invalid RSVP status' });
+        }
+
+        const { data: plan, error: planError } = await supabase
+            .from('plans')
+            .select('id, group_id, created_by, starts_at, ends_at, status')
+            .eq('id', id)
+            .single();
+
+        if (planError || !plan) {
+            return res.status(404).json({ error: 'Plan not found' });
+        }
+
+        if (!(await assertGroupMember(plan.group_id, userId))) {
+            return res.status(403).json({ error: 'You are not a member of this group.' });
+        }
+
+        const existing = await loadMyRsvp(id as string, userId);
+        if (existing) {
+            return res.status(409).json({ error: 'You have already submitted your RSVP for this plan.' });
+        }
+
+        const { error: insertError } = await supabase.from('plan_rsvps').insert({
+            plan_id: id,
+            user_id: userId,
+            status,
+            note: note || null,
+        });
+
+        if (insertError) throw insertError;
+
+        const rsvpsMap = await loadRsvpsByPlanIds([id as string]);
+        const myRsvp = await loadMyRsvp(id as string, userId);
+        const planStatus = resolvePlanStatus(plan);
+
+        const { data: fullRow } = await supabase
+            .from('plans')
+            .select(`
+                *,
+                group:group_id(id, name, description, cover_photo_url),
+                creator:created_by(name, avatar_url)
+            `)
+            .eq('id', id)
+            .single();
+
+        res.json({
+            plan: formatPlanPayload(fullRow || plan, planStatus, userId, rsvpsMap[id as string], myRsvp),
+        });
+    } catch (err: any) {
+        console.error('[Plans] POST rsvp error:', err);
+        res.status(500).json({ error: err.message || 'Failed to save RSVP' });
+    }
+});
+
+/**
+ * POST /plans/:id/close — host ends a live plan and moves it to completed
+ */
+router.post('/:id/close', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.userId!;
+        const { id } = req.params;
+        const nowIso = new Date().toISOString();
+
+        const { data: plan, error: planError } = await supabase
+            .from('plans')
+            .select('id, created_by, group_id, status')
+            .eq('id', id)
+            .single();
+
+        if (planError || !plan) {
+            return res.status(404).json({ error: 'Plan not found' });
+        }
+
+        if (plan.created_by !== userId) {
+            return res.status(403).json({ error: 'Only the plan host can close this plan.' });
+        }
+
+        if (plan.status === 'past') {
+            return res.status(400).json({ error: 'This plan is already completed.' });
+        }
+
+        const { data: updated, error: updateError } = await supabase
+            .from('plans')
+            .update({ status: 'past', ends_at: nowIso })
+            .eq('id', id)
+            .select(`
+                *,
+                group:group_id(id, name, description, cover_photo_url),
+                creator:created_by(name, avatar_url)
+            `)
+            .single();
+
+        if (updateError) throw updateError;
+
+        const rsvpsMap = await loadRsvpsByPlanIds([id as string]);
+        const myRsvp = await loadMyRsvp(id as string, userId);
+
+        res.json({
+            plan: formatPlanPayload(updated, 'past', userId, rsvpsMap[id as string], myRsvp),
+        });
+    } catch (err: any) {
+        console.error('[Plans] POST complete plan error:', err);
+        res.status(500).json({ error: err.message || 'Failed to complete plan' });
+    }
+});
+
+/**
+ * DELETE /plans/:id — host cancels plan
+ */
+router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.userId!;
+        const { id } = req.params;
+
+        const { data: plan, error: planError } = await supabase
+            .from('plans')
+            .select('id, created_by, group_id')
+            .eq('id', id)
+            .single();
+
+        if (planError || !plan) {
+            return res.status(404).json({ error: 'Plan not found' });
+        }
+
+        if (plan.created_by !== userId) {
+            return res.status(403).json({ error: 'Only the plan host can cancel this plan.' });
+        }
+
+        const { error: deleteError } = await supabase.from('plans').delete().eq('id', id);
+        if (deleteError) throw deleteError;
+
+        res.json({ success: true });
+    } catch (err: any) {
+        console.error('[Plans] DELETE plan error:', err);
+        res.status(500).json({ error: err.message || 'Failed to cancel plan' });
+    }
+});
+
+/**
  * GET /plans/:id
  */
 router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
@@ -329,7 +456,7 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
             .from('plans')
             .select(`
                 *,
-                group:group_id(id, name),
+                group:group_id(id, name, description, cover_photo_url),
                 creator:created_by(name, avatar_url)
             `)
             .eq('id', id)
@@ -343,24 +470,13 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
             return res.status(403).json({ error: 'You are not a member of this group.' });
         }
 
-        const startsAt = new Date(row.starts_at);
-        const endsAt = new Date(row.ends_at);
-        const status = computePlanStatus(startsAt, endsAt);
+        const status = resolvePlanStatus(row);
+
+        const rsvpsMap = await loadRsvpsByPlanIds([id as string]);
+        const myRsvp = await loadMyRsvp(id as string, userId);
 
         res.json({
-            plan: {
-                id: row.id,
-                groupId: row.group_id,
-                groupName: (row as any).group?.name,
-                activityId: row.activity_id,
-                activityLabel: row.activity_label,
-                startsAt: row.starts_at,
-                endsAt: row.ends_at,
-                location: row.location,
-                createdBy: row.created_by,
-                creatorName: (row as any).creator?.name,
-                status,
-            },
+            plan: formatPlanPayload(row, status, userId, rsvpsMap[id as string], myRsvp),
         });
     } catch (err: any) {
         console.error('[Plans] GET plan error:', err);

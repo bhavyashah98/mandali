@@ -9,6 +9,9 @@ import {
     Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { getOptimizedImageUrl } from '../../lib/api';
+import type { PlanActivityIconName } from '../../constants/planActivityIcons';
 import {
     planFieldContainerStyle,
     planFieldHorizontalPadding,
@@ -18,11 +21,15 @@ import {
 export interface AsyncSelectItem {
     id: string;
     name: string;
+    /** Group cover / avatar for Mandali picker */
+    imageUrl?: string | null;
+    /** Per-item Material icon (activities) */
+    icon?: PlanActivityIconName;
 }
 
 interface PlanAsyncSelectProps {
     label: string;
-    icon: keyof typeof MaterialIcons.glyphMap;
+    icon: PlanActivityIconName;
     placeholder: string;
     searchPlaceholder: string;
     items: AsyncSelectItem[];
@@ -37,6 +44,8 @@ interface PlanAsyncSelectProps {
     isTablet: boolean;
     onOpen?: () => void;
     dropdownFooter?: React.ReactNode;
+    /** Resolve icon per row when item.icon is not set */
+    getItemIcon?: (item: AsyncSelectItem) => PlanActivityIconName;
 }
 
 const searchInputStyle = (isTablet: boolean) => ({
@@ -51,6 +60,113 @@ const searchInputStyle = (isTablet: boolean) => ({
         ? { includeFontPadding: false, textAlignVertical: 'center' as const }
         : {}),
 });
+
+function resolveItemIcon(
+    item: AsyncSelectItem,
+    fallback: PlanActivityIconName,
+    getItemIcon?: (item: AsyncSelectItem) => PlanActivityIconName
+): PlanActivityIconName {
+    return item.icon ?? getItemIcon?.(item) ?? fallback;
+}
+
+function SelectLeading({
+    item,
+    fallbackIcon,
+    getItemIcon,
+    size,
+    isTablet,
+    filled,
+}: {
+    item: AsyncSelectItem | null;
+    fallbackIcon: PlanActivityIconName;
+    getItemIcon?: (item: AsyncSelectItem) => PlanActivityIconName;
+    size: number;
+    isTablet: boolean;
+    filled: boolean;
+}) {
+    const borderRadius = 20;
+
+    if (item?.imageUrl) {
+        return (
+            <View
+                className="overflow-hidden mr-3.5 border border-stone-100 bg-stone-50"
+                style={{ width: size, height: size, borderRadius }}
+            >
+                <Image
+                    source={{ uri: getOptimizedImageUrl(item.imageUrl, 'w_300,q_auto,f_auto') }}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                />
+            </View>
+        );
+    }
+
+    const iconName = item ? resolveItemIcon(item, fallbackIcon, getItemIcon) : fallbackIcon;
+    const showFilled = filled || !!item;
+
+    if (item && !item.imageUrl && item.icon) {
+        return (
+            <View
+                className="items-center justify-center mr-3.5"
+                style={{
+                    width: size,
+                    height: size,
+                    borderRadius,
+                    backgroundColor: showFilled ? 'rgba(179, 0, 105, 0.12)' : '#fafaf9',
+                    borderWidth: 1,
+                    borderColor: showFilled ? 'rgba(179, 0, 105, 0.15)' : '#f5f5f4',
+                }}
+            >
+                <MaterialIcons
+                    name={iconName}
+                    size={isTablet ? 30 : 26}
+                    color={showFilled ? '#b30069' : '#a8a29e'}
+                />
+            </View>
+        );
+    }
+
+    if (item && !item.imageUrl && item.name) {
+        return (
+            <View
+                className="items-center justify-center mr-3.5 border border-stone-100"
+                style={{
+                    width: size,
+                    height: size,
+                    borderRadius,
+                    backgroundColor: 'rgba(179, 0, 105, 0.05)',
+                }}
+            >
+                <Text
+                    className="font-headline-bold text-primary"
+                    style={{ fontSize: isTablet ? 28 : 22, opacity: 0.35, color: '#b30069' }}
+                >
+                    {item.name.charAt(0).toUpperCase()}
+                </Text>
+            </View>
+        );
+    }
+
+    return (
+        <View
+            className="items-center justify-center mr-3.5"
+            style={{
+                width: size,
+                height: size,
+                borderRadius: 18,
+                backgroundColor: showFilled ? 'rgba(179, 0, 105, 0.12)' : '#fafaf9',
+                borderWidth: 1,
+                borderColor: showFilled ? 'rgba(179, 0, 105, 0.15)' : '#f5f5f4',
+            }}
+        >
+            <MaterialIcons
+                name={iconName}
+                size={isTablet ? 30 : 26}
+                color={showFilled ? '#b30069' : '#a8a29e'}
+            />
+        </View>
+    );
+}
 
 const PlanAsyncSelect = ({
     label,
@@ -69,6 +185,7 @@ const PlanAsyncSelect = ({
     isTablet,
     onOpen,
     dropdownFooter,
+    getItemIcon,
 }: PlanAsyncSelectProps) => {
     const [open, setOpen] = useState(false);
     const inputRef = useRef<TextInput>(null);
@@ -144,23 +261,14 @@ const PlanAsyncSelect = ({
                     disabled={disabled}
                     className="flex-1 flex-row items-center"
                 >
-                    <View
-                        className="rounded-[18px] items-center justify-center mr-3.5"
-                        style={{
-                            width: iconSize,
-                            height: iconSize,
-                            backgroundColor:
-                                selected || open ? 'rgba(179, 0, 105, 0.12)' : '#fafaf9',
-                            borderWidth: 1,
-                            borderColor: selected || open ? 'rgba(179, 0, 105, 0.15)' : '#f5f5f4',
-                        }}
-                    >
-                        <MaterialIcons
-                            name={icon}
-                            size={isTablet ? 30 : 26}
-                            color={selected || open ? '#b30069' : '#a8a29e'}
-                        />
-                    </View>
+                    <SelectLeading
+                        item={selected}
+                        fallbackIcon={icon}
+                        getItemIcon={getItemIcon}
+                        size={iconSize}
+                        isTablet={isTablet}
+                        filled={filled || open}
+                    />
 
                     <View style={{ flex: 1, justifyContent: 'center', minHeight: iconSize }}>
                         {disabled ? (
@@ -238,6 +346,7 @@ const PlanAsyncSelect = ({
                             ) : (
                                 items.map((item) => {
                                     const isItemSelected = selected?.id === item.id;
+                                    const itemIcon = resolveItemIcon(item, icon, getItemIcon);
                                     return (
                                         <TouchableOpacity
                                             key={item.id}
@@ -252,11 +361,66 @@ const PlanAsyncSelect = ({
                                                     : undefined
                                             }
                                         >
-                                            <MaterialIcons
-                                                name={icon}
-                                                size={22}
-                                                color={isItemSelected ? '#fff' : '#b30069'}
-                                            />
+                                            {item.imageUrl ? (
+                                                <View
+                                                    className="overflow-hidden border border-stone-100"
+                                                    style={{
+                                                        width: 40,
+                                                        height: 40,
+                                                        borderRadius: 14,
+                                                        opacity: isItemSelected ? 0.95 : 1,
+                                                    }}
+                                                >
+                                                    <Image
+                                                        source={{
+                                                            uri: getOptimizedImageUrl(item.imageUrl, 'w_300,q_auto,f_auto'),
+                                                        }}
+                                                        style={{ width: '100%', height: '100%' }}
+                                                        contentFit="cover"
+                                                    />
+                                                </View>
+                                            ) : item.icon ? (
+                                                <View
+                                                    className="items-center justify-center"
+                                                    style={{
+                                                        width: 40,
+                                                        height: 40,
+                                                        borderRadius: 14,
+                                                        backgroundColor: isItemSelected
+                                                            ? 'rgba(255,255,255,0.2)'
+                                                            : 'rgba(179, 0, 105, 0.1)',
+                                                    }}
+                                                >
+                                                    <MaterialIcons
+                                                        name={itemIcon}
+                                                        size={22}
+                                                        color={isItemSelected ? '#fff' : '#b30069'}
+                                                    />
+                                                </View>
+                                            ) : (
+                                                <View
+                                                    className="items-center justify-center border border-stone-100"
+                                                    style={{
+                                                        width: 40,
+                                                        height: 40,
+                                                        borderRadius: 14,
+                                                        backgroundColor: isItemSelected
+                                                            ? 'rgba(255,255,255,0.25)'
+                                                            : 'rgba(179, 0, 105, 0.05)',
+                                                    }}
+                                                >
+                                                    <Text
+                                                        className="font-headline-bold"
+                                                        style={{
+                                                            fontSize: 18,
+                                                            color: isItemSelected ? '#fff' : '#b30069',
+                                                            opacity: isItemSelected ? 1 : 0.45,
+                                                        }}
+                                                    >
+                                                        {item.name.charAt(0).toUpperCase()}
+                                                    </Text>
+                                                </View>
+                                            )}
                                             <Text
                                                 className={`font-headline-bold ml-3 flex-1 ${isTablet ? 'text-xl' : 'text-base'} ${
                                                     isItemSelected ? 'text-white' : 'text-[#1c1c18]'

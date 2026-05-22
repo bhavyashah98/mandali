@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAppVersionHeaders } from './appVersion';
-import type { CreatePlanPayload, Plan, PlanActivity, PlanStatus } from '../types/plans';
+import type { CreatePlanPayload, Plan, PlanActivity, PlanStatus, SubmitPlanRsvpPayload } from '../types/plans';
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -560,5 +560,29 @@ export const fetchPlans = async (status?: PlanStatus): Promise<{ plans: Plan[] }
     const headers = await getAuthHeaders();
     const params = status ? { status } : {};
     const response = await axios.get(`${API_URL}/plans`, { headers, params });
+    return response.data;
+};
+
+export const fetchPlanById = async (id: string): Promise<{ plan: Plan }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/plans/${id}`, { headers });
+    return response.data;
+};
+
+export const submitPlanRsvp = async (planId: string, payload: SubmitPlanRsvpPayload): Promise<{ plan: Plan }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/plans/${planId}/rsvp`, payload, { headers });
+    return response.data;
+};
+
+export const cancelPlan = async (planId: string): Promise<{ success: boolean }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.delete(`${API_URL}/plans/${planId}`, { headers });
+    return response.data;
+};
+
+export const completePlan = async (planId: string): Promise<{ plan: Plan }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/plans/${planId}/close`, {}, { headers });
     return response.data;
 };

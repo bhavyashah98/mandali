@@ -19,6 +19,8 @@ export interface SelectedPlace {
     address: string;
     latitude: number;
     longitude: number;
+    placeId?: string;
+    photoUrl?: string;
 }
 
 export function hasGoogleMapsApiKey(): boolean {
@@ -109,7 +111,7 @@ export async function fetchPlaceDetails(placeId: string): Promise<SelectedPlace 
                 'Content-Type': 'application/json',
                 'X-Goog-Api-Key': API_KEY,
                 // Critical: Explicitly declare the exact fields you want back to avoid errors and save cost
-                'X-Goog-FieldMask': 'formattedAddress,location',
+                'X-Goog-FieldMask': 'formattedAddress,location,photos',
             },
         });
 
@@ -125,10 +127,18 @@ export async function fetchPlaceDetails(placeId: string): Promise<SelectedPlace 
             return null;
         }
 
+        let photoUrl: string | undefined;
+        const photoName = data.photos?.[0]?.name;
+        if (photoName && API_KEY) {
+            photoUrl = `${PLACES_API_BASE_URL}/${encodeURI(photoName)}/media?maxHeightPx=800&key=${API_KEY}`;
+        }
+
         return {
             address: data.formattedAddress,
             latitude: data.location.latitude,
             longitude: data.location.longitude,
+            placeId: placeId.replace(/^places\//, ''),
+            photoUrl,
         };
 
     } catch (error) {

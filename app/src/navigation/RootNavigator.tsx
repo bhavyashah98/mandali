@@ -73,7 +73,7 @@ export const RootNavigator = () => {
                 break;
             case 'hisaab':
                 navigationRef.current.navigate('Main', {
-                    screen: 'Hisaab',
+                    screen: 'Groups',
                     params: {
                         screen: 'ExpenseDetail',
                         params: {
