@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { sendGroupPushNotification, sendUserPushNotification } from '../lib/push';
 
 const PLAN_NOTIFICATION_TIMEZONE = process.env.PLAN_CRON_TIMEZONE || 'Asia/Kolkata';
+const PLAN_NOTIFICATION_DISPLAY_TIMEZONE = 'Asia/Kolkata';
 const PLAN_REMINDER_INTERVAL_MS = 15 * 60 * 1000;
 const PLAN_REMINDER_ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const PLAN_REMINDER_FINAL_MIN_MS = 60 * 60 * 1000;
@@ -14,45 +15,54 @@ const sentPlanInactivityKeys = new Set<string>();
 const LIVE_NOTIFICATION_VARIANTS = [
     {
         title: 'Your Mandali plan is live',
-        body: (activity: string) => `${activity} is happening now. Open the plan and keep everyone in sync.`,
+        body: (planName: string, groupName: string) =>
+            `${planName} with ${groupName} is happening now. Open the plan and keep everyone in sync.`,
     },
     {
         title: 'The plan just went live',
-        body: (activity: string) => `${activity} has started. Time to jump in with your Mandali.`,
+        body: (planName: string, groupName: string) =>
+            `${planName} with ${groupName} has started. Time to jump in with your Mandali.`,
     },
     {
         title: 'It is go time',
-        body: (activity: string) => `${activity} is live now. Check the plan hub for details and updates.`,
+        body: (planName: string, groupName: string) =>
+            `${planName} with ${groupName} is live now. Check the plan hub for details and updates.`,
     },
 ];
 
 const REMINDER_NOTIFICATION_VARIANTS = [
     {
         title: 'Plan reminder',
-        body: (activity: string, when: string) => `${activity} is coming up ${when}. RSVP or check the details when you have a minute.`,
+        body: (planName: string, groupName: string, when: string) =>
+            `${planName} with ${groupName} is coming up ${when}. RSVP or check the details when you have a minute.`,
     },
     {
         title: 'Your Mandali has plans',
-        body: (activity: string, when: string) => `${activity} is still on for ${when}. A tiny nudge from your calendar corner.`,
+        body: (planName: string, groupName: string, when: string) =>
+            `${planName} with ${groupName} is still on for ${when}. A tiny nudge from your calendar corner.`,
     },
     {
         title: 'Do not miss this plan',
-        body: (activity: string, when: string) => `${activity} is scheduled ${when}. Open Mandali to see who is in.`,
+        body: (planName: string, groupName: string, when: string) =>
+            `${planName} with ${groupName} is scheduled ${when}. Open Mandali to see who is in.`,
     },
 ];
 
 const SCHEDULED_NOTIFICATION_VARIANTS = [
     {
         title: 'New plan on Mandali',
-        body: (activity: string, when: string) => `${activity} is planned for ${when}. Open it up and let the group know if you are in.`,
+        body: (planName: string, groupName: string, when: string) =>
+            `${planName} with ${groupName} is planned for ${when}. Open it up and let the group know if you are in.`,
     },
     {
         title: 'A plan just landed',
-        body: (activity: string, when: string) => `${activity} is now on the calendar for ${when}.`,
+        body: (planName: string, groupName: string, when: string) =>
+            `${planName} with ${groupName} is now on the calendar for ${when}.`,
     },
     {
         title: 'Your Mandali has a new plan',
-        body: (activity: string, when: string) => `${activity} is scheduled for ${when}. Check the details when you can.`,
+        body: (planName: string, groupName: string, when: string) =>
+            `${planName} with ${groupName} is scheduled for ${when}. Check the details when you can.`,
     },
 ];
 
@@ -82,9 +92,26 @@ function pickVariant<T>(variants: T[], seed: string, now = new Date()): T {
 
 function formatPlanWhen(startsAt: string): string {
     const starts = new Date(startsAt);
-    const date = starts.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-    const time = starts.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
-    return `${date} at ${time}`;
+    const date = starts.toLocaleDateString('en-IN', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        timeZone: PLAN_NOTIFICATION_DISPLAY_TIMEZONE,
+    });
+    const time = starts.toLocaleTimeString('en-IN', {
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZone: PLAN_NOTIFICATION_DISPLAY_TIMEZONE,
+    });
+    return `${date} at ${time} IST`;
+}
+
+function planName(plan: { activity_label?: string | null }): string {
+    return plan.activity_label?.trim() || 'Your plan';
+}
+
+function planGroupName(plan: { group?: { name?: string | null } | null }): string {
+    return plan.group?.name?.trim() || 'your Mandali';
 }
 
 function planNotificationData(plan: { id: string; group_id: string }) {
@@ -110,7 +137,7 @@ async function sendPlanLiveNotification(plan: any, now = new Date()) {
         plan.group_id,
         plan.created_by,
         variant.title,
-        variant.body(plan.activity_label || 'Your plan'),
+        variant.body(planName(plan), planGroupName(plan)),
         planNotificationData(plan)
     );
 }
@@ -129,7 +156,7 @@ async function sendPlanReminderNotification(plan: any, now = new Date()) {
             sendUserPushNotification(
                 userId,
                 variant.title,
-                variant.body(plan.activity_label || 'Your plan', formatPlanWhen(plan.starts_at)),
+                variant.body(planName(plan), planGroupName(plan), formatPlanWhen(plan.starts_at)),
                 planNotificationData(plan)
             )
         )
@@ -165,7 +192,7 @@ export async function sendPlanScheduledNotification(plan: any, now = new Date())
         plan.group_id,
         plan.created_by,
         variant.title,
-        variant.body(plan.activity_label || 'A new plan', formatPlanWhen(plan.starts_at)),
+        variant.body(planName(plan), planGroupName(plan), formatPlanWhen(plan.starts_at)),
         planNotificationData(plan)
     );
 }
@@ -180,7 +207,7 @@ export async function runPlanLifecycleCheck(now = new Date()) {
         .eq('status', 'upcoming')
         .lte('starts_at', nowIso)
         .gt('ends_at', nowIso)
-        .select('id, group_id, created_by, activity_label, starts_at');
+        .select('id, group_id, created_by, activity_label, starts_at, group:group_id(name)');
 
     if (activateError) {
         console.error('[PlanLifecycleCron] Failed to activate due plans:', activateError);
@@ -272,7 +299,7 @@ export async function runPlanReminderCheck(now = new Date()) {
 
     const { data: upcomingPlans, error } = await supabase
         .from('plans')
-        .select('id, group_id, created_by, activity_label, starts_at')
+        .select('id, group_id, created_by, activity_label, starts_at, group:group_id(name)')
         .eq('status', 'upcoming')
         .gt('starts_at', nowIso)
         .order('starts_at', { ascending: true });
