@@ -8,9 +8,10 @@ const PLAN_REMINDER_INTERVAL_MS = 15 * 60 * 1000;
 const PLAN_REMINDER_ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const PLAN_REMINDER_FINAL_MIN_MS = 60 * 60 * 1000;
 const PLAN_REMINDER_FINAL_MAX_MS = 2 * 60 * 60 * 1000;
-const PLAN_INACTIVITY_DAYS = 15;
-const sentPlanReminderIds = new Set<string>();
-const sentPlanInactivityKeys = new Set<string>();
+const PLAN_INACTIVITY_START_DAYS = 15;
+const PLAN_INACTIVITY_COOLDOWN_DAYS = 5;
+const PLAN_RSVP_REMINDER_NOTIFICATION_TYPE = 'plan_rsvp_reminder';
+const PLAN_INACTIVITY_NOTIFICATION_TYPE = 'plan_inactivity';
 
 const LIVE_NOTIFICATION_VARIANTS = [
     {
@@ -68,16 +69,18 @@ const SCHEDULED_NOTIFICATION_VARIANTS = [
 
 const INACTIVITY_NOTIFICATION_VARIANTS = [
     {
-        title: (groupName: string) => `No plans with ${groupName} in 15 days`,
+        title: (groupName: string, days: number) => `No plans with ${groupName} in ${days} days`,
         body: (groupName: string) => `${groupName} has been quiet. Start a plan and bring everyone back together.`,
     },
     {
         title: (groupName: string) => `${groupName} needs a new plan`,
-        body: (groupName: string) => `It has been 15 days since the last plan in ${groupName}. Time to make one?`,
+        body: (groupName: string, days: number) =>
+            `It has been ${days} days since the last plan in ${groupName}. Time to make one?`,
     },
     {
         title: (groupName: string) => `Plan something with ${groupName}`,
-        body: (groupName: string) => `No one has made a plan here in 15 days. Pick a time and get the Mandali moving.`,
+        body: (_groupName: string, days: number) =>
+            `No one has made a plan here in ${days} days. Pick a time and get the Mandali moving.`,
     },
 ];
 
@@ -145,44 +148,71 @@ async function sendPlanLiveNotification(plan: any, now = new Date()) {
 async function sendPlanReminderNotification(plan: any, now = new Date()) {
     const variant = pickVariant(REMINDER_NOTIFICATION_VARIANTS, plan.id, now);
     const missingRsvpUserIds = await loadMissingRsvpUserIds(plan);
+    const title = variant.title;
+    const body = variant.body(planName(plan), planGroupName(plan), formatPlanWhen(plan.starts_at));
 
     if (!missingRsvpUserIds.length) {
         console.log(`[PlanLifecycleCron] Plan ${plan.id} has no pending RSVPs. Skipping reminder.`);
         return false;
     }
 
-    await Promise.all(
-        missingRsvpUserIds.map((userId) =>
-            sendUserPushNotification(
+    const results = await Promise.all(
+        missingRsvpUserIds.map(async (userId) => {
+            const dedupeKey = [PLAN_RSVP_REMINDER_NOTIFICATION_TYPE, plan.id, userId].join(':');
+            const reserved = await reserveNotificationDelivery({
+                notificationType: PLAN_RSVP_REMINDER_NOTIFICATION_TYPE,
+                dedupeKey,
+                groupId: plan.group_id,
+                planId: plan.id,
                 userId,
-                variant.title,
-                variant.body(planName(plan), planGroupName(plan), formatPlanWhen(plan.starts_at)),
-                planNotificationData(plan)
-            )
-        )
+                title,
+                body,
+            });
+
+            if (!reserved) return false;
+
+            await sendUserPushNotification(userId, title, body, planNotificationData(plan));
+            await markNotificationDeliverySent(dedupeKey);
+            return true;
+        })
     );
-    return true;
+    return results.some(Boolean);
 }
 
-async function sendPlanInactivityNotification(group: { id: string; name: string }, now = new Date()) {
-    const variant = pickVariant(INACTIVITY_NOTIFICATION_VARIANTS, group.id, now);
-    const memberIds = await loadGroupMemberIds(group.id);
+async function sendPlanInactivityNotificationToUser(
+    group: { id: string; name: string },
+    userId: string,
+    daysInactive: number,
+    lastPlanOrGroupCreatedAt: string,
+    now = new Date()
+) {
+    const variant = pickVariant(INACTIVITY_NOTIFICATION_VARIANTS, `${group.id}:${daysInactive}`, now);
+    const groupName = group.name || 'your group';
+    const title = variant.title(groupName, daysInactive);
+    const body = variant.body(groupName, daysInactive);
+    const dedupeKey = [
+        PLAN_INACTIVITY_NOTIFICATION_TYPE,
+        group.id,
+        userId,
+        lastPlanOrGroupCreatedAt,
+        inactivityCooldownBucket(now),
+    ].join(':');
 
-    if (!memberIds.length) {
-        console.log(`[PlanLifecycleCron] Group ${group.id} has no members for inactivity notification.`);
+    const reserved = await reserveNotificationDelivery({
+        notificationType: PLAN_INACTIVITY_NOTIFICATION_TYPE,
+        dedupeKey,
+        groupId: group.id,
+        userId,
+        title,
+        body,
+    });
+
+    if (!reserved) {
         return false;
     }
 
-    await Promise.all(
-        memberIds.map((userId) =>
-            sendUserPushNotification(
-                userId,
-                variant.title(group.name || 'your group'),
-                variant.body(group.name || 'Your group'),
-                groupPlanNotificationData(group.id)
-            )
-        )
-    );
+    await sendUserPushNotification(userId, title, body, groupPlanNotificationData(group.id));
+    await markNotificationDeliverySent(dedupeKey);
     return true;
 }
 
@@ -233,7 +263,6 @@ export async function runPlanLifecycleCheck(now = new Date()) {
 
     if (completedPlans?.length) {
         console.log(`[PlanLifecycleCron] Moved ${completedPlans.length} ended plan(s) to past.`);
-        completedPlans.forEach((plan) => sentPlanReminderIds.delete(plan.id));
     }
 
     return {
@@ -278,19 +307,103 @@ async function loadMissingRsvpUserIds(plan: { id: string; group_id: string }): P
         .filter((userId): userId is string => typeof userId === 'string' && !rsvpUserIds.has(userId.toLowerCase()));
 }
 
-async function loadGroupMemberIds(groupId: string): Promise<string[]> {
-    const { data, error } = await supabase.from('group_members').select('user_id').eq('group_id', groupId);
+function daysSince(dateString: string, now: Date): number {
+    const timestamp = new Date(dateString).getTime();
+    if (Number.isNaN(timestamp)) return 0;
+    return Math.floor((now.getTime() - timestamp) / (24 * 60 * 60 * 1000));
+}
+
+function inactivityCooldownBucket(now: Date): string {
+    const bucketMs = PLAN_INACTIVITY_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+    return String(Math.floor(now.getTime() / bucketMs));
+}
+
+async function reserveNotificationDelivery({
+    notificationType,
+    dedupeKey,
+    groupId,
+    planId,
+    userId,
+    title,
+    body,
+}: {
+    notificationType: string;
+    dedupeKey: string;
+    groupId?: string | null;
+    planId?: string | null;
+    userId?: string | null;
+    title: string;
+    body: string;
+}) {
+    const { error } = await supabase.from('notification_deliveries').insert({
+        notification_type: notificationType,
+        dedupe_key: dedupeKey,
+        group_id: groupId ?? null,
+        plan_id: planId ?? null,
+        user_id: userId ?? null,
+        title,
+        body,
+        status: 'sending',
+    });
+
+    if (!error) return true;
+
+    if (error.code === '23505') {
+        return false;
+    }
+
+    console.error('[PlanLifecycleCron] Failed to reserve notification delivery:', error);
+    throw error;
+}
+
+async function markNotificationDeliverySent(dedupeKey: string) {
+    const { error } = await supabase
+        .from('notification_deliveries')
+        .update({ status: 'sent', sent_at: new Date().toISOString() })
+        .eq('dedupe_key', dedupeKey);
 
     if (error) {
-        console.error('[PlanLifecycleCron] Failed to load group members:', error);
+        console.error('[PlanLifecycleCron] Failed to mark notification delivery sent:', error);
+        throw error;
+    }
+}
+
+async function loadRecentlyNotifiedGroupIds(groupIds: string[], sinceIso: string): Promise<Set<string>> {
+    if (!groupIds.length) return new Set();
+
+    const { data, error } = await supabase
+        .from('notification_deliveries')
+        .select('group_id')
+        .eq('notification_type', PLAN_INACTIVITY_NOTIFICATION_TYPE)
+        .in('group_id', groupIds)
+        .in('status', ['sending', 'sent'])
+        .gte('sent_at', sinceIso);
+
+    if (error) {
+        console.error('[PlanLifecycleCron] Failed to load recent group inactivity notifications:', error);
         throw error;
     }
 
-    return (data || []).map((member) => member.user_id).filter((userId): userId is string => typeof userId === 'string');
+    return new Set((data || []).map((row) => row.group_id).filter((groupId): groupId is string => typeof groupId === 'string'));
 }
 
-function notificationKeyForGroupInactivity(groupId: string, lastPlanOrGroupCreatedAt: string | null | undefined): string {
-    return `${groupId}:${lastPlanOrGroupCreatedAt || 'no-plan-date'}`;
+async function loadRecentlyNotifiedUserIds(userIds: string[], sinceIso: string): Promise<Set<string>> {
+    if (!userIds.length) return new Set();
+
+    const { data, error } = await supabase
+        .from('notification_deliveries')
+        .select('user_id')
+        .eq('notification_type', PLAN_INACTIVITY_NOTIFICATION_TYPE)
+        .in('user_id', userIds)
+        .in('status', ['sending', 'sent'])
+        .gte('sent_at', sinceIso);
+
+    if (error) {
+        console.error('[PlanLifecycleCron] Failed to load recent user inactivity notifications:', error);
+        throw error;
+    }
+
+    return new Set((data || []).map((row) => row.user_id).filter((userId): userId is string => typeof userId === 'string'));
 }
 
 export async function runPlanReminderCheck(now = new Date()) {
@@ -314,9 +427,7 @@ export async function runPlanReminderCheck(now = new Date()) {
         return { reminded: 0 };
     }
 
-    const eligiblePlans = upcomingPlans.filter(
-        (plan) => !sentPlanReminderIds.has(plan.id) && isPlanReminderWindow(plan.starts_at, now)
-    );
+    const eligiblePlans = upcomingPlans.filter((plan) => isPlanReminderWindow(plan.starts_at, now));
 
     if (!eligiblePlans.length) {
         console.log('[PlanLifecycleCron] No plans are in the RSVP reminder window.');
@@ -326,7 +437,6 @@ export async function runPlanReminderCheck(now = new Date()) {
     const results = await Promise.all(
         eligiblePlans.map(async (plan) => {
             const sent = await sendPlanReminderNotification(plan, now);
-            if (sent) sentPlanReminderIds.add(plan.id);
             return sent;
         })
     );
@@ -336,7 +446,7 @@ export async function runPlanReminderCheck(now = new Date()) {
 }
 
 export async function runPlanInactivityCheck(now = new Date()) {
-    const cutoff = new Date(now.getTime() - PLAN_INACTIVITY_DAYS * 24 * 60 * 60 * 1000);
+    const cutoff = new Date(now.getTime() - PLAN_INACTIVITY_START_DAYS * 24 * 60 * 60 * 1000);
     const cutoffIso = cutoff.toISOString();
     console.log(`[PlanLifecycleCron] Checking groups without plans since ${cutoffIso}`);
 
@@ -393,23 +503,85 @@ export async function runPlanInactivityCheck(now = new Date()) {
         }
     }
 
-    const results = await Promise.all(
-        inactiveGroups.map(async (group) => {
-            const key = notificationKeyForGroupInactivity(
-                group.id,
-                latestPlanCreatedAtByGroup.get(group.id) || group.created_at
-            );
-
-            if (sentPlanInactivityKeys.has(key)) return false;
-
-            const sent = await sendPlanInactivityNotification(group, now);
-            if (sent) sentPlanInactivityKeys.add(key);
-            return sent;
+    const inactiveCandidates = inactiveGroups
+        .map((group) => {
+            const lastPlanOrGroupCreatedAt = latestPlanCreatedAtByGroup.get(group.id) || group.created_at;
+            return {
+                group,
+                lastPlanOrGroupCreatedAt,
+                daysInactive: daysSince(lastPlanOrGroupCreatedAt, now),
+            };
         })
+        .filter((candidate) => candidate.daysInactive >= PLAN_INACTIVITY_START_DAYS)
+        .sort((a, b) => b.daysInactive - a.daysInactive);
+
+    if (!inactiveCandidates.length) {
+        console.log('[PlanLifecycleCron] No groups have reached the inactivity threshold.');
+        return { reminded: 0 };
+    }
+
+    const cooldownSinceIso = new Date(
+        now.getTime() - PLAN_INACTIVITY_COOLDOWN_DAYS * 24 * 60 * 60 * 1000
+    ).toISOString();
+    const inactiveGroupIds = inactiveCandidates.map((candidate) => candidate.group.id);
+    const recentlyNotifiedGroupIds = await loadRecentlyNotifiedGroupIds(inactiveGroupIds, cooldownSinceIso);
+    const eligibleCandidates = inactiveCandidates.filter(
+        (candidate) => !recentlyNotifiedGroupIds.has(candidate.group.id)
     );
 
+    if (!eligibleCandidates.length) {
+        console.log('[PlanLifecycleCron] Inactive groups were already notified within the cooldown window.');
+        return { reminded: 0 };
+    }
+
+    const { data: memberships, error: membershipsError } = await supabase
+        .from('group_members')
+        .select('group_id, user_id')
+        .in(
+            'group_id',
+            eligibleCandidates.map((candidate) => candidate.group.id)
+        );
+
+    if (membershipsError) {
+        console.error('[PlanLifecycleCron] Failed to load memberships for inactive groups:', membershipsError);
+        throw membershipsError;
+    }
+
+    const groupById = new Map(eligibleCandidates.map((candidate) => [candidate.group.id, candidate]));
+    const userIds = Array.from(new Set((memberships || []).map((row) => row.user_id).filter(Boolean)));
+    const recentlyNotifiedUserIds = await loadRecentlyNotifiedUserIds(userIds, cooldownSinceIso);
+    const candidateByUserId = new Map<string, (typeof eligibleCandidates)[number]>();
+
+    for (const membership of memberships || []) {
+        if (typeof membership.user_id !== 'string' || recentlyNotifiedUserIds.has(membership.user_id)) continue;
+
+        const candidate = groupById.get(membership.group_id);
+        if (!candidate) continue;
+
+        const current = candidateByUserId.get(membership.user_id);
+        if (!current || candidate.daysInactive > current.daysInactive) {
+            candidateByUserId.set(membership.user_id, candidate);
+        }
+    }
+
+    if (!candidateByUserId.size) {
+        console.log('[PlanLifecycleCron] All members of inactive groups were already notified within the cooldown window.');
+        return { reminded: 0 };
+    }
+
+    const results = await Promise.all(
+        Array.from(candidateByUserId.entries()).map(([userId, candidate]) =>
+            sendPlanInactivityNotificationToUser(
+                candidate.group,
+                userId,
+                candidate.daysInactive,
+                candidate.lastPlanOrGroupCreatedAt,
+                now
+            )
+        )
+    );
     const reminded = results.filter(Boolean).length;
-    console.log(`[PlanLifecycleCron] Sent inactivity notification(s) for ${reminded} group(s).`);
+    console.log(`[PlanLifecycleCron] Sent inactivity notification(s) to ${reminded} member(s).`);
     return { reminded };
 }
 
@@ -462,5 +634,5 @@ export function initPlanLifecycleCron() {
 
     console.log('[PlanLifecycleCron] Scheduled: every 15 minutes at :00, :15, :30, :45');
     console.log('[PlanLifecycleCron] RSVP reminders scheduled every 15 minutes');
-    console.log('[PlanLifecycleCron] Plan inactivity reminders scheduled daily at 10:00');
+    console.log('[PlanLifecycleCron] Plan inactivity checker scheduled daily at 10:00');
 }
