@@ -18,7 +18,7 @@ const BlinkWaitingRoomScreen = () => {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation<any>();
     const route = useRoute();
-    const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};
+    const { gameCode, groupId, planId } = (route.params as { gameCode: string; groupId: string; planId?: string }) || {};
     const primaryColor = '#b30069';
 
     const {
@@ -35,6 +35,7 @@ const BlinkWaitingRoomScreen = () => {
         game,
         gameCode: gameCode || '',
         groupId: groupId || '',
+        planId,
         isParticipant
     });
 

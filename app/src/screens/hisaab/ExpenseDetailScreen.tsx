@@ -22,7 +22,7 @@ const ExpenseDetailScreen = () => {
     const { user } = useAuthStore();
     const queryClient = useQueryClient();
 
-    const { item: initialItem, groupId: initialGroupId, groupName: initialGroupName, members: initialMembers, expenseId, isFromDeepLink } = route.params || {};
+    const { item: initialItem, groupId: initialGroupId, groupName: initialGroupName, planId, members: initialMembers, expenseId, isFromDeepLink } = route.params || {};
 
     const { data: deepLinkData, isLoading: isDeepLinkLoading, error: deepLinkError } = useQuery({
         queryKey: ['hisaab-expense', expenseId],
@@ -68,8 +68,8 @@ const ExpenseDetailScreen = () => {
         mutationFn: () =>
             isSettlement ? api.deleteHisaabSettlement(item.id) : api.deleteHisaabExpense(item.id),
         onSuccess: () => {
-            queryClient.refetchQueries({ queryKey: ['hisaab-ledger', groupId] });
-            queryClient.refetchQueries({ queryKey: ['hisaab-balances'] });
+            queryClient.refetchQueries({ queryKey: ['hisaab-ledger', groupId, planId] });
+            queryClient.refetchQueries({ queryKey: ['hisaab-balances', planId] });
             navigation.goBack();
         }
     });
@@ -90,8 +90,8 @@ const ExpenseDetailScreen = () => {
     }, [deleteMutation]);
 
     const handleEdit = useCallback(() => {
-        navigation.navigate('AddExpense', { groupId, groupName, members, initialExpense: item });
-    }, [navigation, groupId, groupName, members, item]);
+        navigation.navigate('AddExpense', { groupId, groupName, planId, members, initialExpense: item });
+    }, [navigation, groupId, groupName, planId, members, item]);
 
     const paidByLabel = isPaidByMe ? 'You' : item.paidByName;
     const addedByLabel = isAddedByMe ? 'You' : item.addedByName;

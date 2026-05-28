@@ -16,17 +16,18 @@ import { LobbyEmptyState } from '../../components/games/lobby/LobbyEmptyState';
 
 interface LobbyProps {
     groupId: string;
+    planId?: string;
     isTablet: boolean;
     primaryColor: string;
 }
 
-export const HousieLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProps) => {
+export const HousieLobbyScreen = ({ groupId, planId, isTablet, primaryColor }: LobbyProps) => {
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
     const [activeTab, setActiveTab] = useState<'active' | 'scheduled'>('active');
 
     // Housie Specific Hooks
-    const data = useHousieGroupLobby(groupId);
+    const data = useHousieGroupLobby(groupId, planId);
     useHousieLobbySync(groupId);
 
     const handleAction = useCallback((game: any) => {
@@ -35,22 +36,22 @@ export const HousieLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProp
 
         if (status === 'waiting' || status === 'scheduled') {
             if (myTicketCount > 0 || isHost) {
-                navigation.navigate('HousieWaitingRoom', { gameCode: game_code, groupId });
+                navigation.navigate('HousieWaitingRoom', { gameCode: game_code, groupId, planId });
             } else {
-                navigation.navigate('HousieJoinGame', { gameCode: game_code, groupId });
+                navigation.navigate('HousieJoinGame', { gameCode: game_code, groupId, planId });
             }
         } else if (status === 'starting') {
-            navigation.navigate('HousieStarting', { gameCode: game_code, groupId });
+            navigation.navigate('HousieStarting', { gameCode: game_code, groupId, planId });
         } else if (status === 'active') {
             if (myTicketCount > 0) {
-                navigation.navigate('HousieTicket', { gameCode: game_code, groupId });
+                navigation.navigate('HousieTicket', { gameCode: game_code, groupId, planId });
             } else if (isHost && game.settings?.callingMode === 'manual') {
-                navigation.navigate('HousieGame', { gameCode: game_code, groupId });
+                navigation.navigate('HousieGame', { gameCode: game_code, groupId, planId });
             } else {
-                navigation.navigate('HousieSpectator', { gameCode: game_code, groupId });
+                navigation.navigate('HousieSpectator', { gameCode: game_code, groupId, planId });
             }
         }
-    }, [navigation, data.userId, groupId]);
+    }, [navigation, data.userId, groupId, planId]);
 
     const currentGames = useMemo(() => 
         activeTab === 'active' ? data.activeGames : data.scheduledGames, 
@@ -80,7 +81,7 @@ export const HousieLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProp
         >
             {/* Host Card */}
             <TouchableOpacity
-                onPress={() => navigation.navigate('HousieHostSettings', { groupId })}
+                onPress={() => navigation.navigate('HousieHostSettings', { groupId, planId })}
                 activeOpacity={0.9}
                 style={{ height: isTablet ? 180 : 84, backgroundColor: primaryColor }}
                 className="w-full mt-4 mb-10 rounded-[32px] flex-row items-center px-6 shadow-lg"

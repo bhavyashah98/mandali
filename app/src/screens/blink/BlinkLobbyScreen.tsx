@@ -16,17 +16,18 @@ import { LobbyEmptyState } from '../../components/games/lobby/LobbyEmptyState';
 
 interface LobbyProps {
     groupId: string;
+    planId?: string;
     isTablet: boolean;
     primaryColor: string;
 }
 
-export const BlinkLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProps) => {
+export const BlinkLobbyScreen = ({ groupId, planId, isTablet, primaryColor }: LobbyProps) => {
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
     const [activeTab, setActiveTab] = useState<'active' | 'scheduled'>('active');
 
     // Blink Specific Hooks
-    const data = useBlinkGroupLobby(groupId);
+    const data = useBlinkGroupLobby(groupId, planId);
 
     useBlinkLobbySync(groupId);
 
@@ -37,16 +38,16 @@ export const BlinkLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProps
 
         if (status === 'waiting' || status === 'scheduled') {
             if (isParticipant || isHost) {
-                navigation.navigate('BlinkWaitingRoom', { gameCode: game_code, groupId });
+                navigation.navigate('BlinkWaitingRoom', { gameCode: game_code, groupId, planId });
             } else {
-                navigation.navigate('BlinkJoin', { gameCode: game_code, groupId });
+                navigation.navigate('BlinkJoin', { gameCode: game_code, groupId, planId });
             }
         } else if (status === 'starting') {
-            navigation.navigate('BlinkStarting', { gameCode: game_code, groupId });
+            navigation.navigate('BlinkStarting', { gameCode: game_code, groupId, planId });
         } else if (status === 'active') {
-            navigation.navigate('BlinkGame', { gameCode: game_code, groupId });
+            navigation.navigate('BlinkGame', { gameCode: game_code, groupId, planId });
         }
-    }, [navigation, data.userId, groupId]);
+    }, [navigation, data.userId, groupId, planId]);
 
     const currentGames = useMemo(() =>
         activeTab === 'active' ? data.activeGames : data.scheduledGames,
@@ -76,7 +77,7 @@ export const BlinkLobbyScreen = ({ groupId, isTablet, primaryColor }: LobbyProps
         >
             {/* Host Card */}
             <TouchableOpacity
-                onPress={() => navigation.navigate('BlinkHostSettings', { groupId })}
+                onPress={() => navigation.navigate('BlinkHostSettings', { groupId, planId })}
                 activeOpacity={0.9}
                 style={{ height: isTablet ? 180 : 84, backgroundColor: primaryColor }}
                 className="w-full mt-4 mb-10 rounded-[32px] flex-row items-center px-6 shadow-lg"

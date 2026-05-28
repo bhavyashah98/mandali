@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
 import * as api from '../../lib/api';
 
-export const useGroupHisaabData = (groupId: string) => {
+export const useGroupHisaabData = (groupId: string, planId?: string) => {
     const queryClient = useQueryClient();
     const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -15,21 +15,21 @@ export const useGroupHisaabData = (groupId: string) => {
     });
 
     const { data: expenses = [], isLoading: ledgerLoading, refetch: refetchLedger } = useQuery({
-        queryKey: ['hisaab-ledger', groupId],
-        queryFn: () => api.fetchHisaabLedger(groupId),
+        queryKey: ['hisaab-ledger', groupId, planId],
+        queryFn: () => api.fetchHisaabLedger(groupId, planId),
         enabled: !!groupId
     });
 
     const { data: rawBalances = [], isLoading: balancesLoading, refetch: refetchBalances } = useQuery({
-        queryKey: ['hisaab-balances'],
-        queryFn: api.fetchHisaabBalances
+        queryKey: ['hisaab-balances', planId],
+        queryFn: () => api.fetchHisaabBalances(planId)
     });
 
     useFocusEffect(
         useCallback(() => {
-            queryClient.invalidateQueries({ queryKey: ['hisaab-ledger', groupId] });
-            queryClient.invalidateQueries({ queryKey: ['hisaab-balances'] });
-        }, [groupId, queryClient])
+            queryClient.invalidateQueries({ queryKey: ['hisaab-ledger', groupId, planId] });
+            queryClient.invalidateQueries({ queryKey: ['hisaab-balances', planId] });
+        }, [groupId, planId, queryClient])
     );
 
     const currentGroupBalanceInfo = rawBalances.find((b: any) => b.groupId === groupId);

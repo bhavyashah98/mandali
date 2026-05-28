@@ -4,14 +4,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 
-export const useSettleBalance = (groupId: string) => {
+export const useSettleBalance = (groupId: string, planId?: string) => {
     const queryClient = useQueryClient();
     const [amount, setAmount] = useState('');
     const [selectedUser, setSelectedUser] = useState<string | null>(null);
 
     const { data: groupMembers = [], isLoading: membersLoading } = useQuery({
-        queryKey: ['hisaab-members', groupId],
-        queryFn: () => api.fetchHisaabMembers(groupId),
+        queryKey: ['hisaab-members', groupId, planId],
+        queryFn: () => api.fetchHisaabMembers(groupId, planId),
         enabled: !!groupId,
         staleTime: 0,
         refetchOnMount: 'always'
@@ -31,10 +31,10 @@ export const useSettleBalance = (groupId: string) => {
 
     const settleMutation = useMutation({
         mutationFn: ({ fromUserId, toUserId, amount }: { fromUserId: string, toUserId: string, amount: number }) =>
-            api.settleHisaabBalance(groupId, toUserId, amount, fromUserId),
+            api.settleHisaabBalance(groupId, toUserId, amount, fromUserId, planId),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['hisaab-ledger', groupId] });
-            queryClient.invalidateQueries({ queryKey: ['hisaab-balances'] });
+            queryClient.invalidateQueries({ queryKey: ['hisaab-ledger', groupId, planId] });
+            queryClient.invalidateQueries({ queryKey: ['hisaab-balances', planId] });
         }
     });
 
@@ -78,5 +78,4 @@ export const useSettleBalance = (groupId: string) => {
         loading: settleMutation.isPending || membersLoading
     };
 };
-
 

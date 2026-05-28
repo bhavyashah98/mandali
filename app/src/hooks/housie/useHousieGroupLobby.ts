@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { fetchGroupDetail, fetchHousieGroupGames, fetchActiveHousieGame } from '../../lib/api';
 
-export const useHousieGroupLobby = (groupId: string | undefined) => {
+export const useHousieGroupLobby = (groupId: string | undefined, planId?: string) => {
     const { user } = useAuthStore();
 
     // 1. Fetch Group Details (Header)
@@ -20,8 +20,8 @@ export const useHousieGroupLobby = (groupId: string | undefined) => {
         isFetching: isGamesFetching,
         refetch: refetchGames
     } = useQuery({
-        queryKey: ['housieGroupGames', groupId],
-        queryFn: () => fetchHousieGroupGames(groupId!),
+        queryKey: ['housieGroupGames', groupId, planId],
+        queryFn: () => fetchHousieGroupGames(groupId!, planId),
         enabled: !!groupId,
         refetchOnWindowFocus: true,
     });

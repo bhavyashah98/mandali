@@ -87,7 +87,7 @@ const generateGameCode = (): string => {
  */
 router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const { groupId, ticketPrice, settings, title, scheduledAt, prizes } = req.body;
+        const { groupId, ticketPrice, settings, title, scheduledAt, prizes, planId } = req.body;
         const userId = req.userId!;
         const gameCode = generateGameCode();
 
@@ -112,22 +112,25 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
         const initialStatus = scheduledAt ? 'scheduled' : 'waiting';
 
         // 4. Create the game
+        const insertPayload: any = {
+            game_code: gameCode,
+            group_id: groupId,
+            host_id: userId,
+            title: title || 'Housie Game',
+            called_numbers: [],
+            draw_sequence: drawSequence,
+            status: initialStatus,
+            scheduled_at: scheduledAt || null,
+            ticket_price: ticketPrice || 100,
+            settings: settings || null,
+            prizes: prizes || [],
+            last_activity_at: new Date().toISOString()
+        };
+        if (planId) insertPayload.plan_id = planId;
+
         const { data, error } = await supabase
             .from('housie_games')
-            .insert({
-                game_code: gameCode,
-                group_id: groupId,
-                host_id: userId,
-                title: title || 'Housie Game',
-                called_numbers: [],
-                draw_sequence: drawSequence,
-                status: initialStatus,
-                scheduled_at: scheduledAt || null,
-                ticket_price: ticketPrice || 100,
-                settings: settings || null,
-                prizes: prizes || [],
-                last_activity_at: new Date().toISOString()
-            })
+            .insert(insertPayload)
             .select()
             .single();
 
@@ -195,22 +198,27 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/active/:groupId', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const { groupId } = req.params;
+        const planId = req.query.planId as string | undefined;
         // 1. Get the current active game (not ended)
-        const { data: activeGame } = await supabase
+        let activeQuery = supabase
             .from('housie_games')
             .select('*')
             .eq('group_id', groupId)
-            .neq('status', 'ended')
+            .neq('status', 'ended');
+        if (planId) activeQuery = activeQuery.eq('plan_id', planId);
+        const { data: activeGame } = await activeQuery
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
 
         // 2. Get the most recent ended game for the leaderboard
-        const { data: lastGame } = await supabase
+        let lastQuery = supabase
             .from('housie_games')
             .select('*')
             .eq('group_id', groupId)
-            .eq('status', 'ended')
+            .eq('status', 'ended');
+        if (planId) lastQuery = lastQuery.eq('plan_id', planId);
+        const { data: lastGame } = await lastQuery
             .order('last_activity_at', { ascending: false })
             .limit(1)
             .maybeSingle();
@@ -239,16 +247,19 @@ router.get('/group/:groupId/list', authMiddleware, async (req: AuthRequest, res)
     try {
         const { groupId } = req.params;
         const userId = req.userId!;
+        const planId = req.query.planId as string | undefined;
 
         // 1. Fetch all non-ended games
-        const { data: games, error } = await supabase
+        let gamesQuery = supabase
             .from('housie_games')
             .select(`
                 *,
                 host:users!host_id(name, avatar_url)
             `)
             .eq('group_id', groupId)
-            .neq('status', 'ended')
+            .neq('status', 'ended');
+        if (planId) gamesQuery = gamesQuery.eq('plan_id', planId);
+        const { data: games, error } = await gamesQuery
             .order('scheduled_at', { ascending: true, nullsFirst: true })
             .order('created_at', { ascending: false });
 
@@ -1011,6 +1022,19 @@ router.get('/group/:groupId/leaderboard', authMiddleware, async (req: AuthReques
     try {
         const { groupId } = req.params;
         const period = (req.query.period as string) || 'all_time';
+        const planId = req.query.planId as string | undefined;
+
+        let gameIds: string[] = [];
+        if (planId) {
+            const { data: games, error: gamesError } = await supabase
+                .from('housie_games')
+                .select('id')
+                .eq('group_id', groupId)
+                .eq('plan_id', planId);
+            if (gamesError) throw gamesError;
+            gameIds = (games || []).map((game) => game.id);
+            if (gameIds.length === 0) return res.json({ leaderboard: [] });
+        }
 
         let query = supabase
             .from('game_results')
@@ -1023,6 +1047,7 @@ router.get('/group/:groupId/leaderboard', authMiddleware, async (req: AuthReques
                 users(name, avatar_url)
             `)
             .eq('group_id', groupId);
+        if (planId) query = query.in('game_id', gameIds);
 
         // Apply date filter
         const now = new Date();

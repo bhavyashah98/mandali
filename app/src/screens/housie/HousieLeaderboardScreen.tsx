@@ -32,18 +32,18 @@ const HousieLeaderboardScreen = () => {
     const route = useRoute();
     const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
-    const { groupId, groupName } = (route.params as any) || {};
+    const { groupId, groupName, planId } = (route.params as any) || {};
     const { user } = useAuthStore();
     const [activePeriod, setActivePeriod] = useState<Period>('all_time');
     const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
 
     const { data, isLoading, isError } = useQuery({
-        queryKey: ['groupLeaderboard', groupId, activePeriod],
+        queryKey: ['groupLeaderboard', groupId, planId, activePeriod],
         queryFn: async () => {
             const headers = await getAuthHeaders();
             const res = await axios.get(
-                `${API_URL}/housie/group/${groupId}/leaderboard?period=${activePeriod}`,
-                { headers }
+                `${API_URL}/housie/group/${groupId}/leaderboard`,
+                { headers, params: { period: activePeriod, planId } }
             );
             return res.data;
         },

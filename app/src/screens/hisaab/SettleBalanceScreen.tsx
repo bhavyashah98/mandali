@@ -24,7 +24,7 @@ const SettleBalanceScreen = () => {
     const navigation = useNavigation();
     const route = useRoute<any>();
     const isTablet = useIsTablet();
-    const { groupId, groupName } = route.params;
+    const { groupId, groupName, planId } = route.params;
 
     const { width: screenWidth } = useWindowDimensions();
     const {
@@ -35,7 +35,7 @@ const SettleBalanceScreen = () => {
         activeMembers,
         handleSettle,
         loading
-    } = useSettleBalance(groupId);
+    } = useSettleBalance(groupId, planId);
 
     const amountFontSize = isTablet ? 84 : Math.min(60, screenWidth / 6);
 

@@ -21,7 +21,7 @@ const BlinkJoinScreen = () => {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation<any>();
     const route = useRoute();
-    const { gameCode: passedGameCode, groupId } = (route.params as { gameCode?: string, groupId?: string }) || {};
+    const { gameCode: passedGameCode, groupId, planId } = (route.params as { gameCode?: string, groupId?: string, planId?: string }) || {};
     const queryClient = useQueryClient();
 
     const [gameCode] = useState(passedGameCode || '');
@@ -57,7 +57,8 @@ const BlinkJoinScreen = () => {
 
                 navigation.replace('BlinkWaitingRoom', {
                     gameCode: gameCode.toUpperCase(),
-                    groupId: groupId
+                    groupId: groupId,
+                    planId
                 });
             }
         } catch (error: any) {

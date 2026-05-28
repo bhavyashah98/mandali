@@ -23,7 +23,7 @@ const BlinkStartingScreen = () => {
     const route = useRoute();
     const insets = useSafeAreaInsets();
     const { user } = useAuthStore();
-    const { gameCode, groupId } = route.params as { gameCode: string; groupId: string };
+    const { gameCode, groupId, planId } = route.params as { gameCode: string; groupId: string; planId?: string };
     const queryClient = useQueryClient();
 
     const [activeTab, setActiveTab] = useState<'prizes' | 'players'>('prizes');
@@ -42,7 +42,7 @@ const BlinkStartingScreen = () => {
     } = useBlinkStartingData(gameCode);
 
     // 2. Sync Hook — socket room, auto-activate, navigation
-    useBlinkStartingSync(gameCode, game, user, refetch, groupId);
+    useBlinkStartingSync(gameCode, game, user, refetch, groupId, planId);
 
     // Pulse animation loop
     useEffect(() => {

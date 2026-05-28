@@ -11,7 +11,7 @@ import * as Speech from 'expo-speech';
 
 import { announceHousieNumber } from '../../utils/housieVoice';
 
-export const useHousieGameEngine = (gameCode: string, groupId: string) => {
+export const useHousieGameEngine = (gameCode: string, groupId: string, planId?: string) => {
     const queryClient = useQueryClient();
     const navigation = useNavigation<any>();
     const [secondsSinceLastCall, setSecondsSinceLastCall] = useState(0);
@@ -112,11 +112,11 @@ export const useHousieGameEngine = (gameCode: string, groupId: string) => {
     // 7. Navigation logic for game end
     useEffect(() => {
         if (isGameEnded || game?.status === 'ended') {
-            navigation.replace('HousieResults', { gameCode, groupId });
+            navigation.replace('HousieResults', { gameCode, groupId, planId });
             // Clean up global sync only after we move to results or leave
             setActiveGame(null); 
         }
-    }, [isGameEnded, game?.status, gameCode, groupId, navigation, setActiveGame]);
+    }, [isGameEnded, game?.status, gameCode, groupId, planId, navigation, setActiveGame]);
 
     return {
         game,

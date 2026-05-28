@@ -193,7 +193,7 @@ export interface HousieSettings {
     prizes?: any[];
 }
 
-export const createHousieGame = async (groupId: string, settings?: HousieSettings, title?: string, scheduledAt?: string, ticketPrice: number = 100): Promise<any> => {
+export const createHousieGame = async (groupId: string, settings?: HousieSettings, title?: string, scheduledAt?: string, ticketPrice: number = 100, planId?: string): Promise<any> => {
     const headers = await getAuthHeaders();
     // Move prizes out of settings to the top level for the backend to handle specifically if needed
     const { prizes, ...otherSettings } = settings || {};
@@ -203,7 +203,8 @@ export const createHousieGame = async (groupId: string, settings?: HousieSetting
         prizes,
         title,
         scheduledAt,
-        ticketPrice
+        ticketPrice,
+        planId
     }, { headers });
     return response.data;
 };
@@ -227,15 +228,15 @@ export const fetchTicketById = async (ticketId: string) => {
     return response.data?.ticket;
 };
 
-export const fetchActiveHousieGame = async (groupId: string): Promise<{ activeGame: any, lastGame: any }> => {
+export const fetchActiveHousieGame = async (groupId: string, planId?: string): Promise<{ activeGame: any, lastGame: any }> => {
     const headers = await getAuthHeaders();
-    const response = await axios.get(`${API_URL}/housie/active/${groupId}?t=${Date.now()}`, { headers });
+    const response = await axios.get(`${API_URL}/housie/active/${groupId}`, { headers, params: { t: Date.now(), planId } });
     return response.data;
 };
 
-export const fetchHousieGroupGames = async (groupId: string): Promise<{ games: any[] }> => {
+export const fetchHousieGroupGames = async (groupId: string, planId?: string): Promise<{ games: any[] }> => {
     const headers = await getAuthHeaders();
-    const response = await axios.get(`${API_URL}/housie/group/${groupId}/list`, { headers });
+    const response = await axios.get(`${API_URL}/housie/group/${groupId}/list`, { headers, params: { planId } });
     return response.data;
 };
 
@@ -330,13 +331,13 @@ export const transferOwnership = async (groupId: string, newAdminUserId: string)
 };
 
 // --- MEMORIES API ---
-export const fetchMemories = async (groupId: string, page: number = 0, limit: number = 20) => {
+export const fetchMemories = async (groupId: string, page: number = 0, limit: number = 20, planId?: string) => {
     const headers = await getAuthHeaders();
-    const response = await axios.get(`${API_URL}/memories/group/${groupId}?page=${page}&limit=${limit}`, { headers });
+    const response = await axios.get(`${API_URL}/memories/group/${groupId}`, { headers, params: { page, limit, planId } });
     return response.data;
 };
 
-export const createMemory = async (memoryData: { groupId: string, imageUrls: string[], story?: string, memoryDate?: Date }) => {
+export const createMemory = async (memoryData: { groupId: string, imageUrls: string[], story?: string, memoryDate?: Date, planId?: string }) => {
     const headers = await getAuthHeaders();
     const response = await axios.post(`${API_URL}/memories`, memoryData, { headers });
     return response.data;
@@ -406,21 +407,21 @@ export const fetchBlockedUsers = async () => {
 };
 
 // --- HISAAB API ---
-export const fetchHisaabBalances = async () => {
+export const fetchHisaabBalances = async (planId?: string) => {
     const headers = await getAuthHeaders();
-    const response = await axios.get(`${API_URL}/hisaab/balances`, { headers });
+    const response = await axios.get(`${API_URL}/hisaab/balances`, { headers, params: { planId } });
     return response.data.balances;
 };
 
-export const fetchHisaabLedger = async (groupId: string) => {
+export const fetchHisaabLedger = async (groupId: string, planId?: string) => {
     const headers = await getAuthHeaders();
-    const response = await axios.get(`${API_URL}/hisaab/ledger/${groupId}`, { headers });
+    const response = await axios.get(`${API_URL}/hisaab/ledger/${groupId}`, { headers, params: { planId } });
     return response.data.ledger;
 };
 
-export const fetchHisaabMembers = async (groupId: string) => {
+export const fetchHisaabMembers = async (groupId: string, planId?: string) => {
     const headers = await getAuthHeaders();
-    const response = await axios.get(`${API_URL}/hisaab/members/${groupId}`, { headers });
+    const response = await axios.get(`${API_URL}/hisaab/members/${groupId}`, { headers, params: { planId } });
     return response.data.members;
 };
 
@@ -430,9 +431,9 @@ export const createHisaabExpense = async (expenseData: any) => {
     return response.data;
 };
 
-export const settleHisaabBalance = async (groupId: string, toUserId: string, amount: number, fromUserId?: string) => {
+export const settleHisaabBalance = async (groupId: string, toUserId: string, amount: number, fromUserId?: string, planId?: string) => {
     const headers = await getAuthHeaders();
-    const response = await axios.post(`${API_URL}/hisaab/settle`, { groupId, fromUserId, toUserId, amount }, { headers });
+    const response = await axios.post(`${API_URL}/hisaab/settle`, { groupId, fromUserId, toUserId, amount, planId }, { headers });
     return response.data;
 };
 
@@ -467,9 +468,9 @@ export const fetchHisaabExpenseDetail = async (id: string) => {
 };
 
 // --- BLINK API ---
-export const fetchBlinkGroupGames = async (groupId: string): Promise<{ games: any[] }> => {
+export const fetchBlinkGroupGames = async (groupId: string, planId?: string): Promise<{ games: any[] }> => {
     const headers = await getAuthHeaders();
-    const response = await axios.get(`${API_URL}/blink/games/group/${groupId}`, { headers });
+    const response = await axios.get(`${API_URL}/blink/games/group/${groupId}`, { headers, params: { planId } });
     return response.data;
 };
 
@@ -488,6 +489,7 @@ export const createBlinkGame = async (gameData: {
     theme?: string;
     isScheduled?: boolean;
     scheduledAt?: string;
+    planId?: string;
 }): Promise<any> => {
     const headers = await getAuthHeaders();
     const endpoint = gameData.isScheduled ? `${API_URL}/blink/games/schedule` : `${API_URL}/blink/games`;

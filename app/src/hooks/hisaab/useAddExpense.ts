@@ -10,7 +10,7 @@ export interface ExpenseParticipant {
     userName: string;
 }
 
-export const useAddExpense = (groupId: string, initialMembers: any[], initialExpense?: any) => {
+export const useAddExpense = (groupId: string, initialMembers: any[], initialExpense?: any, planId?: string) => {
     const queryClient = useQueryClient();
     const { user } = useAuthStore();
     const [amount, setAmount] = useState(initialExpense ? initialExpense.amount.toString() : '');
@@ -28,8 +28,8 @@ export const useAddExpense = (groupId: string, initialMembers: any[], initialExp
     });
 
     const { data: members = [], isLoading: membersLoading } = useQuery({
-        queryKey: ['hisaab-members', groupId],
-        queryFn: () => api.fetchHisaabMembers(groupId),
+        queryKey: ['hisaab-members', groupId, planId],
+        queryFn: () => api.fetchHisaabMembers(groupId, planId),
         enabled: !!groupId,
         initialData: initialMembers,
     });
@@ -43,8 +43,8 @@ export const useAddExpense = (groupId: string, initialMembers: any[], initialExp
     const addMutation = useMutation({
         mutationFn: api.createHisaabExpense,
         onSuccess: () => {
-            queryClient.refetchQueries({ queryKey: ['hisaab-ledger', groupId] });
-            queryClient.refetchQueries({ queryKey: ['hisaab-balances'] });
+            queryClient.refetchQueries({ queryKey: ['hisaab-ledger', groupId, planId] });
+            queryClient.refetchQueries({ queryKey: ['hisaab-balances', planId] });
         },
     });
 
@@ -52,8 +52,8 @@ export const useAddExpense = (groupId: string, initialMembers: any[], initialExp
         mutationFn: ({ id, data }: { id: string, data: any }) => api.updateHisaabExpense(id, data),
         onSuccess: async () => {
             await Promise.all([
-                queryClient.refetchQueries({ queryKey: ['hisaab-ledger', groupId] }),
-                queryClient.refetchQueries({ queryKey: ['hisaab-balances'] })
+                queryClient.refetchQueries({ queryKey: ['hisaab-ledger', groupId, planId] }),
+                queryClient.refetchQueries({ queryKey: ['hisaab-balances', planId] })
             ]);
         },
     });
@@ -153,7 +153,8 @@ export const useAddExpense = (groupId: string, initialMembers: any[], initialExp
             participants,
             expenseType: 'split_and_settle',
             paidByUserId,
-            paidByName
+            paidByName,
+            planId
         };
 
         try {
@@ -166,7 +167,7 @@ export const useAddExpense = (groupId: string, initialMembers: any[], initialExp
         } catch (err: any) {
             Alert.alert('Error', err.message || 'Failed to save expense');
         }
-    }, [groupId, description, totalAmount, selectedMemberIds, members, splitType, exactAmounts, equalSplitValue, addMutation, updateMutation, initialExpense, paidByUserId, user]);
+    }, [groupId, planId, description, totalAmount, selectedMemberIds, members, splitType, exactAmounts, equalSplitValue, addMutation, updateMutation, initialExpense, paidByUserId, user]);
 
     const exactTotal = splitType === 'equal' ? totalAmount : selectedMemberIds.reduce((acc, id) => {
         return acc + (parseFloat(exactAmounts[id] || '0') || 0);
@@ -198,5 +199,4 @@ export const useAddExpense = (groupId: string, initialMembers: any[], initialExp
         currentUserId: user?.id
     };
 };
-
 

@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { fetchGroupDetail, fetchBlinkGroupGames } from '../../lib/api';
 
-export const useBlinkGroupLobby = (groupId: string | undefined) => {
+export const useBlinkGroupLobby = (groupId: string | undefined, planId?: string) => {
     const { user } = useAuthStore();
 
     // 1. Fetch Group Details (Header)
@@ -20,8 +20,8 @@ export const useBlinkGroupLobby = (groupId: string | undefined) => {
         isFetching: isGamesFetching,
         refetch: refetchGames
     } = useQuery({
-        queryKey: ['blinkGroupGames', groupId],
-        queryFn: () => fetchBlinkGroupGames(groupId!),
+        queryKey: ['blinkGroupGames', groupId, planId],
+        queryFn: () => fetchBlinkGroupGames(groupId!, planId),
         enabled: !!groupId,
         refetchOnWindowFocus: true,
     });

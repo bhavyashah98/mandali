@@ -20,7 +20,7 @@ import { distributePoolByWeightage } from '../../utils/housieBountyUtils';
 const HousieDefineBountyScreen = ({ navigation, route }: any) => {
     const insets = useSafeAreaInsets();
 
-    const { groupId, gameSettings } = (route.params as { groupId: string; gameSettings: any }) || {};
+    const { groupId, planId, gameSettings } = (route.params as { groupId: string; planId?: string; gameSettings: any }) || {};
 
     const [availablePrizes, setAvailablePrizes] = useState<any[]>([]);
     const [isLoadingPrizes, setIsLoadingPrizes] = useState(true);
@@ -137,7 +137,8 @@ const HousieDefineBountyScreen = ({ navigation, route }: any) => {
                 },
                 gameSettings.title,
                 gameSettings.scheduledAt,
-                100 // Hardcoded ticketPrice
+                100, // Hardcoded ticketPrice
+                planId
             );
 
             if (gameSettings.isScheduled) {
@@ -147,6 +148,7 @@ const HousieDefineBountyScreen = ({ navigation, route }: any) => {
                 navigation.replace('HousieWaitingRoom', {
                     groupId,
                     gameCode: result.game.game_code,
+                    planId,
                 });
             }
         } catch (err: any) {
@@ -154,7 +156,7 @@ const HousieDefineBountyScreen = ({ navigation, route }: any) => {
         } finally {
             setIsCreating(false);
         }
-    }, [groupId, gameSettings, selectedPrizes, totalPercentage, isValid, navigation]);
+    }, [groupId, planId, gameSettings, selectedPrizes, totalPercentage, isValid, navigation]);
 
     return (
         <View className="flex-1 bg-[#fdf9f3]" style={{ paddingTop: insets.top }}>

@@ -20,7 +20,7 @@ import { HostTicketsSection } from '../../components/housie/settings/HostTickets
 const HousieHostSettingsScreen = () => {
     const route = useRoute<any>();
     const navigation = useNavigation<any>();
-    const { groupId } = (route.params as { groupId: string }) || {};
+    const { groupId, planId } = (route.params as { groupId: string; planId?: string }) || {};
     const isTablet = useIsTablet();
 
     // Basic Info
@@ -81,6 +81,7 @@ const HousieHostSettingsScreen = () => {
         // Navigate to Define Bounty screen with all current settings
         navigation.replace('HousieDefineBounty', {
             groupId,
+            planId,
             gameSettings: {
                 title: title.trim() || 'Housie Game',
                 callingMode,
@@ -92,7 +93,7 @@ const HousieHostSettingsScreen = () => {
                 isScheduled
             }
         });
-    }, [groupId, title, callingMode, autoCallSeconds, hostTickets, ticketDifficulty, gameStyle, isScheduled, scheduledAt, navigation]);
+    }, [groupId, planId, title, callingMode, autoCallSeconds, hostTickets, ticketDifficulty, gameStyle, isScheduled, scheduledAt, navigation]);
 
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top', 'bottom']}>

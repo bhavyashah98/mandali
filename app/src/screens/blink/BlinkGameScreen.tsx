@@ -11,7 +11,7 @@ import { useBlinkGameEngine } from '../../hooks/blink/useBlinkGameEngine';
 
 const BlinkGameScreen = () => {
     const route = useRoute();
-    const params = route.params as { gameCode: string; groupId: string };
+    const params = route.params as { gameCode: string; groupId: string; planId?: string };
     const gameCode = params?.gameCode?.trim().toUpperCase() || 'BLINK';
     const groupId = params?.groupId || '';
 
@@ -24,7 +24,7 @@ const BlinkGameScreen = () => {
         isParticipant,
         hasFinished,
         myPrize,
-    } = useBlinkGameEngine(gameCode, groupId);
+    } = useBlinkGameEngine(gameCode, groupId, params?.planId);
 
     const { height: windowHeight, width: windowWidth } = Dimensions.get('window');
     const cardSize = Math.min(windowWidth * 0.88, windowHeight * 0.30);

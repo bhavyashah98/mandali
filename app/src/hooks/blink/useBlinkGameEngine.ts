@@ -6,7 +6,7 @@ import { useSocketRoom } from '../useSocketRoom';
 import { useAuthStore } from '../../stores/authStore';
 import { useNavigation } from '@react-navigation/native';
 
-export const useBlinkGameEngine = (gameCode: string, groupId?: string) => {
+export const useBlinkGameEngine = (gameCode: string, groupId?: string, planId?: string) => {
     const socket = useSocket();
     const queryClient = useQueryClient();
     const navigation = useNavigation<any>();
@@ -116,14 +116,14 @@ export const useBlinkGameEngine = (gameCode: string, groupId?: string) => {
             socket.off('blink_winner', onWinnerFound);
             socket.off('blink_game_ended', onGameEnded);
         };
-    }, [gameCode, socket, navigation, groupId, userId, queryClient]);
+    }, [gameCode, socket, navigation, groupId, planId, userId, queryClient]);
 
     // Handle explicit status change (e.g. from refetching)
     useEffect(() => {
         if (game?.status === 'ended') {
-            navigation.replace('BlinkResults', { gameCode, groupId });
+            navigation.replace('BlinkResults', { gameCode, groupId, planId });
         }
-    }, [game?.status, navigation, gameCode, groupId]);
+    }, [game?.status, navigation, gameCode, groupId, planId]);
 
     const attemptMatch = useCallback((symbolId: number) => {
         if (!isParticipant) return;

@@ -14,6 +14,7 @@ router.use(authMiddleware);
 router.get('/balances', async (req: AuthRequest, res) => {
     try {
         const userId = req.userId!;
+        const planId = req.query.planId as string | undefined;
 
         const { data: memberships } = await supabase
             .from('group_members')
@@ -25,10 +26,19 @@ router.get('/balances', async (req: AuthRequest, res) => {
 
         // Fetch all 3 tables for these groups
         // We use expenses!inner(group_id) to ensure we can map participants back to their groups
+        let expensesQuery = supabase.from('expenses').select('group_id, amount, paid_by, created_at').in('group_id', groupIds);
+        let partQuery = supabase.from('expense_participants').select('amount, expenses!inner(group_id, plan_id)').eq('user_id', userId);
+        let settledQuery = supabase.from('settlements').select('group_id, amount, from_user_id, to_user_id').or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`).in('group_id', groupIds);
+        if (planId) {
+            expensesQuery = expensesQuery.eq('plan_id', planId);
+            partQuery = partQuery.eq('expenses.plan_id', planId);
+            settledQuery = settledQuery.eq('plan_id', planId);
+        }
+
         const [expensesRes, partRes, settledRes] = await Promise.all([
-            supabase.from('expenses').select('group_id, amount, paid_by, created_at').in('group_id', groupIds),
-            supabase.from('expense_participants').select('amount, expenses!inner(group_id)').eq('user_id', userId),
-            supabase.from('settlements').select('group_id, amount, from_user_id, to_user_id').or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`).in('group_id', groupIds)
+            expensesQuery,
+            partQuery,
+            settledQuery
         ]);
 
         const groupStats: { [key: string]: { netBalance: number; lastActivity: string } } = {};
@@ -73,16 +83,21 @@ router.get('/balances', async (req: AuthRequest, res) => {
 router.get('/ledger/:groupId', async (req: AuthRequest, res) => {
     try {
         const { groupId } = req.params;
-        const [expensesRes, settledRes] = await Promise.all([
-            supabase
-                .from('expenses')
-                .select('*, payer:users!paid_by(name), adder:users!added_by(name), expense_participants(*, users:user_id(name))')
-                .eq('group_id', groupId),
-            supabase
-                .from('settlements')
-                .select('*, from:from_user_id(name), to:to_user_id(name)')
-                .eq('group_id', groupId)
-        ]);
+        const planId = req.query.planId as string | undefined;
+        let expensesQuery = supabase
+            .from('expenses')
+            .select('*, payer:users!paid_by(name), adder:users!added_by(name), expense_participants(*, users:user_id(name))')
+            .eq('group_id', groupId);
+        let settledQuery = supabase
+            .from('settlements')
+            .select('*, from:from_user_id(name), to:to_user_id(name)')
+            .eq('group_id', groupId);
+        if (planId) {
+            expensesQuery = expensesQuery.eq('plan_id', planId);
+            settledQuery = settledQuery.eq('plan_id', planId);
+        }
+
+        const [expensesRes, settledRes] = await Promise.all([expensesQuery, settledQuery]);
 
         const ledger: any[] = [];
 
@@ -197,11 +212,19 @@ router.get('/members/:groupId', async (req: AuthRequest, res) => {
     try {
         const { groupId } = req.params;
         const userId = req.userId!;
+        const planId = req.query.planId as string | undefined;
+
+        let expensesQuery = supabase.from('expenses').select('paid_by, amount, expense_participants(user_id, amount)').eq('group_id', groupId);
+        let settledQuery = supabase.from('settlements').select('from_user_id, to_user_id, amount').eq('group_id', groupId);
+        if (planId) {
+            expensesQuery = expensesQuery.eq('plan_id', planId);
+            settledQuery = settledQuery.eq('plan_id', planId);
+        }
 
         const [membersRes, expensesRes, settledRes] = await Promise.all([
             supabase.from('group_members').select('user_id, users(name)').eq('group_id', groupId),
-            supabase.from('expenses').select('paid_by, amount, expense_participants(user_id, amount)').eq('group_id', groupId),
-            supabase.from('settlements').select('from_user_id, to_user_id, amount').eq('group_id', groupId)
+            expensesQuery,
+            settledQuery
         ]);
 
         const members = membersRes.data || [];
@@ -237,20 +260,23 @@ router.get('/members/:groupId', async (req: AuthRequest, res) => {
 // ──────────────────────────────────────────────
 router.post('/expense', async (req: AuthRequest, res) => {
     try {
-        const { groupId, description, amount, participants, paidByUserId, expenseType } = req.body;
+        const { groupId, description, amount, participants, paidByUserId, expenseType, planId } = req.body;
         const userId = req.userId!;
         const effectivePaidBy = paidByUserId || userId;
 
+        const insertPayload: any = {
+            group_id: groupId,
+            description,
+            amount,
+            paid_by: effectivePaidBy,
+            added_by: userId,
+            expense_type: expenseType || 'split_and_settle'
+        };
+        if (planId) insertPayload.plan_id = planId;
+
         const { data: expense, error: expErr } = await supabase
             .from('expenses')
-            .insert({
-                group_id: groupId,
-                description,
-                amount,
-                paid_by: effectivePaidBy,
-                added_by: userId,
-                expense_type: expenseType || 'split_and_settle'
-            })
+            .insert(insertPayload)
             .select().single();
 
         if (expErr) throw expErr;
@@ -297,15 +323,18 @@ router.post('/expense', async (req: AuthRequest, res) => {
 // ──────────────────────────────────────────────
 router.post('/settle', async (req: AuthRequest, res) => {
     try {
-        const { groupId, fromUserId, toUserId, amount } = req.body;
+        const { groupId, fromUserId, toUserId, amount, planId } = req.body;
         const userId = req.userId!;
 
-        await supabase.from('settlements').insert({
+        const insertPayload: any = {
             group_id: groupId,
             from_user_id: fromUserId || userId,
             to_user_id: toUserId,
             amount
-        });
+        };
+        if (planId) insertPayload.plan_id = planId;
+
+        await supabase.from('settlements').insert(insertPayload);
 
         res.status(201).json({ message: 'Settlement recorded' });
     } catch (err) {
@@ -340,18 +369,21 @@ router.delete('/settlement/:id', async (req: AuthRequest, res) => {
 router.put('/expense/:id', async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
-        const { description, amount, participants, expenseType } = req.body;
+        const { description, amount, participants, expenseType, planId } = req.body;
         const userId = req.userId!;
 
         await supabase.from('expense_participants').delete().eq('expense_id', id);
 
+        const updatePayload: any = {
+            description,
+            amount,
+            expense_type: expenseType || 'split_and_settle'
+        };
+        if (planId) updatePayload.plan_id = planId;
+
         await supabase
             .from('expenses')
-            .update({
-                description,
-                amount,
-                expense_type: expenseType || 'split_and_settle'
-            })
+            .update(updatePayload)
             .eq('id', id);
 
         const partToInsert = participants.map((p: any) => ({

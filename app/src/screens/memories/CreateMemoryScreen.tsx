@@ -20,7 +20,7 @@ const CreateMemoryScreen = () => {
     const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
     const GRID_SIZE = isTablet ? (width - 120 - 48) / 3 : (width - 48 - 24) / 3;
-    const { groupId } = (route.params as { groupId: string }) || {};
+    const { groupId, planId } = (route.params as { groupId: string; planId?: string }) || {};
 
     const [selectedImages, setSelectedImages] = useState<string[]>([]);
     const [story, setStory] = useState('');
@@ -106,12 +106,13 @@ const CreateMemoryScreen = () => {
                 groupId: groupId!,
                 imageUrls: [result.url],
                 story,
-                memoryDate
+                memoryDate,
+                planId
             }));
 
             await Promise.all(createPromises);
 
-            queryClient.invalidateQueries({ queryKey: ['memories', groupId] });
+            queryClient.invalidateQueries({ queryKey: ['memories', groupId, planId] });
 
             Alert.alert('Moment Preserved', 'Your story has been added to the Mandali Memories', [
                 { text: 'View Memories', onPress: () => navigation.goBack() }

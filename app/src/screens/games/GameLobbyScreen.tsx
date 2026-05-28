@@ -13,7 +13,7 @@ import { fetchGroupDetail } from '../../lib/api';
 const GameLobbyScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute();
-    const { groupId, gameType = 'housie' } = (route.params as { groupId: string; gameType: string }) || {};
+    const { groupId, gameType = 'housie', planId } = (route.params as { groupId: string; gameType: string; planId?: string }) || {};
     const isTablet = useIsTablet();
     
     // Get config from registry
@@ -35,7 +35,7 @@ const GameLobbyScreen = () => {
             index: 1,
             routes: [
                 { name: 'GameSelectGroup' },
-                { name: 'GameSelection', params: { groupId } }
+                { name: 'GameSelection', params: { groupId, planId } }
             ]
         });
     };
@@ -72,7 +72,7 @@ const GameLobbyScreen = () => {
 
                 <View style={{ width: isTablet ? 64 : 44 }} className="items-end">
                     <TouchableOpacity
-                        onPress={() => navigation.navigate(config.leaderboardScreen, { groupId, groupName })}
+                        onPress={() => navigation.navigate(config.leaderboardScreen, { groupId, groupName, planId })}
                         className={`items-center justify-center rounded-full shadow-md ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                         style={{ backgroundColor: config.primaryColor }}
                     >
@@ -84,6 +84,7 @@ const GameLobbyScreen = () => {
             {/* Game-Specific Content Component */}
             <ContentComponent 
                 groupId={groupId} 
+                planId={planId}
                 isTablet={isTablet} 
                 primaryColor={config.primaryColor}
             />

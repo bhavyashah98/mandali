@@ -11,7 +11,7 @@ import { useConfig } from '../../context/ConfigContext';
 const GameSelectionScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
-    const { groupId } = route.params;
+    const { groupId, planId } = route.params;
     const isTablet = useIsTablet();
     const { availableGames } = useConfig();
     const primaryColor = '#b30069';
@@ -27,7 +27,7 @@ const GameSelectionScreen = () => {
         <TouchableOpacity
             key={game.id}
             onPress={() => {
-                navigation.navigate('GameLobby', { groupId, gameType: game.id });
+                navigation.navigate('GameLobby', { groupId, gameType: game.id, planId });
             }}
             activeOpacity={0.85}
             style={{

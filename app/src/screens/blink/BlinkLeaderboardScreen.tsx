@@ -31,19 +31,19 @@ const BlinkLeaderboardScreen = () => {
     const route = useRoute();
     const isTablet = useIsTablet();
     const { user } = useAuthStore();
-    const { groupId, groupName } = (route.params as any) || {};
+    const { groupId, groupName, planId } = (route.params as any) || {};
     const [activePeriod, setActivePeriod] = useState<Period>('all_time');
     const primaryColor = '#b30069';
 
     console.log(groupId, "BlinkLeaderboardScreen");
 
     const { data, isLoading, refetch, isFetching } = useQuery({
-        queryKey: ['blinkLeaderboard', groupId, activePeriod],
+        queryKey: ['blinkLeaderboard', groupId, planId, activePeriod],
         queryFn: async () => {
             const headers = await getAuthHeaders();
             const res = await axios.get(
-                `${API_URL}/blink/games/group/${groupId}/leaderboard?period=${activePeriod}`,
-                { headers }
+                `${API_URL}/blink/games/group/${groupId}/leaderboard`,
+                { headers, params: { period: activePeriod, planId } }
             );
             return res.data;
         },

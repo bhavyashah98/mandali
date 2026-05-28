@@ -15,7 +15,7 @@ const GroupHisaabScreen = () => {
     const route = useRoute<any>();
     const navigation = useNavigation<any>();
     const isTablet = useIsTablet();
-    const { groupId, groupName } = route.params;
+    const { groupId, groupName, planId } = route.params;
     const { user } = useAuthStore();
 
     const {
@@ -26,7 +26,7 @@ const GroupHisaabScreen = () => {
         initialLoading,
         isRefreshing,
         onRefresh
-    } = useGroupHisaabData(groupId);
+    } = useGroupHisaabData(groupId, planId);
 
     const members = useCallback(() => {
         if (!groupDetail) return [];
@@ -37,21 +37,22 @@ const GroupHisaabScreen = () => {
     }, [groupDetail]);
 
     const handleAddExpense = useCallback(() => {
-        navigation.navigate('AddExpense', { groupId, groupName, members: members() });
-    }, [navigation, groupId, groupName, members]);
+        navigation.navigate('AddExpense', { groupId, groupName, planId, members: members() });
+    }, [navigation, groupId, groupName, planId, members]);
 
     const handleSettle = useCallback(() => {
-        navigation.navigate('SettleBalance', { groupId, groupName });
-    }, [navigation, groupId, groupName]);
+        navigation.navigate('SettleBalance', { groupId, groupName, planId });
+    }, [navigation, groupId, groupName, planId]);
 
     const handleItemPress = useCallback((item: any) => {
         navigation.navigate('ExpenseDetail', {
             item,
             groupId,
             groupName,
+            planId,
             members: members()
         });
-    }, [navigation, groupId, groupName, members]);
+    }, [navigation, groupId, groupName, planId, members]);
 
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top']}>

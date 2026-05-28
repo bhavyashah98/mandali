@@ -24,7 +24,7 @@ const HousieStartingScreen = () => {
     const route = useRoute();
     const insets = useSafeAreaInsets();
     const { user } = useAuthStore();
-    const { gameCode, groupId } = route.params as { gameCode: string; groupId: string };
+    const { gameCode, groupId, planId } = route.params as { gameCode: string; groupId: string; planId?: string };
 
     const [activeTab, setActiveTab] = useState<'prizes' | 'players'>('prizes');
 
@@ -42,7 +42,7 @@ const HousieStartingScreen = () => {
     } = useHousieStartingData(gameCode);
 
     // 2. Sync Hook
-    useHousieStartingSync(gameCode, game, user, refetch, groupId);
+    useHousieStartingSync(gameCode, game, user, refetch, groupId, planId);
 
     // Initial Animations
     useEffect(() => {

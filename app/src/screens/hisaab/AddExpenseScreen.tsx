@@ -26,7 +26,7 @@ const AddExpenseScreen = () => {
     const navigation = useNavigation();
     const route = useRoute<any>();
     const isTablet = useIsTablet();
-    const { groupId, groupName, members: initialMembers, initialExpense } = route.params;
+    const { groupId, groupName, planId, members: initialMembers, initialExpense } = route.params;
 
     const {
         amount,
@@ -50,7 +50,7 @@ const AddExpenseScreen = () => {
         paidByUserId,
         setPaidByUserId,
         currentUserId
-    } = useAddExpense(groupId, initialMembers, initialExpense);
+    } = useAddExpense(groupId, initialMembers, initialExpense, planId);
 
     const onSubmit = React.useCallback(() => {
         handleAdd(() => navigation.goBack());
@@ -149,4 +149,3 @@ const AddExpenseScreen = () => {
 };
 
 export default AddExpenseScreen;
-

@@ -26,7 +26,7 @@ import TicketUpdateModal from '../../components/housie/waiting-room/TicketUpdate
 const HousieWaitingRoomScreen = ({ navigation, route }: any) => {
     const isTablet = useIsTablet();
     const insets = useSafeAreaInsets();
-    const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};
+    const { gameCode, groupId, planId } = (route.params as { gameCode: string; groupId: string; planId?: string }) || {};
     const { user } = useAuthStore();
 
     const [activeTab, setActiveTab] = React.useState<'players' | 'prizes'>('players');
@@ -49,6 +49,7 @@ const HousieWaitingRoomScreen = ({ navigation, route }: any) => {
         game,
         gameCode: gameCode || '',
         groupId: groupId || '',
+        planId,
         isHost,
         hasTickets
     });

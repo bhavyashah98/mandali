@@ -27,7 +27,7 @@ const HousieJoinGameScreen = () => {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation<any>();
     const route = useRoute();
-    const { gameCode: passedGameCode, groupId } = (route.params as { gameCode?: string, groupId?: string }) || {};
+    const { gameCode: passedGameCode, groupId, planId } = (route.params as { gameCode?: string, groupId?: string, planId?: string }) || {};
     const queryClient = useQueryClient();
 
     const [gameCode, setGameCode] = useState(passedGameCode || '');
@@ -76,7 +76,8 @@ const HousieJoinGameScreen = () => {
 
                 navigation.replace('HousieWaitingRoom', {
                     gameCode: gameCode.toUpperCase(),
-                    groupId: groupId
+                    groupId: groupId,
+                    planId
                 });
             }
         } catch (error: any) {
@@ -282,4 +283,3 @@ const HousieJoinGameScreen = () => {
 };
 
 export default HousieJoinGameScreen;
-

@@ -31,7 +31,7 @@ const generateGameCode = (): string => {
  */
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const { groupId, title, maxPlayers, cardsPerPlayer, symbolsPerCard, theme } = req.body;
+        const { groupId, title, maxPlayers, cardsPerPlayer, symbolsPerCard, theme, planId } = req.body;
         const userId = req.userId!;
         const gameCode = generateGameCode();
 
@@ -49,19 +49,22 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         }
 
         // 2. Insert Game
+        const insertPayload: any = {
+            game_code: gameCode,
+            group_id: groupId,
+            host_id: userId,
+            status: 'waiting',
+            title: title || 'Blink Game',
+            max_players: maxPlayers || 30,
+            cards_per_player: cardsPerPlayer || 12,
+            symbols_per_card: symbolsPerCard || 6,
+            theme: theme || 'default',
+        };
+        if (planId) insertPayload.plan_id = planId;
+
         const { data: game, error: insertError } = await supabase
             .from('blink_games')
-            .insert({
-                game_code: gameCode,
-                group_id: groupId,
-                host_id: userId,
-                status: 'waiting',
-                title: title || 'Blink Game',
-                max_players: maxPlayers || 30,
-                cards_per_player: cardsPerPlayer || 12,
-                symbols_per_card: symbolsPerCard || 6,
-                theme: theme || 'default',
-            })
+            .insert(insertPayload)
             .select()
             .single();
 
@@ -106,7 +109,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
  */
 router.post('/schedule', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const { groupId, title, scheduledAt, maxPlayers, cardsPerPlayer, symbolsPerCard, theme } = req.body;
+        const { groupId, title, scheduledAt, maxPlayers, cardsPerPlayer, symbolsPerCard, theme, planId } = req.body;
         const userId = req.userId!;
         const gameCode = generateGameCode();
 
@@ -122,20 +125,23 @@ router.post('/schedule', authMiddleware, async (req: AuthRequest, res) => {
         }
 
         // 2. Insert Game
+        const insertPayload: any = {
+            game_code: gameCode,
+            group_id: groupId,
+            host_id: userId,
+            status: 'scheduled',
+            title: title || 'Scheduled Blink Game',
+            scheduled_at: scheduledAt,
+            max_players: maxPlayers || 30,
+            cards_per_player: cardsPerPlayer || 12,
+            symbols_per_card: symbolsPerCard || 6,
+            theme: theme || 'default',
+        };
+        if (planId) insertPayload.plan_id = planId;
+
         const { data: game, error: insertError } = await supabase
             .from('blink_games')
-            .insert({
-                game_code: gameCode,
-                group_id: groupId,
-                host_id: userId,
-                status: 'scheduled',
-                title: title || 'Scheduled Blink Game',
-                scheduled_at: scheduledAt,
-                max_players: maxPlayers || 30,
-                cards_per_player: cardsPerPlayer || 12,
-                symbols_per_card: symbolsPerCard || 6,
-                theme: theme || 'default',
-            })
+            .insert(insertPayload)
             .select()
             .single();
 
@@ -324,6 +330,7 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const { groupId } = req.params;
         const userId = req.userId!;
+        const planId = req.query.planId as string | undefined;
 
         const { data: membership } = await supabase
             .from('group_members')
@@ -336,10 +343,12 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
             return res.status(403).json({ error: 'Access denied' });
         }
 
-        const { data: games, error } = await supabase
+        let gamesQuery = supabase
             .from('blink_games')
             .select('*, host:users!host_id(name, avatar_url), blink_players(user_id)')
-            .eq('group_id', groupId)
+            .eq('group_id', groupId);
+        if (planId) gamesQuery = gamesQuery.eq('plan_id', planId);
+        const { data: games, error } = await gamesQuery
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -669,13 +678,16 @@ router.get('/group/:groupId/leaderboard', authMiddleware, async (req: AuthReques
     try {
         const { groupId } = req.params;
         const period = (req.query.period as string) || 'all_time';
+        const planId = req.query.planId as string | undefined;
 
 
         // 1. Fetch all blink games for this group
-        const { data: games, error: gamesError } = await supabase
+        let gamesQuery = supabase
             .from('blink_games')
             .select('id')
             .eq('group_id', groupId);
+        if (planId) gamesQuery = gamesQuery.eq('plan_id', planId);
+        const { data: games, error: gamesError } = await gamesQuery;
 
         if (gamesError) throw gamesError;
         if (!games || games.length === 0) return res.json({ leaderboard: [] });

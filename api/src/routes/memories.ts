@@ -15,6 +15,7 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
         const userId = req.userId;
         const page = parseInt(req.query.page as string) || 0;
         const limit = parseInt(req.query.limit as string) || 20;
+        const planId = req.query.planId as string | undefined;
 
         const from = page * limit;
         const to = from + limit - 1;
@@ -44,6 +45,7 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
             .eq('is_hidden', false) 
             .order('memory_date', { ascending: false })
             .range(from, to);
+        if (planId) query = query.eq('plan_id', planId);
 
         if (blockedUserIds.length > 0) {
             query = query.not('user_id', 'in', `(${blockedUserIds.join(',')})`);
@@ -115,7 +117,7 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
  */
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const { groupId, imageUrls, story, memoryDate } = req.body;
+        const { groupId, imageUrls, story, memoryDate, planId } = req.body;
         const userId = req.userId;
 
         if (!groupId || !imageUrls || imageUrls.length === 0) {
@@ -140,16 +142,19 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         }
 
         console.log('[Memories] Creating memory for group:', groupId, 'by user:', userId);
+        const insertPayload: any = {
+            group_id: groupId,
+            user_id: userId,
+            image_urls: imageUrls,
+            story,
+            memory_date: memoryDate || new Date(),
+            created_at: new Date()
+        };
+        if (planId) insertPayload.plan_id = planId;
+
         const { data, error } = await supabase
             .from('memories')
-            .insert({
-                group_id: groupId,
-                user_id: userId,
-                image_urls: imageUrls,
-                story,
-                memory_date: memoryDate || new Date(),
-                created_at: new Date()
-            })
+            .insert(insertPayload)
             .select()
             .single();
 

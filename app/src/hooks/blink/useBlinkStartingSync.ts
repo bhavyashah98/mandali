@@ -10,6 +10,7 @@ export const useBlinkStartingSync = (
     user: any,
     refetch: () => void,
     groupId?: string,
+    planId?: string,
 ) => {
     const socket = useSocket();
     const queryClient = useQueryClient();
@@ -46,6 +47,6 @@ export const useBlinkStartingSync = (
     // 4. Single Source of Truth — navigate when game becomes active
     useEffect(() => {
         if (!game || game.status !== 'active') return;
-        navigation.replace('BlinkGame', { gameCode, groupId });
-    }, [game?.status, gameCode, groupId, navigation]);
+        navigation.replace('BlinkGame', { gameCode, groupId, planId });
+    }, [game?.status, gameCode, groupId, planId, navigation]);
 };

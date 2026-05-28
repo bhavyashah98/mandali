@@ -15,7 +15,7 @@ import { SchedulingSection } from '../../components/common/SchedulingSection';
 const BlinkHostSettingsScreen = () => {
     const route = useRoute<any>();
     const navigation = useNavigation<any>();
-    const { groupId } = (route.params as { groupId: string }) || {};
+    const { groupId, planId } = (route.params as { groupId: string; planId?: string }) || {};
     const isTablet = useIsTablet();
     const primaryColor = '#b30069';
 
@@ -49,14 +49,15 @@ const BlinkHostSettingsScreen = () => {
                 symbolsPerCard,
                 theme,
                 isScheduled,
-                scheduledAt: isScheduled ? scheduledAt.toISOString() : undefined
+                scheduledAt: isScheduled ? scheduledAt.toISOString() : undefined,
+                planId
             });
 
             if (isScheduled) {
                 Alert.alert('Success', 'Game scheduled successfully!');
                 navigation.goBack();
             } else {
-                navigation.replace('BlinkWaitingRoom', { gameCode: data.game.game_code, groupId });
+                navigation.replace('BlinkWaitingRoom', { gameCode: data.game.game_code, groupId, planId });
             }
         } catch (error: any) {
             Alert.alert('Error', error.message || 'Failed to create game');

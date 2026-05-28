@@ -21,7 +21,7 @@ const HousieSpectatorScreen = () => {
     const isTablet = useIsTablet();
     const navigation = useNavigation<any>();
     const route = useRoute();
-    const { gameCode, groupId } = (route.params as { gameCode: string; groupId: string }) || {};
+    const { gameCode, groupId, planId } = (route.params as { gameCode: string; groupId: string; planId?: string }) || {};
     const queryClient = useQueryClient();
     const socket = useSocket();
     const { user } = useAuthStore();
@@ -81,7 +81,7 @@ const HousieSpectatorScreen = () => {
 
         const onGameEnded = () => {
             setIsPlayerClaiming(false); // Reset indicator
-            navigation.replace('HousieResults', { gameCode, groupId });
+            navigation.replace('HousieResults', { gameCode, groupId, planId });
         };
 
         const onGameStarting = () => {
@@ -124,7 +124,7 @@ const HousieSpectatorScreen = () => {
     // 6. Handle ended state if missed socket event
     useEffect(() => {
         if (game?.status === 'ended') {
-            navigation.replace('HousieResults', { gameCode, groupId });
+            navigation.replace('HousieResults', { gameCode, groupId, planId });
         }
     }, [game?.status, gameCode, groupId, navigation]);
 

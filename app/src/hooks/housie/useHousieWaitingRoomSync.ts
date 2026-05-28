@@ -9,6 +9,7 @@ interface UseHousieWaitingRoomSyncProps {
     game: any;
     gameCode: string;
     groupId: string;
+    planId?: string;
     isHost: boolean;
     hasTickets: boolean;
 }
@@ -17,6 +18,7 @@ export const useHousieWaitingRoomSync = ({
     game,
     gameCode,
     groupId,
+    planId,
     isHost,
     hasTickets
 }: UseHousieWaitingRoomSyncProps) => {
@@ -73,19 +75,18 @@ export const useHousieWaitingRoomSync = ({
         if (!game) return;
 
         if (game.status === 'starting') {
-            navigation.replace('HousieStarting', { gameCode, groupId });
+            navigation.replace('HousieStarting', { gameCode, groupId, planId });
         } else if (game.status === 'active') {
             if (hasTickets) {
-                navigation.replace('HousieTicket', { gameCode, groupId });
+                navigation.replace('HousieTicket', { gameCode, groupId, planId });
             } else if (isHost) {
-                navigation.navigate('HousieGame', { gameCode, groupId });
+                navigation.navigate('HousieGame', { gameCode, groupId, planId });
             } else {
-                navigation.navigate('HousieTicket', { gameCode, groupId });
+                navigation.navigate('HousieTicket', { gameCode, groupId, planId });
             }
         } else if (game.status === 'ended') {
             Alert.alert('Game Over', 'This game has already ended.');
             navigation.goBack();
         }
-    }, [game?.status, isHost, navigation, gameCode, groupId]);
+    }, [game?.status, isHost, navigation, gameCode, groupId, planId]);
 };
-

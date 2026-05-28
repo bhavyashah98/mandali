@@ -9,6 +9,7 @@ interface UseBlinkWaitingRoomSyncProps {
     game: any;
     gameCode: string;
     groupId: string;
+    planId?: string;
     isParticipant: boolean;
 }
 
@@ -16,6 +17,7 @@ export const useBlinkWaitingRoomSync = ({
     game,
     gameCode,
     groupId,
+    planId,
     isParticipant
 }: UseBlinkWaitingRoomSyncProps) => {
     const socket = useSocket();
@@ -58,15 +60,15 @@ export const useBlinkWaitingRoomSync = ({
         if (!game) return;
 
         if (game.status === 'starting') {
-            navigation.replace('BlinkStarting', { gameCode, groupId });
+            navigation.replace('BlinkStarting', { gameCode, groupId, planId });
         } else if (game.status === 'active') {
             if (isParticipant) {
-                navigation.replace('BlinkGame', { gameCode, groupId });
+                navigation.replace('BlinkGame', { gameCode, groupId, planId });
             } else {
                 // Handle Spectate later
             }
         } else if (game.status === 'ended') {
             navigation.goBack();
         }
-    }, [game?.status, isParticipant, navigation, gameCode, groupId]);
+    }, [game?.status, isParticipant, navigation, gameCode, groupId, planId]);
 };

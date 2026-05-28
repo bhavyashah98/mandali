@@ -16,7 +16,7 @@ const LivePlanHub = ({ plan }: { plan: PlanCardPlan }) => {
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
     const queryClient = useQueryClient();
-    const { openAction } = usePlanFeatureNav(plan.groupId, plan.groupName);
+    const { openAction } = usePlanFeatureNav(plan.groupId, plan.groupName, plan.id);
     const { going } = resolvePlanGoing(plan);
     const completeMutation = useMutation({
         mutationFn: () => completePlan(plan.id),

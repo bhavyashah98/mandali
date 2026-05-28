@@ -31,7 +31,7 @@ const HousieTicketScreen = () => {
     const { user } = useAuthStore();
 
     // 1. Params & Basic State
-    const params = route.params as { gameCode?: string, groupId?: string };
+    const params = route.params as { gameCode?: string, groupId?: string, planId?: string };
     const gameCode = useMemo(() => params?.gameCode?.trim().toUpperCase() || '', [params?.gameCode]);
     const groupId = params?.groupId;
 
@@ -97,7 +97,7 @@ const HousieTicketScreen = () => {
 
     const handleGameEnded = useCallback(() => {
         setTimeout(() => {
-            navigation.replace('HousieResults', { gameCode, groupId });
+            navigation.replace('HousieResults', { gameCode, groupId, planId: params?.planId });
         }, 100);
     }, [navigation, gameCode, groupId]);
 
@@ -143,7 +143,7 @@ const HousieTicketScreen = () => {
 
     useEffect(() => {
         if (game?.status === 'ended') {
-            navigation.replace('HousieResults', { gameCode, groupId });
+            navigation.replace('HousieResults', { gameCode, groupId, planId: params?.planId });
         }
     }, [game?.status, gameCode, groupId, navigation]);
 

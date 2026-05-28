@@ -42,8 +42,9 @@ const MemoryDetailScreen = () => {
     const { user } = useAuthStore();
 
     // Read navigation params
-    const { groupId, initialMemoryId, initialPhotoUrl, groupName } = route.params as {
+    const { groupId, planId, initialMemoryId, initialPhotoUrl, groupName } = route.params as {
         groupId: string;
+        planId?: string;
         initialMemoryId: string;
         initialPhotoUrl?: string;
         groupName: string;
@@ -64,8 +65,8 @@ const MemoryDetailScreen = () => {
         hasNextPage,
         isFetchingNextPage
     } = useInfiniteQuery({
-        queryKey: ['memories', groupId],
-        queryFn: ({ pageParam = 0 }) => fetchMemories(groupId!, pageParam, 10),
+        queryKey: ['memories', groupId, planId],
+        queryFn: ({ pageParam = 0 }) => fetchMemories(groupId!, pageParam, 10, planId),
         getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.page + 1 : undefined),
         enabled: !!groupId,
         initialPageParam: 0

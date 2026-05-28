@@ -4,7 +4,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSocket } from '../../hooks/useSocket';
 import { useSocketRoom } from '../../hooks/useSocketRoom';
 
-export const useHousieStartingSync = (gameCode: string, game: any, user: any, refetch: () => void, groupId?: string) => {
+export const useHousieStartingSync = (gameCode: string, game: any, user: any, refetch: () => void, groupId?: string, planId?: string) => {
     const socket = useSocket();
     const queryClient = useQueryClient();
     const navigation = useNavigation<any>();
@@ -47,17 +47,17 @@ export const useHousieStartingSync = (gameCode: string, game: any, user: any, re
         if (isHost) {
             if (game.settings?.callingMode === 'auto') {
                 if (hasTickets) {
-                    navigation.replace('HousieTicket', { gameCode, groupId });
+                    navigation.replace('HousieTicket', { gameCode, groupId, planId });
                 } else {
-                    navigation.replace('HousieSpectator', { gameCode, groupId });
+                    navigation.replace('HousieSpectator', { gameCode, groupId, planId });
                 }
             } else {
-                navigation.replace('HousieGame', { gameCode, groupId });
+                navigation.replace('HousieGame', { gameCode, groupId, planId });
             }
         } else if (hasTickets) {
-            navigation.replace('HousieTicket', { gameCode, groupId });
+            navigation.replace('HousieTicket', { gameCode, groupId, planId });
         } else {
-            navigation.replace('HousieSpectator', { gameCode, groupId });
+            navigation.replace('HousieSpectator', { gameCode, groupId, planId });
         }
-    }, [game?.status, user?.id, gameCode, groupId, navigation]);
+    }, [game?.status, user?.id, gameCode, groupId, planId, navigation]);
 };

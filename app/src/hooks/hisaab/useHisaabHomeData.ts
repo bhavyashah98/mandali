@@ -10,7 +10,7 @@ export const useHisaabHomeData = () => {
         refetch: refetchBalances
     } = useQuery({
         queryKey: ['hisaab-balances'],
-        queryFn: api.fetchHisaabBalances
+        queryFn: () => api.fetchHisaabBalances()
     });
 
     const {
@@ -75,4 +75,3 @@ export const useHisaabHomeData = () => {
         onRefresh
     };
 };
-

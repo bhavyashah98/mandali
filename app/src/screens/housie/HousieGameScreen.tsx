@@ -25,7 +25,7 @@ const HousieGameScreen = () => {
     const route = useRoute();
     const navigation = useNavigation<any>();
 
-    const params = route.params as { gameCode: string; groupId: string };
+    const params = route.params as { gameCode: string; groupId: string; planId?: string };
     const gameCode = params?.gameCode?.trim().toUpperCase() || '';
     const groupId = params?.groupId;
 
@@ -38,7 +38,7 @@ const HousieGameScreen = () => {
         isCallingNumber,
         endGame,
         isEndingGame
-    } = useHousieGameEngine(gameCode, groupId);
+    } = useHousieGameEngine(gameCode, groupId, params?.planId);
 
     const {
         claimsQueue,
