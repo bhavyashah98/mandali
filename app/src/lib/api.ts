@@ -234,9 +234,9 @@ export const fetchActiveHousieGame = async (groupId: string, planId?: string): P
     return response.data;
 };
 
-export const fetchHousieGroupGames = async (groupId: string, planId?: string): Promise<{ games: any[] }> => {
+export const fetchHousieGroupGames = async (groupId: string, planId?: string, includeEnded: boolean = false): Promise<{ games: any[] }> => {
     const headers = await getAuthHeaders();
-    const response = await axios.get(`${API_URL}/housie/group/${groupId}/list`, { headers, params: { planId } });
+    const response = await axios.get(`${API_URL}/housie/group/${groupId}/list`, { headers, params: { planId, includeEnded } });
     return response.data;
 };
 
@@ -468,9 +468,9 @@ export const fetchHisaabExpenseDetail = async (id: string) => {
 };
 
 // --- BLINK API ---
-export const fetchBlinkGroupGames = async (groupId: string, planId?: string): Promise<{ games: any[] }> => {
+export const fetchBlinkGroupGames = async (groupId: string, planId?: string, includeEnded: boolean = false): Promise<{ games: any[] }> => {
     const headers = await getAuthHeaders();
-    const response = await axios.get(`${API_URL}/blink/games/group/${groupId}`, { headers, params: { planId } });
+    const response = await axios.get(`${API_URL}/blink/games/group/${groupId}`, { headers, params: { planId, includeEnded } });
     return response.data;
 };
 

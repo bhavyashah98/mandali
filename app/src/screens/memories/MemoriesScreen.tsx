@@ -19,9 +19,10 @@ const MemoriesScreen = () => {
     const COLUMN_COUNT = isTablet ? 5 : 3;
     const navigation = useNavigation<any>();
     const route = useRoute();
-    const params = route.params as { groupId: string; planId?: string; initialMemoryId?: string } | undefined;
+    const params = route.params as { groupId: string; planId?: string; initialMemoryId?: string; readOnly?: boolean } | undefined;
     const groupId = params?.groupId;
     const planId = params?.planId;
+    const readOnly = !!params?.readOnly;
     const today = useMemo(() => new Date(), []);
     const queryClient = useQueryClient();
 
@@ -176,11 +177,12 @@ const MemoriesScreen = () => {
         navigation.navigate('MemoryDetail', {
             groupId,
             planId,
+            readOnly,
             initialMemoryId: memoryId,
             initialPhotoUrl: url,
             groupName: group?.group?.name || 'Mandali'
         });
-    }, [groupId, planId, navigation, group?.group?.name]);
+    }, [groupId, planId, readOnly, navigation, group?.group?.name]);
 
     const initialMemoryId = params?.initialMemoryId;
 
@@ -236,11 +238,11 @@ const MemoriesScreen = () => {
                 COLUMN_COUNT={COLUMN_COUNT} 
                 openDetail={openDetail} 
                 selectedIds={selectedIds}
-                isSelectionMode={isSelectionMode}
-                toggleSelection={toggleSelection}
+                isSelectionMode={!readOnly && isSelectionMode}
+                toggleSelection={readOnly ? () => undefined : toggleSelection}
             />
         );
-    }, [RENDER_MAP, isTablet, today, COLUMN_COUNT, openDetail, selectedIds, isSelectionMode, toggleSelection]);
+    }, [RENDER_MAP, isTablet, today, COLUMN_COUNT, openDetail, selectedIds, isSelectionMode, toggleSelection, readOnly]);
 
     if (isLoading && !infiniteData) {
         return (
@@ -306,12 +308,14 @@ const MemoriesScreen = () => {
                     </View>
 
                     <View style={{ width: isTablet ? 64 : 44 }} className="items-end">
-                        <TouchableOpacity
-                            onPress={() => navigation.navigate('CreateMemory', { groupId, planId })}
-                            className={`items-center justify-center rounded-full bg-[#b30069] shadow-md ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
-                        >
-                            <Ionicons name="add" size={isTablet ? 36 : 24} color="white" />
-                        </TouchableOpacity>
+                        {!readOnly ? (
+                            <TouchableOpacity
+                                onPress={() => navigation.navigate('CreateMemory', { groupId, planId })}
+                                className={`items-center justify-center rounded-full bg-[#b30069] shadow-md ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                            >
+                                <Ionicons name="add" size={isTablet ? 36 : 24} color="white" />
+                            </TouchableOpacity>
+                        ) : null}
                     </View>
                 </View>
             )}
@@ -336,12 +340,14 @@ const MemoriesScreen = () => {
                             <Ionicons name="images-outline" size={isTablet ? 48 : 32} color="#e8c4d8" />
                         </View>
                         <Text className={`text-[#594048] font-headline-bold text-center mb-4 ${isTablet ? 'text-4xl' : 'text-xl'}`}>No moments captured yet</Text>
-                        <TouchableOpacity
-                            onPress={() => navigation.navigate('CreateMemory', { groupId, planId })}
-                            className={`mt-10 bg-[#b30069] rounded-[32px] items-center justify-center shadow-xl shadow-primary/20 ${isTablet ? 'px-16 py-6' : 'px-8 py-4'}`}
-                        >
-                            <Text className={`text-white font-headline-bold ${isTablet ? 'text-2xl' : 'text-base'}`}>Preserve a Moment</Text>
-                        </TouchableOpacity>
+                        {!readOnly ? (
+                            <TouchableOpacity
+                                onPress={() => navigation.navigate('CreateMemory', { groupId, planId })}
+                                className={`mt-10 bg-[#b30069] rounded-[32px] items-center justify-center shadow-xl shadow-primary/20 ${isTablet ? 'px-16 py-6' : 'px-8 py-4'}`}
+                            >
+                                <Text className={`text-white font-headline-bold ${isTablet ? 'text-2xl' : 'text-base'}`}>Preserve a Moment</Text>
+                            </TouchableOpacity>
+                        ) : null}
                     </View>
                 }
                 ListFooterComponent={

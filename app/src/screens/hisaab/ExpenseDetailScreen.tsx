@@ -22,7 +22,7 @@ const ExpenseDetailScreen = () => {
     const { user } = useAuthStore();
     const queryClient = useQueryClient();
 
-    const { item: initialItem, groupId: initialGroupId, groupName: initialGroupName, planId, members: initialMembers, expenseId, isFromDeepLink } = route.params || {};
+    const { item: initialItem, groupId: initialGroupId, groupName: initialGroupName, planId, readOnly, members: initialMembers, expenseId, isFromDeepLink } = route.params || {};
 
     const { data: deepLinkData, isLoading: isDeepLinkLoading, error: deepLinkError } = useQuery({
         queryKey: ['hisaab-expense', expenseId],
@@ -62,7 +62,7 @@ const ExpenseDetailScreen = () => {
     const isSettlement = item.type === 'settlement';
     const isPaidByMe = item.paidBy === user.id;
     const isAddedByMe = item.addedBy === user.id;
-    const canEditDelete = true; // Anybody in the group can edit or delete
+    const canEditDelete = !readOnly; // Completed plan drill-downs are read-only.
 
     const deleteMutation = useMutation({
         mutationFn: () =>
@@ -90,8 +90,8 @@ const ExpenseDetailScreen = () => {
     }, [deleteMutation]);
 
     const handleEdit = useCallback(() => {
-        navigation.navigate('AddExpense', { groupId, groupName, planId, members, initialExpense: item });
-    }, [navigation, groupId, groupName, planId, members, item]);
+        navigation.navigate('AddExpense', { groupId, groupName, planId, readOnly, members, initialExpense: item });
+    }, [navigation, groupId, groupName, planId, readOnly, members, item]);
 
     const paidByLabel = isPaidByMe ? 'You' : item.paidByName;
     const addedByLabel = isAddedByMe ? 'You' : item.addedByName;

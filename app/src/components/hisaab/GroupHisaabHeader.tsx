@@ -7,9 +7,10 @@ import { useNavigation } from '@react-navigation/native';
 interface GroupHisaabHeaderProps {
     groupName: string;
     onAddExpense: () => void;
+    readOnly?: boolean;
 }
 
-const GroupHisaabHeader = ({ groupName, onAddExpense }: GroupHisaabHeaderProps) => {
+const GroupHisaabHeader = ({ groupName, onAddExpense, readOnly }: GroupHisaabHeaderProps) => {
     const isTablet = useIsTablet();
     const navigation = useNavigation();
 
@@ -28,12 +29,14 @@ const GroupHisaabHeader = ({ groupName, onAddExpense }: GroupHisaabHeaderProps) 
                 </View>
             </View>
 
-            <TouchableOpacity 
-                onPress={onAddExpense}
-                className={`${isTablet ? 'w-20 h-20 rounded-3xl' : 'w-12 h-12 rounded-2xl'} bg-primary items-center justify-center shadow-lg shadow-primary/20`}
-            >
-                <MaterialIcons name="add" size={isTablet ? 42 : 28} color="white" />
-            </TouchableOpacity>
+            {!readOnly ? (
+                <TouchableOpacity
+                    onPress={onAddExpense}
+                    className={`${isTablet ? 'w-20 h-20 rounded-3xl' : 'w-12 h-12 rounded-2xl'} bg-primary items-center justify-center shadow-lg shadow-primary/20`}
+                >
+                    <MaterialIcons name="add" size={isTablet ? 42 : 28} color="white" />
+                </TouchableOpacity>
+            ) : null}
         </View>
     );
 };

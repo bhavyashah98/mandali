@@ -15,7 +15,7 @@ const GroupHisaabScreen = () => {
     const route = useRoute<any>();
     const navigation = useNavigation<any>();
     const isTablet = useIsTablet();
-    const { groupId, groupName, planId } = route.params;
+    const { groupId, groupName, planId, readOnly } = route.params;
     const { user } = useAuthStore();
 
     const {
@@ -50,17 +50,19 @@ const GroupHisaabScreen = () => {
             groupId,
             groupName,
             planId,
+            readOnly,
             members: members()
         });
-    }, [navigation, groupId, groupName, planId, members]);
+    }, [navigation, groupId, groupName, planId, readOnly, members]);
 
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top']}>
-            <GroupHisaabHeader groupName={groupName} onAddExpense={handleAddExpense} />
+            <GroupHisaabHeader groupName={groupName} onAddExpense={handleAddExpense} readOnly={readOnly} />
             <GroupHisaabSummary
                 groupBalance={groupBalance}
                 totalSpending={totalSpending}
                 onSettle={handleSettle}
+                readOnly={readOnly}
             />
 
             <View className="flex-1 px-6">

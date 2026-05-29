@@ -38,6 +38,7 @@ interface InstagramPostCardProps {
     onOpenReactions: (id: string) => void;
     onDelete: (id: string) => void;
     onReport: (id: string, groupId: string) => void;
+    readOnly?: boolean;
 }
 
 const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
@@ -49,7 +50,8 @@ const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
     onOpenComments,
     onOpenReactions,
     onDelete,
-    onReport
+    onReport,
+    readOnly
 }) => {
     const { width } = useWindowDimensions();
     const queryClient = useQueryClient();
@@ -258,7 +260,7 @@ const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
         Alert.alert(
             'Options',
             undefined,
-            isOwner
+            isOwner && !readOnly
                 ? [
                     { text: 'Cancel', style: 'cancel' },
                     { text: 'Delete Memory', style: 'destructive', onPress: () => onDelete(memory.id) }

@@ -8,6 +8,7 @@ import PastNote from './PastNote';
 import PastPlanHero from './PastPlanHero';
 import PastPlanMeta from './PastPlanMeta';
 import PastPlanPeople from './PastPlanPeople';
+import PastPlanRecap from './PastPlanRecap';
 import PastPlanTitle from './PastPlanTitle';
 import PastStatsCard from './PastStatsCard';
 
@@ -28,6 +29,7 @@ const PastPlanOverview = ({ plan }: { plan: PlanCardPlan }) => {
                 <PastPlanMeta plan={plan} />
                 <PastPlanPeople going={going} />
                 <PastStatsCard plan={plan} goingCount={goingCount} />
+                <PastPlanRecap plan={plan} />
                 <PastNote plan={plan} />
                 <View className="h-6" />
             </ScrollView>

@@ -7,9 +7,10 @@ interface GroupHisaabSummaryProps {
     groupBalance: number;
     totalSpending: number;
     onSettle: () => void;
+    readOnly?: boolean;
 }
 
-const GroupHisaabSummary = ({ groupBalance, totalSpending, onSettle }: GroupHisaabSummaryProps) => {
+const GroupHisaabSummary = ({ groupBalance, totalSpending, onSettle, readOnly }: GroupHisaabSummaryProps) => {
     const isTablet = useIsTablet();
     const isSettled = groupBalance === 0;
     const isOwed = groupBalance > 0;
@@ -19,7 +20,7 @@ const GroupHisaabSummary = ({ groupBalance, totalSpending, onSettle }: GroupHisa
             <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={onSettle}
-                disabled={isSettled}
+                disabled={isSettled || readOnly}
                 style={{ elevation: 10, shadowColor: '#b30069', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10 }}
                 className={`bg-[#b30069] rounded-[40px] overflow-hidden ${isTablet ? 'p-12' : 'p-6'}`}
             >
@@ -43,7 +44,7 @@ const GroupHisaabSummary = ({ groupBalance, totalSpending, onSettle }: GroupHisa
                             </Text>
                         )}
                     </View>
-                    {!isSettled && (
+                    {!isSettled && !readOnly && (
                         <View className="bg-white/20 px-4 py-2 rounded-2xl">
                             <Text className="text-white font-headline-bold text-[10px] uppercase tracking-wider">Settle</Text>
                         </View>

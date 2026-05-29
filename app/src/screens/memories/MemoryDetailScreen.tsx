@@ -42,9 +42,10 @@ const MemoryDetailScreen = () => {
     const { user } = useAuthStore();
 
     // Read navigation params
-    const { groupId, planId, initialMemoryId, initialPhotoUrl, groupName } = route.params as {
+    const { groupId, planId, readOnly, initialMemoryId, initialPhotoUrl, groupName } = route.params as {
         groupId: string;
         planId?: string;
+        readOnly?: boolean;
         initialMemoryId: string;
         initialPhotoUrl?: string;
         groupName: string;
@@ -130,9 +131,10 @@ const MemoryDetailScreen = () => {
                 onOpenReactions={(id) => setActiveReactionsMemoryId(id)}
                 onDelete={handleDeleteMemory}
                 onReport={handleReportMemory}
+                readOnly={readOnly}
             />
         );
-    }, [handleDeleteMemory, handleReportMemory, user, isTablet, initialMemoryId, initialPhotoUrl]);
+    }, [handleDeleteMemory, handleReportMemory, user, isTablet, initialMemoryId, initialPhotoUrl, readOnly]);
 
     const keyExtractor = useCallback((item) => item.id.toString(), []);
 

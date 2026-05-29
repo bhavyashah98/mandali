@@ -331,6 +331,7 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
         const { groupId } = req.params;
         const userId = req.userId!;
         const planId = req.query.planId as string | undefined;
+        const includeEnded = req.query.includeEnded === 'true';
 
         const { data: membership } = await supabase
             .from('group_members')
@@ -348,6 +349,7 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
             .select('*, host:users!host_id(name, avatar_url), blink_players(user_id)')
             .eq('group_id', groupId);
         if (planId) gamesQuery = gamesQuery.eq('plan_id', planId);
+        if (!includeEnded) gamesQuery = gamesQuery.neq('status', 'ended').neq('status', 'cancelled');
         const { data: games, error } = await gamesQuery
             .order('created_at', { ascending: false });
 

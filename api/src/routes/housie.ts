@@ -248,6 +248,7 @@ router.get('/group/:groupId/list', authMiddleware, async (req: AuthRequest, res)
         const { groupId } = req.params;
         const userId = req.userId!;
         const planId = req.query.planId as string | undefined;
+        const includeEnded = req.query.includeEnded === 'true';
 
         // 1. Fetch all non-ended games
         let gamesQuery = supabase
@@ -256,8 +257,8 @@ router.get('/group/:groupId/list', authMiddleware, async (req: AuthRequest, res)
                 *,
                 host:users!host_id(name, avatar_url)
             `)
-            .eq('group_id', groupId)
-            .neq('status', 'ended');
+            .eq('group_id', groupId);
+        if (!includeEnded) gamesQuery = gamesQuery.neq('status', 'ended');
         if (planId) gamesQuery = gamesQuery.eq('plan_id', planId);
         const { data: games, error } = await gamesQuery
             .order('scheduled_at', { ascending: true, nullsFirst: true })
