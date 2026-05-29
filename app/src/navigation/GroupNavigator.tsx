@@ -9,6 +9,8 @@ import GroupHisaabScreen from '../screens/hisaab/GroupHisaabScreen';
 import AddExpenseScreen from '../screens/hisaab/AddExpenseScreen';
 import SettleBalanceScreen from '../screens/hisaab/SettleBalanceScreen';
 import ExpenseDetailScreen from '../screens/hisaab/ExpenseDetailScreen';
+import GroupPulseScreen from '../screens/group/GroupPulseScreen';
+import NotificationScreen from '../screens/group/NotificationScreen';
 
 const Stack = createStackNavigator();
 
@@ -28,6 +30,8 @@ export const GroupNavigator = () => {
             <Stack.Screen name="AddExpense" component={AddExpenseScreen} />
             <Stack.Screen name="SettleBalance" component={SettleBalanceScreen} />
             <Stack.Screen name="ExpenseDetail" component={ExpenseDetailScreen} />
+            <Stack.Screen name="GroupPulse" component={GroupPulseScreen} />
+            <Stack.Screen name="Notifications" component={NotificationScreen} />
         </Stack.Navigator>
     );
 };

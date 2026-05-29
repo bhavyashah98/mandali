@@ -15,19 +15,31 @@ interface MandaliCardProps {
         is_admin?: boolean;
         memberCount?: number;
         unseenCount?: number;
+        pulseScore?: number;
+        pulseRank?: string;
     };
     onPress: (id: string, name: string) => void;
     customSubtitle?: React.ReactNode;
     customBottomNode?: React.ReactNode;
     showUnseenBadge?: boolean;
+    showPulse?: boolean;
 }
 
-export const MandaliCard: React.FC<MandaliCardProps> = ({ item, onPress, customSubtitle, customBottomNode, showUnseenBadge }) => {
+export const MandaliCard: React.FC<MandaliCardProps> = ({ 
+    item, 
+    onPress, 
+    customSubtitle, 
+    customBottomNode, 
+    showUnseenBadge,
+    showPulse = true
+}) => {
     const isTablet = useIsTablet();
     
     // Some screens pass 'id', others pass 'groupId'
     const id = item.id || item.groupId || '';
     const avatarUrl = item.cover_photo_url || item.avatar;
+    const pulseScore = item.pulseScore ?? 78;
+    const pulseRank = item.pulseRank ?? 'Top 15%';
 
     return (
         <TouchableOpacity
@@ -61,15 +73,48 @@ export const MandaliCard: React.FC<MandaliCardProps> = ({ item, onPress, customS
                 {customSubtitle !== undefined ? (
                     customSubtitle
                 ) : (
-                    <View className="flex-row items-center">
-                        <View style={{ backgroundColor: 'rgba(179, 0, 105, 0.4)' }} className={`rounded-full mr-3 ${isTablet ? 'w-2.5 h-2.5' : 'w-1.5 h-1.5'}`} />
-                        <Text className={`font-body-bold text-[#594048] opacity-60 ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
-                            {item.is_admin ? 'Admin • ' : ''}{item.memberCount || 0} Members
-                        </Text>
+                    <View className="flex-col">
+                        <View className="flex-row items-center">
+                            <View style={{ backgroundColor: '#b30069' }} className={`rounded-full mr-2 ${isTablet ? 'w-2.5 h-2.5' : 'w-1.5 h-1.5'}`} />
+                            <Text className={`font-body-bold text-[#594048] opacity-60 ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
+                                {item.is_admin ? 'Admin • ' : ''}{item.memberCount || 0} Members
+                            </Text>
+                        </View>
+                        
+                        <View className="flex-row items-center mt-1">
+                            <Text className={`font-body-bold text-[#16a34a] ${isTablet ? 'text-[20px] mt-1.5' : 'text-[12px]'} flex-row items-center`}>
+                                ↗ {pulseRank} ⬆
+                            </Text>
+                        </View>
                     </View>
                 )}
                 {customBottomNode}
             </View>
+
+            {/* Pulse Badge */}
+            {showPulse && (
+                <View className={`items-center ${isTablet ? 'mr-5' : 'mr-2.5'}`}>
+                    <View 
+                        className="bg-[#fdf0f5] items-center justify-center"
+                        style={{
+                            width: isTablet ? 72 : 48,
+                            height: isTablet ? 72 : 48,
+                            borderRadius: isTablet ? 20 : 14,
+                        }}
+                    >
+                        <Text 
+                            className={`font-headline-bold text-[#b30069] ${isTablet ? 'text-[24px]' : 'text-[17px]'}`}
+                        >
+                            {pulseScore}
+                        </Text>
+                    </View>
+                    <Text 
+                        className={`font-body-medium text-[#594048] opacity-75 mt-1 text-center ${isTablet ? 'text-base mt-2' : 'text-[10px]'}`}
+                    >
+                        Pulse
+                    </Text>
+                </View>
+            )}
 
             {/* WhatsApp-style Unseen Badge */}
             {showUnseenBadge && item.unseenCount != null && item.unseenCount > 0 && (

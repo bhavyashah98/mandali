@@ -11,11 +11,132 @@ import { Image } from 'expo-image';
 //hooks
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchGroupDetail, leaveGroup, deleteGroup, transferOwnership, fetchBlockedUsers, blockUser, unblockUser, getOptimizedImageUrl } from '../../lib/api';
+import { fetchGroupDetail, leaveGroup, deleteGroup, transferOwnership, fetchBlockedUsers, blockUser, unblockUser, getOptimizedImageUrl, fetchGroupPulse } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { useSocket } from '../../hooks/useSocket';
 import { useSocketRoom } from '../../hooks/useSocketRoom';
 import { useConfig } from '../../context/ConfigContext';
+
+interface GroupPulseCardProps {
+    isTablet: boolean;
+    pulseScore?: number;
+    pulseRank?: string;
+    pulseDelta?: number;
+    activeText?: string;
+    planText?: string;
+    onPress?: () => void;
+}
+
+const GroupPulseCard: React.FC<GroupPulseCardProps> = ({
+    isTablet,
+    pulseScore = 78,
+    pulseRank = '72%',
+    pulseDelta = 8,
+    activeText = 'More active than 72% of Mandalis',
+    planText = '7 of 18 members joined recent plans',
+    onPress
+}) => {
+    return (
+        <TouchableOpacity 
+            onPress={onPress}
+            activeOpacity={onPress ? 0.85 : 1}
+            className={`bg-[#fdf0f5] rounded-[36px] border border-[#b30069]/10 ${isTablet ? 'p-10 mb-12' : 'p-6 mb-8'}`}
+            style={{
+                shadowColor: '#b30069',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.05,
+                shadowRadius: 12,
+                elevation: 3,
+            }}
+        >
+            {/* Header Row */}
+            <View className="flex-row items-center justify-between mb-6">
+                <View className="flex-row items-center">
+                    <Text className={`mr-2 ${isTablet ? 'text-3xl' : 'text-xl'}`}>🔥</Text>
+                    <Text className={`font-headline-bold text-[#b30069] tracking-wider uppercase ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
+                        Group Pulse
+                    </Text>
+                </View>
+                <View className="bg-white border border-[#22c55e]/10 px-3.5 py-1.5 rounded-full flex-row items-center shadow-sm">
+                    <Text className={`text-[#22c55e] font-body-bold ${isTablet ? 'text-[18px]' : 'text-[12px]'}`}>
+                        ↑ +{pulseDelta} this week
+                    </Text>
+                </View>
+            </View>
+
+            {/* Score Row */}
+            <View className="flex-row items-baseline mb-6">
+                <Text 
+                    className="font-headline-bold text-[#b30069]" 
+                    style={{ fontSize: isTablet ? 96 : 64, lineHeight: isTablet ? 104 : 68 }}
+                >
+                    {pulseScore}
+                </Text>
+                <Text 
+                    className={`font-headline-bold text-[#b30069] ml-3.5 ${isTablet ? 'text-4xl' : 'text-2xl'}`}
+                >
+                    Pulse
+                </Text>
+            </View>
+
+            {/* Gradient Slider Track */}
+            <View className="relative w-full justify-center mb-8" style={{ height: isTablet ? 32 : 20 }}>
+                <LinearGradient
+                    colors={['#7828c8', '#b30069', '#ff8a00']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    className="w-full h-full rounded-full"
+                />
+                {/* Thumb positioned at score percentage */}
+                <View 
+                    style={{
+                        position: 'absolute',
+                        left: `${pulseScore}%`,
+                        transform: [{ translateX: isTablet ? -16 : -10 }],
+                        width: isTablet ? 32 : 20,
+                        height: isTablet ? 32 : 20,
+                        borderRadius: isTablet ? 16 : 10,
+                        backgroundColor: 'white',
+                        borderWidth: isTablet ? 6 : 4,
+                        borderColor: '#ff8a00',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.25,
+                        shadowRadius: 3,
+                        elevation: 4,
+                    }}
+                />
+            </View>
+
+            {/* Stats list */}
+            <View style={{ gap: isTablet ? 20 : 12 }}>
+                {/* Stat 1 */}
+                <View className="flex-row items-center py-1">
+                    <View className={`bg-[#b30069]/10 rounded-full items-center justify-center mr-4 ${isTablet ? 'w-14 h-14' : 'w-10 h-10'}`}>
+                        <Ionicons name="people-sharp" size={isTablet ? 26 : 18} color="#b30069" />
+                    </View>
+                    <Text className={`font-body-bold text-[#b30069] flex-1 ${isTablet ? 'text-2xl' : 'text-[14px]'}`}>
+                        {activeText}
+                    </Text>
+                </View>
+
+                {/* Divider line */}
+                <View className="h-[1px] bg-[#b30069]/10 w-full" />
+
+                {/* Stat 2 */}
+                <TouchableOpacity className="flex-row items-center py-1" activeOpacity={0.7}>
+                    <View className={`bg-[#b30069]/10 rounded-full items-center justify-center mr-4 ${isTablet ? 'w-14 h-14' : 'w-10 h-10'}`}>
+                        <Ionicons name="calendar-sharp" size={isTablet ? 24 : 16} color="#b30069" />
+                    </View>
+                    <Text className={`font-body-bold text-[#594048] flex-1 ${isTablet ? 'text-2xl' : 'text-[14px]'}`}>
+                        {planText}
+                    </Text>
+                    <MaterialIcons name="chevron-right" size={isTablet ? 36 : 22} color="#b30069" />
+                </TouchableOpacity>
+            </View>
+        </TouchableOpacity>
+    );
+};
 
 const GroupDetailScreen = () => {
     const navigation = useNavigation<any>();
@@ -35,6 +156,11 @@ const GroupDetailScreen = () => {
     const { data, isLoading, isRefetching, error, refetch } = useQuery({
         queryKey: ['group', groupId],
         queryFn: () => fetchGroupDetail(groupId),
+    });
+
+    const { data: pulseData } = useQuery({
+        queryKey: ['groupPulse', groupId],
+        queryFn: () => fetchGroupPulse(groupId),
     });
 
     const { data: blockedUsers, refetch: refetchBlocked } = useQuery({
@@ -281,6 +407,17 @@ const GroupDetailScreen = () => {
                         </View>
                     </LinearGradient>
                 </View>
+
+                {/* Group Pulse Score Card */}
+                <GroupPulseCard 
+                    isTablet={isTablet} 
+                    pulseScore={pulseData?.pulseScore}
+                    pulseRank={pulseData?.pulseRank}
+                    pulseDelta={pulseData?.pulseDelta}
+                    activeText={pulseData ? `More active than ${pulseData.pulsePercentile} of Mandalis` : undefined}
+                    planText={pulseData ? `${pulseData.joinedMembers} of ${pulseData.totalMembers} members joined recent plans` : undefined}
+                    onPress={() => navigation.navigate('GroupPulse', { groupId })}
+                />
 
                 {/* Group Info Card */}
                 {group.description && (

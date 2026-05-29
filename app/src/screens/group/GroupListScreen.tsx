@@ -73,6 +73,16 @@ const GroupListScreen = () => {
                         Mandali
                     </Text>
                 </View>
+                {/* Notification Bell Button */}
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('Notifications')}
+                    activeOpacity={0.7}
+                    className="w-10 h-10 bg-white border border-stone-100 shadow-sm rounded-full items-center justify-center relative"
+                >
+                    <Ionicons name="notifications-outline" size={20} color="#b30069" />
+                    {/* Active Indicator dot */}
+                    <View className="absolute top-1 right-1 w-2.5 h-2.5 bg-[#b30069] rounded-full border border-white" />
+                </TouchableOpacity>
             </View>
 
             {/* Centered Header Section */}

@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { emitGroupEvent, GroupEventType } from '../sockets/groupEvents';
+import { calculateGroupPulseInternal, calculateMeetupStreak, getPulseRank, getPulseRankPercentile } from '../utils/pulse';
 
 const router = express.Router();
 
@@ -173,6 +174,8 @@ router.get('/', async (req: AuthRequest, res) => {
                     totalWinnings,
                     memoryCount: memoryCountRes.count || 0,
                     unseenCount: unseenRes.count || 0,
+                    pulseScore: group.pulse_score ?? 0,
+                    pulseRank: group.pulse_rank ?? 'Top 80%',
                 };
             })
         );
@@ -517,10 +520,6 @@ router.post('/:id/transfer-ownership', async (req: AuthRequest, res) => {
             .eq('user_id', newAdminUserId)
             .single();
 
-        if (!targetMembership) {
-            return res.status(400).json({ error: 'Target user is not a member of this group' });
-        }
-
         await Promise.all([
             supabase.from('group_members').update({ role: 'admin' }).eq('group_id', id).eq('user_id', newAdminUserId),
             supabase.from('group_members').update({ role: 'member' }).eq('group_id', id).eq('user_id', userId),
@@ -537,4 +536,108 @@ router.post('/:id/transfer-ownership', async (req: AuthRequest, res) => {
     }
 });
 
+// ──────────────────────────────────────────────
+// GET /groups/:id/pulse — Get Group Pulse Details
+// ──────────────────────────────────────────────
+router.get('/:id/pulse', async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.userId!;
+
+        // 1. Verify membership
+        const { data: membership } = await supabase
+            .from('group_members')
+            .select('role')
+            .eq('group_id', id)
+            .eq('user_id', userId)
+            .single();
+
+        if (!membership) {
+            return res.status(403).json({ error: 'You are not a member of this group' });
+        }
+
+        const now = new Date();
+        const nowMinus7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        // 2. Fetch full pulse data for current and last week
+        const currentData = await calculateGroupPulseInternal(id, now);
+        const lastWeekData = await calculateGroupPulseInternal(id, nowMinus7);
+
+        const pulseScore = currentData.pulse;
+        const pulseDelta = pulseScore - lastWeekData.pulse;
+
+        // 3. Streak Count (Consecutive weekends/weeks with meetups)
+        const pastPlans = currentData.plans.filter((p: any) => p.status === 'past' || new Date(p.starts_at).getTime() < now.getTime());
+        const streakCount = calculateMeetupStreak(pastPlans);
+
+        // 4. Monthly overview metrics (last 30 days)
+        const thirtyDaysAgo = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+        const plansCreatedLast30d = currentData.plans.filter((p: any) => new Date(p.created_at || p.starts_at).getTime() >= thirtyDaysAgo).length;
+        const memoriesSharedLast30d = currentData.memories.filter((m: any) => new Date(m.created_at).getTime() >= thirtyDaysAgo).length;
+
+        // Settlements in last 30 days
+        const { data: settlements } = await supabase
+            .from('settlements')
+            .select('amount, created_at')
+            .eq('group_id', id);
+
+        const settlementsLast30d = (settlements || [])
+            .filter((s: any) => new Date(s.created_at).getTime() >= thirtyDaysAgo)
+            .reduce((sum: number, s: any) => sum + (s.amount || 0), 0);
+
+        const hisaabSettled = '₹' + settlementsLast30d.toLocaleString('en-IN');
+
+        // 5. Recent plan participation
+        // Find the most recent past plan to show participation details
+        let joinedMembers = 0;
+        let totalMembers = currentData.total_members;
+        let joinedPercent = 0;
+
+        if (pastPlans.length > 0) {
+            // Sort past plans descending by starts_at to get the most recent
+            const sortedPast = [...pastPlans].sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
+            const mostRecentPlan = sortedPast[0];
+            const planRsvps = currentData.plan_rsvps.filter((r: any) => r.plan_id === mostRecentPlan.id && r.status === 'going');
+            joinedMembers = planRsvps.length;
+            joinedPercent = totalMembers > 0 ? Math.round((joinedMembers / totalMembers) * 100) : 0;
+        }
+
+        // Update database columns in groups table
+        const pulseRank = getPulseRank(pulseScore);
+        const { error: updateError } = await supabase
+            .from('groups')
+            .update({
+                pulse_score: pulseScore,
+                pulse_rank: pulseRank,
+                pulse_last_calculated_at: now.toISOString()
+            })
+            .eq('id', id);
+
+        if (updateError) {
+            console.error('[Groups] Save pulse to database error:', updateError);
+        }
+
+        res.json({
+            pulseScore,
+            pulseDelta,
+            pulseRank,
+            pulsePercentile: getPulseRankPercentile(pulseScore),
+            joinedMembers,
+            totalMembers,
+            joinedPercent,
+            streakCount,
+            plansCreated: plansCreatedLast30d,
+            totalMemories: memoriesSharedLast30d,
+            hisaabSettled,
+            activeMembersLast30d: currentData.active_members_last_30d
+        });
+    } catch (err) {
+        console.error('[Groups] Pulse details error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+
 export default router;
+

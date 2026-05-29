@@ -60,6 +60,12 @@ export const fetchGroupDetail = async (groupId: string) => {
     return response.data;
 };
 
+export const fetchGroupPulse = async (groupId: string) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/groups/${groupId}/pulse`, { headers });
+    return response.data;
+};
+
 export const createGroup = async (groupData: any) => {
     const headers = await getAuthHeaders();
     const response = await axios.post(`${API_URL}/groups`, groupData, { headers });
