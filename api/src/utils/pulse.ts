@@ -2,12 +2,11 @@ import { supabase } from '../lib/supabase';
 
 // Helper functions for Group Pulse math and metrics
 export function getPulseRank(pulse: number): string {
-    if (pulse >= 90) return 'Top 3%';
-    if (pulse >= 80) return 'Top 10%';
-    if (pulse >= 70) return 'Top 15%';
-    if (pulse >= 50) return 'Top 30%';
-    if (pulse >= 30) return 'Top 50%';
-    return 'Top 80%';
+    if (pulse >= 80) return 'On Fire';
+    if (pulse >= 60) return 'Buzzing';
+    if (pulse >= 40) return 'Active';
+    if (pulse >= 20) return 'Warming Up';
+    return 'Dormant';
 }
 
 export function getPulseRankPercentile(pulse: number): string {
@@ -284,6 +283,7 @@ function computePulseFromFetchedData(data: FetchedPulseData) {
         total_members,
         plans,
         plan_rsvps,
+        games,
         memories
     };
 }

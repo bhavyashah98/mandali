@@ -175,7 +175,7 @@ router.get('/', async (req: AuthRequest, res) => {
                     memoryCount: memoryCountRes.count || 0,
                     unseenCount: unseenRes.count || 0,
                     pulseScore: group.pulse_score ?? 0,
-                    pulseRank: group.pulse_rank ?? 'Top 80%',
+                    pulseRank: group.pulse_rank ?? 'Dormant',
                 };
             })
         );
@@ -575,6 +575,7 @@ router.get('/:id/pulse', async (req: AuthRequest, res) => {
         const thirtyDaysAgo = now.getTime() - 30 * 24 * 60 * 60 * 1000;
         const plansCreatedLast30d = currentData.plans.filter((p: any) => new Date(p.created_at || p.starts_at).getTime() >= thirtyDaysAgo).length;
         const memoriesSharedLast30d = currentData.memories.filter((m: any) => new Date(m.created_at).getTime() >= thirtyDaysAgo).length;
+        const gamesPlayedLast30d = currentData.games ? currentData.games.filter((g: any) => new Date(g.created_at).getTime() >= thirtyDaysAgo).length : 0;
 
         // Settlements in last 30 days
         const { data: settlements } = await supabase
@@ -594,10 +595,11 @@ router.get('/:id/pulse', async (req: AuthRequest, res) => {
         let totalMembers = currentData.total_members;
         let joinedPercent = 0;
 
+        let pastPlansSorted = [];
         if (pastPlans.length > 0) {
             // Sort past plans descending by starts_at to get the most recent
-            const sortedPast = [...pastPlans].sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
-            const mostRecentPlan = sortedPast[0];
+            pastPlansSorted = [...pastPlans].sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
+            const mostRecentPlan = pastPlansSorted[0];
             const planRsvps = currentData.plan_rsvps.filter((r: any) => r.plan_id === mostRecentPlan.id && r.status === 'going');
             joinedMembers = planRsvps.length;
             joinedPercent = totalMembers > 0 ? Math.round((joinedMembers / totalMembers) * 100) : 0;
@@ -627,8 +629,10 @@ router.get('/:id/pulse', async (req: AuthRequest, res) => {
             totalMembers,
             joinedPercent,
             streakCount,
+            pastPlans: pastPlansSorted,
             plansCreated: plansCreatedLast30d,
             totalMemories: memoriesSharedLast30d,
+            gamesPlayed: gamesPlayedLast30d,
             hisaabSettled,
             activeMembersLast30d: currentData.active_members_last_30d
         });

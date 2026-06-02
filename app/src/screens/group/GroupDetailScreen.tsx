@@ -29,15 +29,27 @@ interface GroupPulseCardProps {
 
 const GroupPulseCard: React.FC<GroupPulseCardProps> = ({
     isTablet,
-    pulseScore = 78,
-    pulseRank = '72%',
-    pulseDelta = 8,
-    activeText = 'More active than 72% of Mandalis',
-    planText = '7 of 18 members joined recent plans',
+    pulseScore = 0,
+    pulseRank = 'Dormant',
+    pulseDelta = 0,
+    activeText,
+    planText,
     onPress
 }) => {
+    const getPulseStyle = (rank: string) => {
+        switch (rank) {
+            case 'On Fire': return { color: '#ea580c', icon: '🔥' };
+            case 'Buzzing': return { color: '#eab308', icon: '🐝' };
+            case 'Active': return { color: '#16a34a', icon: '🟢' };
+            case 'Warming Up': return { color: '#ca8a04', icon: '📈' };
+            case 'Dormant':
+            default: return { color: '#9ca3af', icon: '💤' };
+        }
+    };
+
+    const style = getPulseStyle(pulseRank);
     return (
-        <TouchableOpacity 
+        <TouchableOpacity
             onPress={onPress}
             activeOpacity={onPress ? 0.85 : 1}
             className={`bg-[#fdf0f5] rounded-[36px] border border-[#b30069]/10 ${isTablet ? 'p-10 mb-12' : 'p-6 mb-8'}`}
@@ -52,31 +64,36 @@ const GroupPulseCard: React.FC<GroupPulseCardProps> = ({
             {/* Header Row */}
             <View className="flex-row items-center justify-between mb-6">
                 <View className="flex-row items-center">
-                    <Text className={`mr-2 ${isTablet ? 'text-3xl' : 'text-xl'}`}>🔥</Text>
+                    <Text className={`mr-2 ${isTablet ? 'text-3xl' : 'text-xl'}`}>{style.icon}</Text>
                     <Text className={`font-headline-bold text-[#b30069] tracking-wider uppercase ${isTablet ? 'text-2xl' : 'text-[13px]'}`}>
                         Group Pulse
                     </Text>
                 </View>
-                <View className="bg-white border border-[#22c55e]/10 px-3.5 py-1.5 rounded-full flex-row items-center shadow-sm">
-                    <Text className={`text-[#22c55e] font-body-bold ${isTablet ? 'text-[18px]' : 'text-[12px]'}`}>
-                        ↑ +{pulseDelta} this week
-                    </Text>
-                </View>
+                {pulseDelta > 0 && (
+                    <View className="bg-white border border-[#22c55e]/10 px-3.5 py-1.5 rounded-full flex-row items-center shadow-sm">
+                        <Text className={`text-[#22c55e] font-body-bold ${isTablet ? 'text-[18px]' : 'text-[12px]'}`}>
+                            ↑ +{pulseDelta} this week
+                        </Text>
+                    </View>
+                )}
             </View>
 
             {/* Score Row */}
             <View className="flex-row items-baseline mb-6">
-                <Text 
-                    className="font-headline-bold text-[#b30069]" 
+                <Text
+                    className="font-headline-bold text-[#b30069]"
                     style={{ fontSize: isTablet ? 96 : 64, lineHeight: isTablet ? 104 : 68 }}
                 >
                     {pulseScore}
                 </Text>
-                <Text 
-                    className={`font-headline-bold text-[#b30069] ml-3.5 ${isTablet ? 'text-4xl' : 'text-2xl'}`}
-                >
-                    Pulse
-                </Text>
+                <View className="flex-col ml-3.5">
+                    <Text className={`font-headline-bold text-[#b30069] ${isTablet ? 'text-4xl' : 'text-2xl'}`}>
+                        Pulse
+                    </Text>
+                    <Text className={`font-body-bold mt-1 ${isTablet ? 'text-2xl' : 'text-[15px]'}`} style={{ color: style.color }}>
+                        {pulseRank}
+                    </Text>
+                </View>
             </View>
 
             {/* Gradient Slider Track */}
@@ -85,10 +102,10 @@ const GroupPulseCard: React.FC<GroupPulseCardProps> = ({
                     colors={['#7828c8', '#b30069', '#ff8a00']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
-                    className="w-full h-full rounded-full"
+                    style={{ width: '100%', height: '100%', borderRadius: 9999 }}
                 />
                 {/* Thumb positioned at score percentage */}
-                <View 
+                <View
                     style={{
                         position: 'absolute',
                         left: `${pulseScore}%`,
@@ -116,7 +133,7 @@ const GroupPulseCard: React.FC<GroupPulseCardProps> = ({
                         <Ionicons name="people-sharp" size={isTablet ? 26 : 18} color="#b30069" />
                     </View>
                     <Text className={`font-body-bold text-[#b30069] flex-1 ${isTablet ? 'text-2xl' : 'text-[14px]'}`}>
-                        {activeText}
+                        {activeText || 'Calculating activity...'}
                     </Text>
                 </View>
 
@@ -124,15 +141,14 @@ const GroupPulseCard: React.FC<GroupPulseCardProps> = ({
                 <View className="h-[1px] bg-[#b30069]/10 w-full" />
 
                 {/* Stat 2 */}
-                <TouchableOpacity className="flex-row items-center py-1" activeOpacity={0.7}>
+                <View className="flex-row items-center py-1">
                     <View className={`bg-[#b30069]/10 rounded-full items-center justify-center mr-4 ${isTablet ? 'w-14 h-14' : 'w-10 h-10'}`}>
                         <Ionicons name="calendar-sharp" size={isTablet ? 24 : 16} color="#b30069" />
                     </View>
                     <Text className={`font-body-bold text-[#594048] flex-1 ${isTablet ? 'text-2xl' : 'text-[14px]'}`}>
-                        {planText}
+                        {planText || 'Analyzing recent plans...'}
                     </Text>
-                    <MaterialIcons name="chevron-right" size={isTablet ? 36 : 22} color="#b30069" />
-                </TouchableOpacity>
+                </View>
             </View>
         </TouchableOpacity>
     );
@@ -409,11 +425,11 @@ const GroupDetailScreen = () => {
                 </View>
 
                 {/* Group Pulse Score Card */}
-                <GroupPulseCard 
-                    isTablet={isTablet} 
-                    pulseScore={pulseData?.pulseScore}
-                    pulseRank={pulseData?.pulseRank}
-                    pulseDelta={pulseData?.pulseDelta}
+                <GroupPulseCard
+                    isTablet={isTablet}
+                    pulseScore={pulseData?.pulseScore ?? group.pulse_score ?? 0}
+                    pulseRank={pulseData?.pulseRank ?? group.pulse_rank ?? 'Dormant'}
+                    pulseDelta={pulseData?.pulseDelta ?? 0}
                     activeText={pulseData ? `More active than ${pulseData.pulsePercentile} of Mandalis` : undefined}
                     planText={pulseData ? `${pulseData.joinedMembers} of ${pulseData.totalMembers} members joined recent plans` : undefined}
                     onPress={() => navigation.navigate('GroupPulse', { groupId })}

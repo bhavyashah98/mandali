@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Dimensions, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Dimensions, StyleSheet, ActivityIndicator, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -7,11 +7,13 @@ import Svg, { Path, Defs, LinearGradient, Stop, Circle, Text as SvgText } from '
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { useQuery } from '@tanstack/react-query';
 import { fetchGroupPulse } from '../../lib/api';
+import MeetupStreakCard from '../../components/pulse/MeetupStreakCard';
 
 const GroupPulseScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute();
     const isTablet = useIsTablet();
+    const [showInfo, setShowInfo] = useState(false);
 
     const { groupId } = route.params as { groupId: string };
 
@@ -54,8 +56,10 @@ const GroupPulseScreen = () => {
         totalMembers,
         joinedPercent,
         streakCount,
+        pastPlans,
         plansCreated,
         totalMemories,
+        gamesPlayed,
         hisaabSettled,
         activeMembersLast30d
     } = pulseData;
@@ -95,8 +99,8 @@ const GroupPulseScreen = () => {
     // Thumb position marker
     const thumbPos = getCartesian(cx, cy, radius, progressEndAngle);
 
-    // SVG Circular Progress Mini Ring Coords (R=25)
-    const miniRadius = 22;
+    // SVG Circular Progress Mini Ring Coords (R=34)
+    const miniRadius = 34;
     const miniCircumference = 2 * Math.PI * miniRadius;
     const strokeDashoffset = miniCircumference * (1 - joinedPercent / 100);
 
@@ -116,6 +120,7 @@ const GroupPulseScreen = () => {
                 </Text>
 
                 <TouchableOpacity
+                    onPress={() => setShowInfo(true)}
                     activeOpacity={0.7}
                     className={`items-center justify-center bg-white shadow-sm border border-stone-100 rounded-full ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                 >
@@ -129,7 +134,7 @@ const GroupPulseScreen = () => {
                 contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 10, paddingBottom: 60 }}
             >
                 {/* SVG Dial Gauge Wrapper */}
-                <View className="items-center justify-center relative w-full mb-8" style={{ height: isTablet ? 320 : 250 }}>
+                <View className="items-center justify-center relative w-full mb-3" style={{ height: isTablet ? 320 : 250 }}>
                     {/* SVG Gauge */}
                     <Svg width={isTablet ? 360 : 260} height={isTablet ? 320 : 240} viewBox="0 0 260 240">
                         <Defs>
@@ -209,7 +214,7 @@ const GroupPulseScreen = () => {
                 </View>
 
                 {/* Subtitle green trends */}
-                <View className="items-center mb-10">
+                <View className="items-center mb-6">
                     <View className="bg-white border border-[#22c55e]/10 px-4 py-2 rounded-full flex-row items-center shadow-sm">
                         <Text className={`text-[#22c55e] font-body-bold ${isTablet ? 'text-[18px]' : 'text-[13px]'}`}>
                             ↑ +{pulseDelta} from last week
@@ -244,45 +249,15 @@ const GroupPulseScreen = () => {
                                 </Text>
                             </View>
                             <Text className={`font-body-medium text-[#594048]/60 ${isTablet ? 'text-xl' : 'text-[12px]'}`}>
-                                Members Joined
+                                Members Engaged
                             </Text>
                         </View>
-
-                        {/* SVG Progress Circle Ring */}
-                        <Svg width={70} height={70} viewBox="0 0 60 60" className="mr-2">
-                            {/* Background Circle */}
-                            <Circle
-                                cx="30"
-                                cy="30"
-                                r={miniRadius}
-                                fill="none"
-                                stroke="#fcecf2"
-                                strokeWidth={5}
-                            />
-                            {/* Filled Circle */}
-                            <Circle
-                                cx="30"
-                                cy="30"
-                                r={miniRadius}
-                                fill="none"
-                                stroke="#b30069"
-                                strokeWidth={5}
-                                strokeDasharray={miniCircumference}
-                                strokeDashoffset={strokeDashoffset}
-                                strokeLinecap="round"
-                                transform="rotate(-90 30 30)"
-                            />
-                            <SvgText
-                                x="30"
-                                y="34"
-                                textAnchor="middle"
-                                fontSize="12"
-                                fontWeight="bold"
-                                fill="#1c1c18"
-                            >
+                        {/* Simple Percentage Pill */}
+                        <View className="bg-[#b30069]/10 rounded-full px-3 py-1 ml-4 justify-center items-center">
+                            <Text className="text-[#b30069] font-headline-bold text-[14px]">
                                 {joinedPercent}%
-                            </SvgText>
-                        </Svg>
+                            </Text>
+                        </View>
                     </View>
 
                     {/* Horizontal slider progress bar */}
@@ -308,61 +283,7 @@ const GroupPulseScreen = () => {
                 </View>
 
                 {/* Card 2: Meetup Streak */}
-                <View
-                    style={{ elevation: 2 }}
-                    className={`bg-white rounded-[32px] border border-stone-100 shadow-sm mb-8 ${isTablet ? 'p-8' : 'p-5'}`}
-                >
-                    {/* Header */}
-                    <View className="flex-row items-center justify-between mb-6">
-                        <View className="flex-row items-center">
-                            <View className={`bg-[#fff7ed] rounded-full items-center justify-center mr-3.5 ${isTablet ? 'w-12 h-12' : 'w-9 h-9'}`}>
-                                <Ionicons name="flame" size={isTablet ? 24 : 16} color="#ea580c" />
-                            </View>
-                            <Text className={`font-headline-bold text-[#1c1c18] ${isTablet ? 'text-3xl' : 'text-[16px]'}`}>
-                                Meetup Streak
-                            </Text>
-                        </View>
-                        <TouchableOpacity className="flex-row items-center">
-                            <Text className={`text-[#b30069] font-headline-bold mr-1 ${isTablet ? 'text-xl' : 'text-[13px]'}`}>
-                                View history
-                            </Text>
-                            <MaterialIcons name="chevron-right" size={isTablet ? 22 : 16} color="#b30069" />
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Streak Count & Flames details */}
-                    <View className="flex-row items-center justify-between mb-4">
-                        <View className="flex-row items-baseline">
-                            <Text className={`font-headline-bold text-[#1c1c18] ${isTablet ? 'text-5xl' : 'text-3xl'}`}>
-                                {streakCount}
-                            </Text>
-                            <Text className={`font-body-bold text-[#594048]/60 ml-2 ${isTablet ? 'text-xl' : 'text-[12px]'}`}>
-                                Weekends Together
-                            </Text>
-                        </View>
-
-                        {/* List of 6 flame icons representing streak */}
-                        <View className="flex-row items-center">
-                            {Array.from({ length: 6 }).map((_, idx) => {
-                                const isLit = idx < streakCount;
-                                return (
-                                    <Ionicons 
-                                        key={idx} 
-                                        name="flame" 
-                                        size={isTablet ? 26 : 20} 
-                                        color={isLit ? "#ea580c" : "#e5e5e5"} 
-                                        style={{ marginRight: 2 }} 
-                                    />
-                                );
-                            })}
-                        </View>
-                    </View>
-
-                    {/* Subtext advice */}
-                    <Text className={`font-body-medium text-[#594048]/75 ${isTablet ? 'text-lg mt-2' : 'text-[12px]'}`}>
-                        Keep it going! ❤️
-                    </Text>
-                </View>
+                <MeetupStreakCard streakCount={streakCount} isTablet={isTablet} groupId={groupId} pastPlans={pastPlans || []} />
 
                 {/* Section 3: This Month Overview */}
                 <View className="mb-4">
@@ -385,16 +306,16 @@ const GroupPulseScreen = () => {
                             </Text>
                         </View>
 
-                        {/* Members Joined */}
+                        {/* Games Played */}
                         <View
                             style={{ elevation: 1 }}
                             className={`flex-1 bg-white border border-stone-50 rounded-2xl items-center shadow-sm ${isTablet ? 'p-5' : 'p-3'}`}
                         >
                             <Text className={`font-headline-bold text-[#b30069] ${isTablet ? 'text-3xl' : 'text-[17px]'}`}>
-                                {activeMembersLast30d}
+                                {gamesPlayed}
                             </Text>
                             <Text className={`font-body-bold text-[#594048]/60 text-center mt-1 leading-[14px] ${isTablet ? 'text-lg mt-2 leading-[20px]' : 'text-[9.5px]'}`}>
-                                Members{"\n"}Joined
+                                Games{"\n"}Played
                             </Text>
                         </View>
 
@@ -426,6 +347,61 @@ const GroupPulseScreen = () => {
                     </View>
                 </View>
             </ScrollView>
+
+            {/* Pulse Explanation Modal */}
+            <Modal
+                visible={showInfo}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowInfo(false)}
+            >
+                <Pressable className="flex-1 bg-black/60 justify-center items-center p-6" onPress={() => setShowInfo(false)}>
+                    <Pressable className={`bg-white rounded-[32px] w-full shadow-2xl ${isTablet ? 'p-10 max-w-xl' : 'p-6 max-w-sm'}`} onPress={e => e.stopPropagation()}>
+                        <View className="flex-row items-center justify-between mb-6">
+                            <View className="flex-row items-center">
+                                <Text className={`mr-3 ${isTablet ? 'text-4xl' : 'text-2xl'}`}>🔥</Text>
+                                <Text className={`font-headline-bold text-[#b30069] ${isTablet ? 'text-3xl' : 'text-xl'}`}>How Pulse Works</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setShowInfo(false)} className="bg-stone-100 rounded-full p-2">
+                                <Ionicons name="close" size={20} color="#594048" />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <Text className={`font-body-medium text-stone-600 mb-6 ${isTablet ? 'text-xl' : 'text-[15px]'}`}>
+                            Group Pulse measures how active your Mandali is. The score grows as you make memories, but slowly fades over time to keep things fresh.
+                        </Text>
+                        
+                        <View className="mb-8">
+                            <View>
+                                <Text className={`font-headline-bold text-[#1c1c18] mb-1 ${isTablet ? 'text-2xl' : 'text-base'}`}>📅 Plans</Text>
+                                <Text className={`font-body-medium text-stone-600 ${isTablet ? 'text-xl' : 'text-sm'}`}>• +10 pts for creating a plan</Text>
+                                <Text className={`font-body-medium text-stone-600 ${isTablet ? 'text-xl' : 'text-sm'}`}>• +5 pts when it happens</Text>
+                                <Text className={`font-body-medium text-stone-600 ${isTablet ? 'text-xl' : 'text-sm'}`}>• +3 pts per RSVP</Text>
+                            </View>
+                            
+                            <View className="mt-5">
+                                <Text className={`font-headline-bold text-[#1c1c18] mb-1 ${isTablet ? 'text-2xl' : 'text-base'}`}>🎮 Games</Text>
+                                <Text className={`font-body-medium text-stone-600 ${isTablet ? 'text-xl' : 'text-sm'}`}>• +8 pts for playing</Text>
+                                <Text className={`font-body-medium text-stone-600 ${isTablet ? 'text-xl' : 'text-sm'}`}>• +2 pts for every extra player</Text>
+                                <Text className={`font-body-medium text-stone-600 ${isTablet ? 'text-xl' : 'text-sm'}`}>• +3 pts for rematches</Text>
+                            </View>
+                            
+                            <View className="mt-5">
+                                <Text className={`font-headline-bold text-[#1c1c18] mb-1 ${isTablet ? 'text-2xl' : 'text-base'}`}>📸 Memories</Text>
+                                <Text className={`font-body-medium text-stone-600 ${isTablet ? 'text-xl' : 'text-sm'}`}>• +5 pts per uploader</Text>
+                                <Text className={`font-body-medium text-stone-600 ${isTablet ? 'text-xl' : 'text-sm'}`}>• +2 pts for captions</Text>
+                                <Text className={`font-body-medium text-stone-600 ${isTablet ? 'text-xl' : 'text-sm'}`}>• +1 pt per reaction</Text>
+                            </View>
+                        </View>
+                        
+                        <View className="bg-[#b30069]/5 p-4 rounded-2xl">
+                            <Text className={`font-body-bold text-[#b30069] ${isTablet ? 'text-xl' : 'text-[13px]'}`}>
+                                💡 Tip: High group participation multiplies your score, making every moment count!
+                            </Text>
+                        </View>
+                    </Pressable>
+                </Pressable>
+            </Modal>
         </SafeAreaView>
     );
 };

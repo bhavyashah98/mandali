@@ -25,6 +25,22 @@ interface MandaliCardProps {
     showPulse?: boolean;
 }
 
+const getPulseStyle = (rank: string) => {
+    switch (rank) {
+        case 'On Fire':
+            return { color: '#ea580c', icon: '🔥' };
+        case 'Buzzing':
+            return { color: '#eab308', icon: '🐝' };
+        case 'Active':
+            return { color: '#16a34a', icon: '🟢' };
+        case 'Warming Up':
+            return { color: '#ca8a04', icon: '📈' };
+        case 'Dormant':
+        default:
+            return { color: '#9ca3af', icon: '💤' };
+    }
+};
+
 export const MandaliCard: React.FC<MandaliCardProps> = ({
     item,
     onPress,
@@ -39,7 +55,9 @@ export const MandaliCard: React.FC<MandaliCardProps> = ({
     const id = item.id || item.groupId || '';
     const avatarUrl = item.cover_photo_url || item.avatar;
     const pulseScore = item.pulseScore ?? 0;
-    const pulseRank = item.pulseRank ?? '';
+    const pulseRank = item.pulseRank ?? 'Dormant';
+
+    const pulseStyle = getPulseStyle(pulseRank);
 
     return (
         <TouchableOpacity
@@ -82,8 +100,8 @@ export const MandaliCard: React.FC<MandaliCardProps> = ({
                         </View>
 
                         <View className="flex-row items-center mt-1">
-                            <Text className={`font-body-bold text-[#16a34a] ${isTablet ? 'text-[20px] mt-1.5' : 'text-[12px]'} flex-row items-center`}>
-                                {pulseRank}
+                            <Text style={{ color: pulseStyle.color }} className={`font-body-bold ${isTablet ? 'text-[20px] mt-1.5' : 'text-[12px]'} flex-row items-center`}>
+                                {pulseStyle.icon} {pulseRank}
                             </Text>
                         </View>
                     </View>
