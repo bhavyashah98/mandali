@@ -25,21 +25,21 @@ interface MandaliCardProps {
     showPulse?: boolean;
 }
 
-export const MandaliCard: React.FC<MandaliCardProps> = ({ 
-    item, 
-    onPress, 
-    customSubtitle, 
-    customBottomNode, 
+export const MandaliCard: React.FC<MandaliCardProps> = ({
+    item,
+    onPress,
+    customSubtitle,
+    customBottomNode,
     showUnseenBadge,
     showPulse = true
 }) => {
     const isTablet = useIsTablet();
-    
+
     // Some screens pass 'id', others pass 'groupId'
     const id = item.id || item.groupId || '';
     const avatarUrl = item.cover_photo_url || item.avatar;
-    const pulseScore = item.pulseScore ?? 78;
-    const pulseRank = item.pulseRank ?? 'Top 15%';
+    const pulseScore = item.pulseScore ?? 0;
+    const pulseRank = item.pulseRank ?? '';
 
     return (
         <TouchableOpacity
@@ -80,10 +80,10 @@ export const MandaliCard: React.FC<MandaliCardProps> = ({
                                 {item.is_admin ? 'Admin • ' : ''}{item.memberCount || 0} Members
                             </Text>
                         </View>
-                        
+
                         <View className="flex-row items-center mt-1">
                             <Text className={`font-body-bold text-[#16a34a] ${isTablet ? 'text-[20px] mt-1.5' : 'text-[12px]'} flex-row items-center`}>
-                                ↗ {pulseRank} ⬆
+                                {pulseRank}
                             </Text>
                         </View>
                     </View>
@@ -94,7 +94,7 @@ export const MandaliCard: React.FC<MandaliCardProps> = ({
             {/* Pulse Badge */}
             {showPulse && (
                 <View className={`items-center ${isTablet ? 'mr-5' : 'mr-2.5'}`}>
-                    <View 
+                    <View
                         className="bg-[#fdf0f5] items-center justify-center"
                         style={{
                             width: isTablet ? 72 : 48,
@@ -102,13 +102,13 @@ export const MandaliCard: React.FC<MandaliCardProps> = ({
                             borderRadius: isTablet ? 20 : 14,
                         }}
                     >
-                        <Text 
+                        <Text
                             className={`font-headline-bold text-[#b30069] ${isTablet ? 'text-[24px]' : 'text-[17px]'}`}
                         >
                             {pulseScore}
                         </Text>
                     </View>
-                    <Text 
+                    <Text
                         className={`font-body-medium text-[#594048] opacity-75 mt-1 text-center ${isTablet ? 'text-base mt-2' : 'text-[10px]'}`}
                     >
                         Pulse
@@ -118,21 +118,21 @@ export const MandaliCard: React.FC<MandaliCardProps> = ({
 
             {/* WhatsApp-style Unseen Badge */}
             {showUnseenBadge && item.unseenCount != null && item.unseenCount > 0 && (
-                <View 
-                    style={{ 
-                        backgroundColor: '#b30069', 
-                        minWidth: isTablet ? 36 : 22, 
-                        height: isTablet ? 36 : 22, 
-                        borderRadius: isTablet ? 18 : 11, 
-                        justifyContent: 'center', 
+                <View
+                    style={{
+                        backgroundColor: '#b30069',
+                        minWidth: isTablet ? 36 : 22,
+                        height: isTablet ? 36 : 22,
+                        borderRadius: isTablet ? 18 : 11,
+                        justifyContent: 'center',
                         alignItems: 'center',
                         paddingHorizontal: isTablet ? 8 : 6,
                         marginRight: isTablet ? 16 : 8,
                     }}
                 >
-                    <Text 
-                        style={{ 
-                            color: 'white', 
+                    <Text
+                        style={{
+                            color: 'white',
                             fontSize: isTablet ? 16 : 11,
                             fontWeight: 'bold',
                             textAlign: 'center',

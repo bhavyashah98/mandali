@@ -560,8 +560,9 @@ router.get('/:id/pulse', async (req: AuthRequest, res) => {
         const nowMinus7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
         // 2. Fetch full pulse data for current and last week
-        const currentData = await calculateGroupPulseInternal(id, now);
-        const lastWeekData = await calculateGroupPulseInternal(id, nowMinus7);
+        const groupId = id as string;
+        const currentData = await calculateGroupPulseInternal(groupId, now);
+        const lastWeekData = await calculateGroupPulseInternal(groupId, nowMinus7);
 
         const pulseScore = currentData.pulse;
         const pulseDelta = pulseScore - lastWeekData.pulse;

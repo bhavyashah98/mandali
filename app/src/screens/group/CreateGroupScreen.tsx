@@ -45,7 +45,8 @@ const CreateGroupScreen = () => {
 
                 // Only upload if it's a new local URI
                 if (hasNewImage && groupImage) {
-                    uploadedUrl = await uploadImage(groupImage, editGroup.id);
+                    const uploadResult = await uploadImage(groupImage, editGroup.id);
+                    uploadedUrl = uploadResult.url;
                 }
 
                 const payload = {
@@ -67,7 +68,8 @@ const CreateGroupScreen = () => {
 
                 // 2. Upload image and patch the group if an image was selected
                 if (hasNewImage && groupImage) {
-                    const uploadedUrl = await uploadImage(groupImage, newGroupId);
+                    const uploadResult = await uploadImage(groupImage, newGroupId);
+                    const uploadedUrl = uploadResult.url;
                     await updateGroup(newGroupId, { ...payload, coverPhotoUrl: uploadedUrl });
                     response.group.cover_photo_url = uploadedUrl;
                 }
