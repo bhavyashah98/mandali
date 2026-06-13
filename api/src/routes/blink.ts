@@ -10,6 +10,8 @@ import {
 } from '../services/blinkEngine';
 import { activeBlinkGames } from '../services/blinkMemory';
 import { sendGroupPushNotification } from '../lib/push';
+import { createGroupNotification } from '../services/notificationService';
+import { NOTIFICATION_TYPES } from '../types/notifications';
 
 const router = Router();
 
@@ -96,6 +98,19 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
             { type: 'blink', gameCode: gameCode, groupId: groupId, url: `mandali://blink/${gameCode}/${groupId}` }
         ).catch((err: any) => console.error('[Push Failed]:', err));
 
+        const { data: creator } = await supabase.from('users').select('name').eq('id', userId).single();
+        const creatorName = creator?.name || 'A member';
+
+        createGroupNotification(
+            groupId,
+            NOTIFICATION_TYPES.BLINK_CREATED,
+            `⚡ New Blink Match Created!`,
+            `${creatorName} is hosting a new match!`,
+            userId,
+            userId,
+            game.id
+        );
+
         res.status(201).json({ game, message: 'Game created successfully' });
     } catch (error: any) {
         console.error('[Blink] Create Error:', error);
@@ -179,6 +194,19 @@ router.post('/schedule', authMiddleware, async (req: AuthRequest, res) => {
             `A new Blink match "${title || 'Scheduled Blink Game'}" has been scheduled for ${istTime}. Get ready!`,
             { type: 'blink', gameCode: gameCode, groupId: groupId, url: `mandali://blink/${gameCode}/${groupId}` }
         ).catch((err: any) => console.error('[Push Failed]:', err));
+
+        const { data: creator } = await supabase.from('users').select('name').eq('id', userId).single();
+        const creatorName = creator?.name || 'A member';
+
+        createGroupNotification(
+            groupId,
+            NOTIFICATION_TYPES.BLINK_CREATED,
+            `📅 Blink Scheduled: ${title || 'Match'}`,
+            `${creatorName} scheduled a match for ${istTime}`,
+            userId,
+            userId,
+            game.id
+        );
 
         res.status(201).json({ game, message: 'Game scheduled successfully' });
     } catch (error: any) {

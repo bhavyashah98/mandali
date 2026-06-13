@@ -7,6 +7,8 @@ import { sendGroupPushNotification } from '../lib/push';
 import { checkPrize } from '../utils/tambola';
 
 import { startAutoHost, pauseAutoHost, resumeAutoHost, stopAutoHost } from '../services/housieAutoHost';
+import { createGroupNotification } from '../services/notificationService';
+import { NOTIFICATION_TYPES } from '../types/notifications';
 
 const router = Router();
 
@@ -184,6 +186,19 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
             notificationBody,
             { type: 'housie', gameCode: gameCode, groupId: groupId, url: `mandali://housie/${gameCode}/${groupId}` }
         ).catch((err: any) => console.error('[Push Failed]:', err));
+
+        const { data: creator } = await supabase.from('users').select('name').eq('id', userId).single();
+        const creatorName = creator?.name || 'A member';
+        
+        createGroupNotification(
+            groupId,
+            NOTIFICATION_TYPES.HOUSIE_CREATED,
+            scheduledAt ? `Housie Scheduled: ${title || 'Game'}` : `New Housie Created!`,
+            scheduledAt ? `${creatorName} scheduled a game` : `${creatorName} is hosting a new game!`,
+            userId,
+            userId,
+            data.id
+        );
 
         res.json({ success: true, game: data });
     } catch (error: any) {

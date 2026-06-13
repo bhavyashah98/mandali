@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { sendGroupPushNotification, sendUserPushNotification } from '../lib/push';
+import { createGroupNotification } from '../services/notificationService';
+import { NOTIFICATION_TYPES } from '../types/notifications';
 
 const router = Router();
 
@@ -42,7 +44,7 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
                 user:user_id(name, avatar_url)
             `, { count: 'exact' })
             .eq('group_id', groupId)
-            .eq('is_hidden', false) 
+            .eq('is_hidden', false)
             .order('memory_date', { ascending: false })
             .range(from, to);
         if (planId) query = query.eq('plan_id', planId);
@@ -50,7 +52,7 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
         if (blockedUserIds.length > 0) {
             query = query.not('user_id', 'in', `(${blockedUserIds.join(',')})`);
         }
-        
+
         if (reportedContentIds.length > 0) {
             query = query.not('id', 'in', `(${reportedContentIds.join(',')})`);
         }
@@ -83,12 +85,12 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
             const reactionsSummary = (reactionsData || []).reduce((acc: any, curr: any) => {
                 if (!acc[curr.memory_id]) acc[curr.memory_id] = { summary: {}, userReaction: null };
                 const memorySummary = acc[curr.memory_id];
-                
+
                 memorySummary.summary[curr.reaction] = (memorySummary.summary[curr.reaction] || 0) + 1;
                 if (curr.user_id === userId) {
                     memorySummary.userReaction = curr.reaction;
                 }
-                
+
                 return acc;
             }, {});
 
@@ -136,8 +138,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         });
 
         if (currentTotal + imageUrls.length > 200) {
-            return res.status(403).json({ 
-                error: `Upload limit reached. You have ${currentTotal} images and this would exceed the 200 image limit. Please delete some memories.` 
+            return res.status(403).json({
+                error: `Upload limit reached. You have ${currentTotal} images and this would exceed the 200 image limit. Please delete some memories.`
             });
         }
 
@@ -167,12 +169,28 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
 
         // Notify other group members asynchronously without awaiting
         sendGroupPushNotification(
-            groupId, 
-            userId!, 
-            '✨ New Memory Shared!', 
+            groupId,
+            userId!,
+            '✨ New Memory Shared!',
             'Someone just added a new memory to your group. Tap to view it!',
             { type: 'memory', groupId, url: `mandali://memories/${groupId}/${data.id}` }
         ).catch((err: any) => console.error('[Push Failed]:', err));
+
+        supabase.from('users').select('name').eq('id', userId).single().then(({ data: creator }) => {
+            const creatorName = creator?.name || 'A member';
+            const numImages = imageUrls.length;
+
+            createGroupNotification(
+                groupId,
+                NOTIFICATION_TYPES.MEMORY_ADDED,
+                `${numImages} new memor${numImages > 1 ? 'ies' : 'y'} added`,
+                `Relive the fun moments with ${creatorName} ✨`,
+                userId,
+                userId,
+                data.id,
+                { thumbnails: imageUrls.slice(0, 3) }
+            );
+        });
 
         res.json(data);
     } catch (error: any) {
@@ -270,6 +288,17 @@ router.post('/:id/comments', authMiddleware, async (req: AuthRequest, res) => {
                     `${commenterName} commented on your memory.`,
                     { type: 'memory_comment', memoryId: id, groupId: memory.group_id, url: `mandali://memories/${memory.group_id}/${id}` }
                 ).catch(err => console.error('[Push Failed]:', err));
+
+                // In-app notification
+                createGroupNotification(
+                    memory.group_id,
+                    NOTIFICATION_TYPES.MEMORY_COMMENT,
+                    `${commenterName} commented on a memory`,
+                    `"${comment.trim().slice(0, 60)}${comment.trim().length > 60 ? '…' : ''}"`,
+                    memory.user_id,
+                    userId,
+                    id as string
+                );
             }
         }
 
@@ -419,6 +448,17 @@ router.post('/:id/reactions', authMiddleware, async (req: AuthRequest, res) => {
                     `${reactorName} liked your photo`,
                     { type: 'memory_reaction', memoryId: id, groupId: memory.group_id, url: `mandali://memories/${memory.group_id}/${id}` }
                 ).catch(err => console.error('[Push Failed]:', err));
+
+                // In-app notification
+                createGroupNotification(
+                    memory.group_id,
+                    NOTIFICATION_TYPES.MEMORY_REACTION,
+                    `${reactorName} reacted to a memory`,
+                    `${reaction} on your photo`,
+                    memory.user_id,
+                    userId,
+                    id as string
+                );
             }
 
             return res.json({ success: true, action: 'added', reaction: inserted.reaction });

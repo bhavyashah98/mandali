@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSocket } from '../../hooks/useSocket';
 
 //api
-import { fetchGroups, getOptimizedImageUrl } from '../../lib/api';
+import { fetchGroups, getOptimizedImageUrl, fetchUnreadNotificationCount } from '../../lib/api';
 import { SearchBar } from '../../components/common/SearchBar';
 import { MandaliCard } from '../../components/common/MandaliCard';
 
@@ -28,6 +28,11 @@ const GroupListScreen = () => {
         queryFn: fetchGroups,
     });
 
+    const { data: unreadCount = 0, refetch: refetchUnread } = useQuery({
+        queryKey: ['unreadNotificationsCount'],
+        queryFn: fetchUnreadNotificationCount,
+    });
+
     const [searchQuery, setSearchQuery] = useState('');
 
     const filteredGroups = useMemo(() => {
@@ -41,6 +46,7 @@ const GroupListScreen = () => {
     useFocusEffect(
         useCallback(() => {
             refetch();
+            refetchUnread();
 
             if (!socket) {
                 return;
@@ -81,7 +87,9 @@ const GroupListScreen = () => {
                 >
                     <Ionicons name="notifications-outline" size={20} color="#b30069" />
                     {/* Active Indicator dot */}
-                    <View className="absolute top-1 right-1 w-2.5 h-2.5 bg-[#b30069] rounded-full border border-white" />
+                    {unreadCount > 0 && (
+                        <View className="absolute top-1 right-1 w-2.5 h-2.5 bg-[#b30069] rounded-full border border-white" />
+                    )}
                 </TouchableOpacity>
             </View>
 

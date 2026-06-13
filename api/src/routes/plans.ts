@@ -9,6 +9,8 @@ import {
     PlanRsvpStatus,
 } from './planRsvpHelpers';
 import { sendPlanScheduledNotification } from '../services/planLifecycleCron';
+import { createGroupNotification } from '../services/notificationService';
+import { NOTIFICATION_TYPES } from '../types/notifications';
 
 const router = Router();
 
@@ -240,6 +242,17 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
             console.error('[Plans] Failed to send scheduled plan notification:', notificationError);
         });
 
+        const timeStr = new Date(starts).toLocaleString('en-US', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+        createGroupNotification(
+            groupId,
+            NOTIFICATION_TYPES.PLAN_CREATED,
+            `${plan.creator?.name || 'A member'} created a plan "${label}"`,
+            timeStr,
+            userId,
+            userId,
+            plan.id
+        );
+
         const status = resolvePlanStatus(plan);
         const rsvpsMap = await loadRsvpsByPlanIds([plan.id]);
         const myRsvp = await loadMyRsvp(plan.id, userId);
@@ -361,6 +374,25 @@ router.post('/:id/rsvp', authMiddleware, async (req: AuthRequest, res) => {
             .eq('id', id)
             .single();
 
+        if (plan.created_by !== userId) {
+            const { data: rsvper } = await supabase.from('users').select('name').eq('id', userId).single();
+            const rsvperName = rsvper?.name || 'A member';
+            let rsvpStatusStr = 'responded to';
+            if (status === 'going') rsvpStatusStr = 'is going to';
+            else if (status === 'maybe') rsvpStatusStr = 'might go to';
+            else if (status === 'cant_go') rsvpStatusStr = "can't go to";
+            
+            createGroupNotification(
+                plan.group_id,
+                NOTIFICATION_TYPES.PLAN_RSVP,
+                `New RSVP for ${fullRow?.title || 'Plan'}`,
+                `${rsvperName} ${rsvpStatusStr} your plan`,
+                plan.created_by,
+                userId,
+                plan.id
+            );
+        }
+
         res.json({
             plan: formatPlanPayload(fullRow || plan, planStatus, userId, rsvpsMap[id as string], myRsvp),
         });
@@ -432,7 +464,7 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
 
         const { data: plan, error: planError } = await supabase
             .from('plans')
-            .select('id, created_by, group_id')
+            .select('id, title, created_by, group_id')
             .eq('id', id)
             .single();
 
@@ -445,7 +477,21 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
         }
 
         const { error: deleteError } = await supabase.from('plans').delete().eq('id', id);
+
         if (deleteError) throw deleteError;
+
+        const { data: creator } = await supabase.from('users').select('name').eq('id', userId).single();
+        const creatorName = creator?.name || 'The host';
+        
+        createGroupNotification(
+            plan.group_id,
+            NOTIFICATION_TYPES.PLAN_CANCELLED,
+            `Plan Cancelled: ${plan.title || 'Plan'}`,
+            `${creatorName} cancelled the plan`,
+            userId,
+            userId,
+            plan.id
+        );
 
         res.json({ success: true });
     } catch (err: any) {

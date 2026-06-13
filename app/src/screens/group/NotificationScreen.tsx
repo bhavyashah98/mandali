@@ -1,10 +1,12 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { useIsTablet } from '../../hooks/useIsTablet';
+import { fetchNotifications, markNotificationsAsRead } from '../../lib/api';
+import { formatDistanceToNow } from 'date-fns';
 
 interface NotificationItem {
     id: string;
@@ -19,76 +21,57 @@ const NotificationScreen = () => {
     const navigation = useNavigation<any>();
     const isTablet = useIsTablet();
 
-    const notifications: NotificationItem[] = [
-        {
-            id: '1',
-            type: 'pulse',
-            title: 'Your Mandali Pulse increased! 🎉',
-            description: "You're more active than 72% of Mandalis.",
-            time: '2m ago'
-        },
-        {
-            id: '2',
-            type: 'plan',
-            title: 'Rohan created a plan "Weekend Match"',
-            description: 'Saturday, 24 May at 5:00 PM',
-            time: '15m ago'
-        },
-        {
-            id: '3',
-            type: 'memories',
-            title: '3 new memories added',
-            description: 'Relive the fun moments ✨',
-            time: '1h ago',
-            thumbnails: [
-                'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&q=80',
-                'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&q=80',
-                'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&q=80'
-            ]
-        },
-        {
-            id: '4',
-            type: 'streak',
-            title: 'Meetup streak: 6 weekends! 🔥',
-            description: 'Amazing! Keep the streak alive.',
-            time: '2h ago'
-        },
-        {
-            id: '5',
-            type: 'members',
-            title: 'Only 7/18 members joined recent plans',
-            description: "Let's bring the full gang together! 💪",
-            time: '3h ago'
-        }
-    ];
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const getIconDetails = (type: NotificationItem['type']) => {
+    useEffect(() => {
+        loadNotifications();
+    }, []);
+
+    const loadNotifications = async () => {
+        try {
+            setLoading(true);
+            const data = await fetchNotifications(0, 50);
+            setNotifications(data.notifications || []);
+            
+            // Mark as read immediately when loaded
+            const unreadIds = data.notifications
+                ?.filter((n: any) => !n.is_read)
+                .map((n: any) => n.id);
+                
+            if (unreadIds && unreadIds.length > 0) {
+                await markNotificationsAsRead(unreadIds);
+            }
+        } catch (error) {
+            console.error('Failed to load notifications', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const getIconDetails = (type: string) => {
         switch (type) {
-            case 'pulse':
-                return {
-                    bg: '#fff0f5',
-                    icon: <FontAwesome5 name="heartbeat" size={isTablet ? 26 : 18} color="#b30069" />
-                };
-            case 'plan':
-                return {
-                    bg: '#f3e8ff',
-                    icon: <Ionicons name="calendar" size={isTablet ? 28 : 20} color="#7c3aed" />
-                };
-            case 'memories':
-                return {
-                    bg: '#fff0f5',
-                    icon: <Ionicons name="image" size={isTablet ? 28 : 20} color="#b30069" />
-                };
-            case 'streak':
-                return {
-                    bg: '#fff7ed',
-                    icon: <Ionicons name="flame" size={isTablet ? 28 : 20} color="#ea580c" />
-                };
-            case 'members':
-                return {
-                    bg: '#fff0f5',
-                    icon: <Ionicons name="people" size={isTablet ? 28 : 20} color="#b30069" />
-                };
+            case 'pulse_increased':
+                return { bg: '#fff0f5', icon: <FontAwesome5 name="heartbeat" size={isTablet ? 26 : 18} color="#b30069" /> };
+            case 'plan_created':
+            case 'plan_updated':
+            case 'plan_rsvp':
+            case 'plan_cancelled':
+                return { bg: '#f3e8ff', icon: <Ionicons name="calendar" size={isTablet ? 28 : 20} color="#7c3aed" /> };
+            case 'memory_added':
+            case 'memory_comment':
+            case 'memory_reaction':
+                return { bg: '#fff0f5', icon: <Ionicons name="image" size={isTablet ? 28 : 20} color="#b30069" /> };
+            case 'streak_updated':
+                return { bg: '#fff7ed', icon: <Ionicons name="flame" size={isTablet ? 28 : 20} color="#ea580c" /> };
+            case 'hisaab_added':
+            case 'hisaab_settled':
+                return { bg: '#ecfdf5', icon: <MaterialIcons name="account-balance-wallet" size={isTablet ? 28 : 20} color="#059669" /> };
+            case 'housie_created':
+            case 'blink_created':
+                return { bg: '#eff6ff', icon: <Ionicons name="game-controller" size={isTablet ? 28 : 20} color="#2563eb" /> };
+            default:
+                return { bg: '#f3f4f6', icon: <Ionicons name="notifications" size={isTablet ? 28 : 20} color="#6b7280" /> };
         }
     };
 
@@ -130,8 +113,14 @@ const NotificationScreen = () => {
 
                 {/* Notifications Stack */}
                 <View style={{ gap: isTablet ? 20 : 12 }}>
-                    {notifications.map((item) => {
-                        const { bg, icon } = getIconDetails(item.type);
+                    {loading ? (
+                        <ActivityIndicator size="large" color="#b30069" style={{ marginTop: 40 }} />
+                    ) : notifications.length === 0 ? (
+                        <Text className="text-center text-stone-500 font-body-medium mt-10">No notifications yet</Text>
+                    ) : notifications.map((item) => {
+                        const { bg, icon } = getIconDetails(item.notification_type);
+                        const timeAgo = formatDistanceToNow(new Date(item.created_at), { addSuffix: true });
+                        const thumbnails = item.metadata?.thumbnails || [];
                         return (
                             <View
                                 key={item.id}
@@ -157,20 +146,20 @@ const NotificationScreen = () => {
                                         <Text
                                             className={`font-body-medium text-[#594048]/55 ml-2 ${isTablet ? 'text-lg' : 'text-[11px]'}`}
                                         >
-                                            {item.time}
+                                            {timeAgo}
                                         </Text>
                                     </View>
                                     
                                     <Text
                                         className={`font-body-medium text-[#594048]/75 leading-relaxed ${isTablet ? 'text-xl' : 'text-[12px]'}`}
                                     >
-                                        {item.description}
+                                        {item.body}
                                     </Text>
 
                                     {/* Inline Thumbnails for Memory additions */}
-                                    {item.thumbnails && item.thumbnails.length > 0 && (
+                                    {thumbnails.length > 0 && (
                                         <View className={`flex-row mt-3.5 ${isTablet ? 'gap-4 mt-5' : 'gap-2.5'}`}>
-                                            {item.thumbnails.map((url, index) => (
+                                            {thumbnails.map((url: string, index: number) => (
                                                 <View 
                                                     key={index} 
                                                     className={`rounded-[14px] overflow-hidden bg-stone-100 border border-stone-100 ${isTablet ? 'w-20 h-20' : 'w-[52px] h-[52px]'}`}

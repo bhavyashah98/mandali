@@ -594,3 +594,22 @@ export const completePlan = async (planId: string): Promise<{ plan: Plan }> => {
     const response = await axios.post(`${API_URL}/plans/${planId}/close`, {}, { headers });
     return response.data;
 };
+
+// --- NOTIFICATIONS API ---
+export const fetchNotifications = async (page: number = 0, limit: number = 20) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/notifications`, { headers, params: { page, limit } });
+    return response.data;
+};
+
+export const markNotificationsAsRead = async (notificationIds: string[]) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/notifications/read`, { notificationIds }, { headers });
+    return response.data;
+};
+
+export const fetchUnreadNotificationCount = async () => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/notifications/unread-count`, { headers });
+    return response.data.count;
+};

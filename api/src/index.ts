@@ -19,6 +19,7 @@ import hisaabRoutes from './routes/hisaab';
 import configRoutes from './routes/config';
 import blinkRoutes from './routes/blink';
 import plansRoutes from './routes/plans';
+import notificationsRoutes from './routes/notifications';
 import { supabase } from './lib/supabase';
 import { socketAuthMiddleware } from './middleware/socketAuth';
 import { appVersionGuard } from './middleware/appVersionGuard';
@@ -79,6 +80,7 @@ app.use('/', deepLinksRoutes);
 app.use('/moderation', moderationRoutes);
 app.use('/chat', chatRoutes);
 app.use('/app-version', appVersionRoutes);
+app.use('/notifications', notificationsRoutes);
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', message: 'Mandali API is running' });

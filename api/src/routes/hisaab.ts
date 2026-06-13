@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import * as hisaabService from '../services/hisaab.service';
 import { sendUserPushNotification } from '../lib/push';
+import { createBulkNotification } from '../services/notificationService';
+import { NOTIFICATION_TYPES } from '../types/notifications';
 
 const router = express.Router();
 
@@ -312,6 +314,17 @@ router.post('/expense', async (req: AuthRequest, res) => {
             ).catch((err: any) => console.error('[Push Failed]:', err));
         });
 
+        const participantIds = participants.filter((p: any) => p.userId !== userId).map((p: any) => p.userId);
+        createBulkNotification(
+            participantIds,
+            NOTIFICATION_TYPES.HISAAB_ADDED,
+            `${adderName} added an expense for ₹${amount}`,
+            description || 'Added to Hisaab',
+            groupId,
+            userId,
+            expense.id
+        );
+
         res.status(201).json({ message: 'Expense added' });
     } catch (err) {
         res.status(500).json({ error: 'Failed to record expense' });
@@ -325,10 +338,11 @@ router.post('/settle', async (req: AuthRequest, res) => {
     try {
         const { groupId, fromUserId, toUserId, amount, planId } = req.body;
         const userId = req.userId!;
+        const effectiveFrom = fromUserId || userId;
 
         const insertPayload: any = {
             group_id: groupId,
-            from_user_id: fromUserId || userId,
+            from_user_id: effectiveFrom,
             to_user_id: toUserId,
             amount
         };
@@ -336,11 +350,26 @@ router.post('/settle', async (req: AuthRequest, res) => {
 
         await supabase.from('settlements').insert(insertPayload);
 
+        // In-app notification: notify the person being paid
+        supabase.from('users').select('name').eq('id', effectiveFrom).single().then(({ data: payer }) => {
+            const payerName = payer?.name || 'A member';
+            createBulkNotification(
+                [toUserId],
+                NOTIFICATION_TYPES.HISAAB_SETTLED,
+                `${payerName} settled up!`,
+                `₹${amount} paid to you`,
+                groupId,
+                effectiveFrom,
+                undefined
+            );
+        });
+
         res.status(201).json({ message: 'Settlement recorded' });
     } catch (err) {
         res.status(500).json({ error: 'Failed to settle' });
     }
 });
+
 
 router.delete('/expense/:id', async (req: AuthRequest, res) => {
     try {
