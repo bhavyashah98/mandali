@@ -8,7 +8,7 @@ router.get('/apple-app-site-association', (req, res) => {
       "apps": [],
       "details": [
         {
-          "appID": "YOUR_APPLE_TEAM_ID.com.mandaliapp.mandali",
+          "appID": "B9B3K45T5Y.com.mandaliapp.mandaliapp",
           "paths": ["/join/*"]
         }
       ]

@@ -32,7 +32,7 @@ router.post('/support', (req, res) => {
   console.log(`Message: ${message}`);
   console.log('---------------------------');
 
-  // TODO: Add nodemailer logic here to send email to bhavyashah9873@gmail.com
+  // TODO: Add nodemailer logic here to send email to support@prexoratech.com
   
   res.redirect('/support?status=success');
 });
