@@ -18,7 +18,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     try {
         let query = supabase
             .from('notifications')
-            .select('*')
+            .select('*, group:group_id(name)')
             .eq('user_id', userId)
             .order('created_at', { ascending: false })
             .range(page * limit, page * limit + limit - 1);

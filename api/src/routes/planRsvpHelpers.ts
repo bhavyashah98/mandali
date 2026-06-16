@@ -150,5 +150,6 @@ export function formatPlanPayload(
         myRsvp,
         isHost,
         hasRsvp: !!myRsvp,
+        description: row.description ?? null,
     };
 }

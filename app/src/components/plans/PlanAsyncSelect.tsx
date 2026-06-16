@@ -336,7 +336,7 @@ const PlanAsyncSelect = ({
                             <ActivityIndicator color="#b30069" />
                         </View>
                     ) : (
-                        <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 280 }}>
+                        <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 280 }} nestedScrollEnabled={true}>
                             {items.length === 0 ? (
                                 <View className="py-10 items-center">
                                     <Text className="font-body-bold text-stone-400 uppercase tracking-widest text-xs">

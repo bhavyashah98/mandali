@@ -31,6 +31,7 @@ import { initHousieEngine } from './services/housieEngine';
 import { initBlinkEngine } from './services/blinkEngine';
 import { initBirthdayCron } from './services/birthdayCron';
 import { initPlanLifecycleCron } from './services/planLifecycleCron';
+import { initPulseCron } from './services/pulseCron';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -92,6 +93,7 @@ initHousieEngine();
 initBlinkEngine();
 initBirthdayCron();
 initPlanLifecycleCron();
+initPulseCron();
 
 // import { populateBlinkCards } from './utils/generateBlinkCards';
 // // Run one-off generation for Blink cards

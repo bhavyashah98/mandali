@@ -64,5 +64,6 @@ export function mapPlanToCardPlan(plan: Plan): PlanCardPlan {
         myRsvp: plan.myRsvp ?? null,
         daysLabel: formatDaysLabel(plan.status, plan.startsAt),
         section: sectionForPlan(plan.status, plan.startsAt),
+        description: plan.description ?? null,
     };
 }

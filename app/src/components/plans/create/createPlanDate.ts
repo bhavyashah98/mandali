@@ -4,6 +4,17 @@ export function mergeDateAndTime(date: Date, time: Date) {
     return merged;
 }
 
+export function mergeDateAndEndTime(date: Date, startTime: Date, endTime: Date) {
+    const starts = mergeDateAndTime(date, startTime);
+    const ends = new Date(date);
+    ends.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
+    if (ends <= starts) {
+        // If end time is earlier or same as start time, it spans to the next day
+        ends.setDate(ends.getDate() + 1);
+    }
+    return ends;
+}
+
 export function todayStart() {
     const date = new Date();
     date.setHours(0, 0, 0, 0);

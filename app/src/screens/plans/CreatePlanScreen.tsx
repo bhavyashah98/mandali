@@ -35,8 +35,12 @@ const CreatePlanScreen = () => {
                 <CreateDateTimeSection
                     selectedDate={form.selectedDate}
                     selectedTime={form.selectedTime}
+                    selectedEndDate={form.selectedEndDate}
+                    selectedEndTime={form.selectedEndTime}
                     onDatePress={() => form.setShowDatePicker(true)}
                     onTimePress={() => form.setShowTimePicker(true)}
+                    onEndDatePress={() => form.setShowEndDatePicker(true)}
+                    onEndTimePress={() => form.setShowEndTimePicker(true)}
                 />
                 <CreateLocationSection location={form.location} onChange={form.setLocation} isTablet={isTablet} />
                 <CreateDescriptionField value={form.description} onChange={form.setDescription} />
@@ -45,13 +49,21 @@ const CreatePlanScreen = () => {
             <CreatePlanPickers
                 showDatePicker={form.showDatePicker}
                 showTimePicker={form.showTimePicker}
+                showEndDatePicker={form.showEndDatePicker}
+                showEndTimePicker={form.showEndTimePicker}
                 selectedDate={form.selectedDate}
                 selectedTime={form.selectedTime}
+                selectedEndDate={form.selectedEndDate}
+                selectedEndTime={form.selectedEndTime}
                 fallbackTime={form.fallbackTime}
                 onDateChange={form.setSelectedDate}
                 onTimeChange={form.setSelectedTime}
+                onEndDateChange={form.setSelectedEndDate}
+                onEndTimeChange={form.setSelectedEndTime}
                 setShowDatePicker={form.setShowDatePicker}
                 setShowTimePicker={form.setShowTimePicker}
+                setShowEndDatePicker={form.setShowEndDatePicker}
+                setShowEndTimePicker={form.setShowEndTimePicker}
             />
         </SafeAreaView>
     );

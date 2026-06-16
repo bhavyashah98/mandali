@@ -556,7 +556,27 @@ router.get('/:id/pulse', async (req: AuthRequest, res) => {
             return res.status(403).json({ error: 'You are not a member of this group' });
         }
 
+        // Fetch group creation time and member count to validate pulse availability
+        const [groupRes, membersCountRes] = await Promise.all([
+            supabase.from('groups').select('created_at').eq('id', id).single(),
+            supabase.from('group_members').select('*', { count: 'exact', head: true }).eq('group_id', id)
+        ]);
+
+        if (groupRes.error || !groupRes.data) {
+            return res.status(404).json({ error: 'Group not found' });
+        }
+
         const now = new Date();
+        const createdAt = new Date(groupRes.data.created_at);
+        const ageInDays = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
+        const memberCount = membersCountRes.count || 0;
+
+        if (ageInDays < 7 || memberCount <= 1) {
+            return res.status(403).json({
+                error: 'Group Pulse is not available for groups less than 7 days old or with 1 member.'
+            });
+        }
+
         const nowMinus7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
         // 2. Fetch full pulse data for current and last week

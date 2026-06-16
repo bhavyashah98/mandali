@@ -40,10 +40,6 @@ const UpcomingPlanDetails = ({ plan }: { plan: PlanCardPlan }) => {
         }
     }, [plan.myRsvp, setRsvp, setNote]);
 
-    const aboutText =
-        plan.groupDescription?.trim() ||
-        'No description for this Mandali yet.';
-
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top']}>
             <ScrollView
@@ -54,10 +50,18 @@ const UpcomingPlanDetails = ({ plan }: { plan: PlanCardPlan }) => {
                 <UpcomingPlanHero plan={plan} onBack={() => navigation.goBack()} />
                 <UpcomingPlanInfo plan={plan} />
                 <UpcomingPeopleStrip going={going} />
-                <View className="px-6 mt-7">
-                    <Text className="font-body-bold text-[#1c1c18] mb-2">About this plan</Text>
-                    <Text className="font-body-medium text-[#594048] leading-5">{aboutText}</Text>
-                </View>
+                {plan.description?.trim() ? (
+                    <View className="px-6 mt-7">
+                        <Text className="font-body-bold text-[#1c1c18] mb-2">About this plan</Text>
+                        <Text className="font-body-medium text-[#594048] leading-5">{plan.description}</Text>
+                    </View>
+                ) : null}
+                {plan.groupDescription?.trim() ? (
+                    <View className="px-6 mt-7">
+                        <Text className="font-body-bold text-[#1c1c18] mb-2">About the Mandali</Text>
+                        <Text className="font-body-medium text-[#594048] leading-5">{plan.groupDescription}</Text>
+                    </View>
+                ) : null}
                 {!isHost && (
                     <UpcomingRsvpSection
                         rsvp={rsvp}

@@ -177,6 +177,7 @@ const GroupDetailScreen = () => {
     const { data: pulseData } = useQuery({
         queryKey: ['groupPulse', groupId],
         queryFn: () => fetchGroupPulse(groupId),
+        retry: false,
     });
 
     const { data: blockedUsers, refetch: refetchBlocked } = useQuery({
@@ -339,6 +340,11 @@ const GroupDetailScreen = () => {
     const { group, members, myRole } = data;
     const isAdmin = myRole === 'admin';
 
+    // Hide Group Pulse for groups < 7 days old or with 1 or fewer members
+    const groupCreatedAt = group?.created_at ? new Date(group.created_at).getTime() : Date.now();
+    const groupAgeInDays = (Date.now() - groupCreatedAt) / (1000 * 60 * 60 * 24);
+    const hidePulse = groupAgeInDays < 7 || members.length <= 1;
+
     return (
         <SafeAreaView className="flex-1 bg-background" edges={['top']}>
             {/* Header */}
@@ -425,15 +431,17 @@ const GroupDetailScreen = () => {
                 </View>
 
                 {/* Group Pulse Score Card */}
-                <GroupPulseCard
-                    isTablet={isTablet}
-                    pulseScore={pulseData?.pulseScore ?? group.pulse_score ?? 0}
-                    pulseRank={pulseData?.pulseRank ?? group.pulse_rank ?? 'Dormant'}
-                    pulseDelta={pulseData?.pulseDelta ?? 0}
-                    activeText={pulseData ? `More active than ${pulseData.pulsePercentile} of Mandalis` : undefined}
-                    planText={pulseData ? `${pulseData.joinedMembers} of ${pulseData.totalMembers} members joined recent plans` : undefined}
-                    onPress={() => navigation.navigate('GroupPulse', { groupId })}
-                />
+                {!hidePulse && (
+                    <GroupPulseCard
+                        isTablet={isTablet}
+                        pulseScore={pulseData?.pulseScore ?? group.pulse_score ?? 0}
+                        pulseRank={pulseData?.pulseRank ?? group.pulse_rank ?? 'Dormant'}
+                        pulseDelta={pulseData?.pulseDelta ?? 0}
+                        activeText={pulseData ? `More active than ${pulseData.pulsePercentile} of Mandalis` : undefined}
+                        planText={pulseData ? `${pulseData.joinedMembers} of ${pulseData.totalMembers} members joined recent plans` : undefined}
+                        onPress={() => navigation.navigate('GroupPulse', { groupId })}
+                    />
+                )}
 
                 {/* Group Info Card */}
                 {group.description && (

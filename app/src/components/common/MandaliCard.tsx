@@ -17,6 +17,7 @@ interface MandaliCardProps {
         unseenCount?: number;
         pulseScore?: number;
         pulseRank?: string;
+        created_at?: string;
     };
     onPress: (id: string, name: string) => void;
     customSubtitle?: React.ReactNode;
@@ -59,6 +60,12 @@ export const MandaliCard: React.FC<MandaliCardProps> = ({
 
     const pulseStyle = getPulseStyle(pulseRank);
 
+    // Hide pulse for groups < 7 days old or with 1 or fewer members
+    const isNewGroup = item.created_at
+        ? (Date.now() - new Date(item.created_at).getTime()) < 7 * 24 * 60 * 60 * 1000
+        : false;
+    const hidePulse = isNewGroup || (item.memberCount !== undefined && item.memberCount <= 1);
+
     return (
         <TouchableOpacity
             onPress={() => onPress(id, item.name)}
@@ -99,18 +106,20 @@ export const MandaliCard: React.FC<MandaliCardProps> = ({
                             </Text>
                         </View>
 
-                        <View className="flex-row items-center mt-1">
-                            <Text style={{ color: pulseStyle.color }} className={`font-body-bold ${isTablet ? 'text-[20px] mt-1.5' : 'text-[12px]'} flex-row items-center`}>
-                                {pulseStyle.icon} {pulseRank}
-                            </Text>
-                        </View>
+                        {!hidePulse && (
+                            <View className="flex-row items-center mt-1">
+                                <Text style={{ color: pulseStyle.color }} className={`font-body-bold ${isTablet ? 'text-[20px] mt-1.5' : 'text-[12px]'} flex-row items-center`}>
+                                    {pulseStyle.icon} {pulseRank}
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 )}
                 {customBottomNode}
             </View>
 
             {/* Pulse Badge */}
-            {showPulse && (
+            {showPulse && !hidePulse && (
                 <View className={`items-center ${isTablet ? 'mr-5' : 'mr-2.5'}`}>
                     <View
                         className="bg-[#fdf0f5] items-center justify-center"

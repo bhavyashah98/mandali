@@ -32,6 +32,7 @@ export interface PlanCardPlan {
     myRsvp?: { status: PlanRsvpStatus; note?: string | null } | null;
     daysLabel?: string;
     section?: string;
+    description?: string | null;
 }
 
 interface PlanCardProps {

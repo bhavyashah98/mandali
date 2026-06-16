@@ -36,6 +36,7 @@ export interface Plan {
     myRsvp?: { status: PlanRsvpStatus; note?: string | null } | null;
     isHost?: boolean;
     hasRsvp?: boolean;
+    description?: string | null;
 }
 
 export interface CreatePlanPayload {

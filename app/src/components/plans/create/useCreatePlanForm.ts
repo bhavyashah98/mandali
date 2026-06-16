@@ -5,7 +5,7 @@ import { createPlan } from '../../../lib/api';
 import type { AsyncSelectItem } from '../PlanAsyncSelect';
 import type { SelectedPlanActivity } from '../PlanActivitySelector';
 import type { PlanLocationValue } from '../PlanLocationPicker';
-import { defaultPlanTime, mergeDateAndTime } from './createPlanDate';
+import { defaultPlanTime, mergeDateAndTime, mergeDateAndEndTime } from './createPlanDate';
 
 export function useCreatePlanForm(onCreated: () => void) {
     const queryClient = useQueryClient();
@@ -13,10 +13,14 @@ export function useCreatePlanForm(onCreated: () => void) {
     const [activity, setActivity] = useState<SelectedPlanActivity | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [selectedTime, setSelectedTime] = useState<Date | null>(null);
+    const [selectedEndDate, setSelectedEndDate] = useState<Date | null>(null);
+    const [selectedEndTime, setSelectedEndTime] = useState<Date | null>(null);
     const [location, setLocation] = useState<PlanLocationValue>(null);
     const [description, setDescription] = useState('');
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
+    const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+    const [showEndTimePicker, setShowEndTimePicker] = useState(false);
     const fallbackTime = useMemo(defaultPlanTime, []);
 
     const createMutation = useMutation({
@@ -35,6 +39,35 @@ export function useCreatePlanForm(onCreated: () => void) {
         if (!group) setActivity(null);
     };
 
+    const handleDateSelect = (date: Date) => {
+        setSelectedDate(date);
+        if (!selectedEndDate || (selectedDate && selectedEndDate.getTime() === selectedDate.getTime())) {
+            setSelectedEndDate(date);
+        }
+    };
+
+    const handleTimeSelect = (time: Date) => {
+        setSelectedTime(time);
+        if (!selectedEndTime) {
+            const defaultEnd = new Date(time);
+            defaultEnd.setHours(defaultEnd.getHours() + 2);
+            setSelectedEndTime(defaultEnd);
+
+            if (selectedDate) {
+                const starts = mergeDateAndTime(selectedDate, time);
+                const ends = new Date(selectedDate);
+                ends.setHours(defaultEnd.getHours(), defaultEnd.getMinutes(), 0, 0);
+                if (ends <= starts) {
+                    const tomorrow = new Date(selectedDate);
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    setSelectedEndDate(tomorrow);
+                } else {
+                    setSelectedEndDate(selectedDate);
+                }
+            }
+        }
+    };
+
     const handleCreate = () => {
         if (!selectedGroup) return Alert.alert('Choose Mandali', 'Please select which group this plan is for.');
         if (!activity) return Alert.alert('Choose Activity', 'Please select or create an activity.');
@@ -43,11 +76,21 @@ export function useCreatePlanForm(onCreated: () => void) {
         if (startsAt <= new Date()) {
             return Alert.alert('Pick a future time', 'Please choose a time later than now.');
         }
+
+        let endsAt: Date | undefined;
+        if (selectedEndDate && selectedEndTime) {
+            endsAt = mergeDateAndTime(selectedEndDate, selectedEndTime);
+            if (endsAt <= startsAt) {
+                return Alert.alert('Invalid end time', 'Ending date & time must be after the start date & time.');
+            }
+        }
+
         createMutation.mutate({
             groupId: selectedGroup.id,
             activityId: activity.id,
             activityLabel: activity.name,
             startsAt: startsAt.toISOString(),
+            endsAt: endsAt ? endsAt.toISOString() : undefined,
             location: location?.address?.trim() || undefined,
             placeId: location?.placeId,
             placePhotoUrl: location?.photoUrl,
@@ -56,9 +99,9 @@ export function useCreatePlanForm(onCreated: () => void) {
     };
 
     return {
-        selectedGroup, activity, selectedDate, selectedTime, location, description,
-        showDatePicker, showTimePicker, fallbackTime, createMutation,
-        handleGroupSelect, setActivity, setSelectedDate, setSelectedTime, setLocation,
-        setDescription, setShowDatePicker, setShowTimePicker, handleCreate,
+        selectedGroup, activity, selectedDate, selectedTime, selectedEndDate, selectedEndTime, location, description,
+        showDatePicker, showTimePicker, showEndDatePicker, showEndTimePicker, fallbackTime, createMutation,
+        handleGroupSelect, setActivity, setSelectedDate: handleDateSelect, setSelectedEndDate, setSelectedTime: handleTimeSelect, setSelectedEndTime, setLocation,
+        setDescription, setShowDatePicker, setShowTimePicker, setShowEndDatePicker, setShowEndTimePicker, handleCreate,
     };
 }

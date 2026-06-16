@@ -17,10 +17,48 @@ const GroupPulseScreen = () => {
 
     const { groupId } = route.params as { groupId: string };
 
-    const { data: pulseData, isLoading } = useQuery({
+    const { data: pulseData, isLoading, isError } = useQuery({
         queryKey: ['groupPulse', groupId],
         queryFn: () => fetchGroupPulse(groupId),
+        retry: false,
     });
+
+    if (isError) {
+        return (
+            <SafeAreaView className="flex-1 bg-[#FDF9F3]" edges={['top']}>
+                {/* Header */}
+                <View className={`flex-row items-center justify-between px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
+                    <TouchableOpacity
+                        onPress={() => navigation.goBack()}
+                        className={`items-center justify-center bg-white shadow-sm border border-stone-100 rounded-full ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
+                    >
+                        <MaterialIcons name="arrow-back" size={isTablet ? 32 : 24} color="#594048" />
+                    </TouchableOpacity>
+
+                    <Text className={`font-headline-bold text-[#b30069] text-center flex-1 ${isTablet ? 'text-4xl' : 'text-xl'}`}>
+                        Pulse Center
+                    </Text>
+
+                    <View className={isTablet ? 'w-16' : 'w-10'} />
+                </View>
+                <View className="flex-1 items-center justify-center px-10">
+                    <Text className={`text-5xl mb-6`}>⏳</Text>
+                    <Text className={`font-headline-bold text-[#1c1c18] text-center mb-3 ${isTablet ? 'text-3xl' : 'text-xl'}`}>
+                        Pulse Not Available Yet
+                    </Text>
+                    <Text className={`font-body-medium text-[#594048]/60 text-center leading-relaxed ${isTablet ? 'text-xl' : 'text-[15px]'}`}>
+                        Group Pulse unlocks once your Mandali is at least 7 days old and has more than 1 member. Keep building your circle!
+                    </Text>
+                    <TouchableOpacity
+                        onPress={() => navigation.goBack()}
+                        className={`mt-8 bg-[#b30069] rounded-full px-8 ${isTablet ? 'py-5' : 'py-3.5'}`}
+                    >
+                        <Text className={`text-white font-headline-bold ${isTablet ? 'text-2xl' : 'text-base'}`}>Go Back</Text>
+                    </TouchableOpacity>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     if (isLoading || !pulseData) {
         return (

@@ -49,8 +49,8 @@ function computePlanStatus(startsAt: Date, endsAt: Date, now = new Date()): Plan
 }
 
 function resolvePlanStatus(row: any, now = new Date()): PlanStatus {
-    if (['upcoming', 'live', 'past'].includes(row.status)) {
-        return row.status as PlanStatus;
+    if (row.status === 'past') {
+        return 'past';
     }
 
     return computePlanStatus(new Date(row.starts_at), new Date(row.ends_at), now);
@@ -161,7 +161,7 @@ router.post('/activities', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const userId = req.userId!;
-        const { groupId, activityId, activityLabel, activityName, startsAt, endsAt, location, placeId, placePhotoUrl } =
+        const { groupId, activityId, activityLabel, activityName, startsAt, endsAt, location, placeId, placePhotoUrl, description } =
             req.body;
 
         if (!groupId || !startsAt) {
@@ -224,6 +224,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         };
         if (placeId) insertPayload.place_id = String(placeId);
         if (placePhotoUrl) insertPayload.place_photo_url = String(placePhotoUrl);
+        if (description !== undefined) insertPayload.description = description ? String(description).trim() : null;
 
         const { data: plan, error } = await supabase
             .from('plans')
