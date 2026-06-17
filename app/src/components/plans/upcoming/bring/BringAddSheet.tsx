@@ -36,14 +36,13 @@ const BringAddSheet = forwardRef<BringAddSheetRef, Props>(({ onSubmit, isAdding 
     };
 
     return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
+        <Modal visible={visible} transparent animationType="fade" onRequestClose={() => setVisible(false)}>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
                 <TouchableWithoutFeedback onPress={() => setVisible(false)}>
-                    <View className="flex-1 bg-black/40 justify-end">
+                    <View className="flex-1 bg-black/40 justify-center px-4">
                         <TouchableWithoutFeedback>
-                            <View className="bg-white rounded-t-3xl px-6 pt-6 pb-10">
-                                <View className="w-12 h-1.5 bg-stone-200 rounded-full self-center mb-6" />
-                                <Text className="font-headline-bold text-[#1c1c18] text-xl mb-6">Suggest Item</Text>
+                            <View className="bg-white rounded-3xl px-6 py-8 shadow-xl">
+                                <Text className="font-headline-bold text-[#1c1c18] text-xl mb-6 text-center">Suggest Item</Text>
 
                                 <View className="bg-stone-100 rounded-2xl px-4 py-3 mb-6">
                                     <Text className="font-body-medium text-stone-500 text-xs uppercase tracking-wider mb-1">What should someone bring?</Text>
@@ -61,7 +60,7 @@ const BringAddSheet = forwardRef<BringAddSheetRef, Props>(({ onSubmit, isAdding 
                                 <TouchableOpacity
                                     onPress={() => setAutoClaim(!autoClaim)}
                                     activeOpacity={0.7}
-                                    className={`flex-row items-center justify-between p-4 rounded-2xl mb-4 border ${autoClaim ? 'bg-[#10b981]/10 border-[#10b981]/20' : 'bg-white border-stone-200'}`}
+                                    className={`flex-row items-center justify-between p-4 rounded-2xl mb-6 border ${autoClaim ? 'bg-[#10b981]/10 border-[#10b981]/20' : 'bg-white border-stone-200'}`}
                                 >
                                     <View className="flex-row items-center">
                                         <View className={`w-10 h-10 rounded-xl items-center justify-center mr-3 ${autoClaim ? 'bg-[#10b981]/20' : 'bg-stone-100'}`}>

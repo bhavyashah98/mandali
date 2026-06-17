@@ -5,8 +5,8 @@ export async function fetchBringItems(planId: string, userId: string) {
         .from('plan_bring_items')
         .select(`
             id, plan_id, name, added_by, is_pinned, claimed_by, created_at,
-            adder:users!plan_bring_items_added_by_fkey(id, name),
-            claimer:users!plan_bring_items_claimed_by_fkey(id, name, avatar_url),
+            adder:users!added_by(id, name),
+            claimer:users!claimed_by(id, name, avatar_url),
             upvotes:plan_bring_item_upvotes(user_id)
         `)
         .eq('plan_id', planId)
@@ -57,8 +57,8 @@ export async function addBringItem(planId: string, groupId: string, userId: stri
         })
         .select(`
             id, plan_id, name, added_by, is_pinned, claimed_by, created_at,
-            adder:users!plan_bring_items_added_by_fkey(id, name),
-            claimer:users!plan_bring_items_claimed_by_fkey(id, name, avatar_url)
+            adder:users!added_by(id, name),
+            claimer:users!claimed_by(id, name, avatar_url)
         `)
         .single();
 
@@ -98,7 +98,7 @@ export async function claimBringItem(planId: string, itemId: string, userId: str
         .from('plan_bring_items')
         .update({ claimed_by: userId })
         .eq('id', itemId)
-        .select(`id, claimer:users!plan_bring_items_claimed_by_fkey(id, name, avatar_url)`)
+        .select(`id, claimer:users!claimed_by(id, name, avatar_url)`)
         .single();
 
     if (error) throw error;
