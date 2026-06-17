@@ -111,7 +111,8 @@ export function formatPlanPayload(
     status: 'upcoming' | 'live' | 'past',
     userId: string,
     rsvps: PlanRsvpUserDto[] | undefined,
-    myRsvpRow: { status: PlanRsvpStatus; note?: string | null } | null | undefined
+    myRsvpRow: { status: PlanRsvpStatus; note?: string | null } | null | undefined,
+    memberCount?: number | null
 ) {
     const group = row.group;
     const creatorName = row.creator?.name ?? null;
@@ -151,5 +152,6 @@ export function formatPlanPayload(
         isHost,
         hasRsvp: !!myRsvp,
         description: row.description ?? null,
+        memberCount: memberCount ?? null,
     };
 }

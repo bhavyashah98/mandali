@@ -11,6 +11,7 @@ import {
 import { sendPlanScheduledNotification } from '../services/planLifecycleCron';
 import { createGroupNotification } from '../services/notificationService';
 import { NOTIFICATION_TYPES } from '../types/notifications';
+import planBringRoutes from './planBringRoutes';
 
 const router = Router();
 
@@ -349,17 +350,26 @@ router.post('/:id/rsvp', authMiddleware, async (req: AuthRequest, res) => {
 
         const existing = await loadMyRsvp(id as string, userId);
         if (existing) {
-            return res.status(409).json({ error: 'You have already submitted your RSVP for this plan.' });
+            const { error: updateError } = await supabase
+                .from('plan_rsvps')
+                .update({
+                    status,
+                    note: note || null,
+                })
+                .eq('plan_id', id)
+                .eq('user_id', userId);
+
+            if (updateError) throw updateError;
+        } else {
+            const { error: insertError } = await supabase.from('plan_rsvps').insert({
+                plan_id: id,
+                user_id: userId,
+                status,
+                note: note || null,
+            });
+
+            if (insertError) throw insertError;
         }
-
-        const { error: insertError } = await supabase.from('plan_rsvps').insert({
-            plan_id: id,
-            user_id: userId,
-            status,
-            note: note || null,
-        });
-
-        if (insertError) throw insertError;
 
         const rsvpsMap = await loadRsvpsByPlanIds([id as string]);
         const myRsvp = await loadMyRsvp(id as string, userId);
@@ -382,7 +392,7 @@ router.post('/:id/rsvp', authMiddleware, async (req: AuthRequest, res) => {
             if (status === 'going') rsvpStatusStr = 'is going to';
             else if (status === 'maybe') rsvpStatusStr = 'might go to';
             else if (status === 'cant_go') rsvpStatusStr = "can't go to";
-            
+
             createGroupNotification(
                 plan.group_id,
                 NOTIFICATION_TYPES.PLAN_RSVP,
@@ -394,8 +404,13 @@ router.post('/:id/rsvp', authMiddleware, async (req: AuthRequest, res) => {
             );
         }
 
+        const { count: memberCount } = await supabase
+            .from('group_members')
+            .select('*', { count: 'exact', head: true })
+            .eq('group_id', plan.group_id);
+
         res.json({
-            plan: formatPlanPayload(fullRow || plan, planStatus, userId, rsvpsMap[id as string], myRsvp),
+            plan: formatPlanPayload(fullRow || plan, planStatus, userId, rsvpsMap[id as string], myRsvp, memberCount),
         });
     } catch (err: any) {
         console.error('[Plans] POST rsvp error:', err);
@@ -483,7 +498,7 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
 
         const { data: creator } = await supabase.from('users').select('name').eq('id', userId).single();
         const creatorName = creator?.name || 'The host';
-        
+
         createGroupNotification(
             plan.group_id,
             NOTIFICATION_TYPES.PLAN_CANCELLED,
@@ -532,13 +547,21 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
         const rsvpsMap = await loadRsvpsByPlanIds([id as string]);
         const myRsvp = await loadMyRsvp(id as string, userId);
 
+        const { count: memberCount } = await supabase
+            .from('group_members')
+            .select('*', { count: 'exact', head: true })
+            .eq('group_id', row.group_id);
+
         res.json({
-            plan: formatPlanPayload(row, status, userId, rsvpsMap[id as string], myRsvp),
+            plan: formatPlanPayload(row, status, userId, rsvpsMap[id as string], myRsvp, memberCount),
         });
     } catch (err: any) {
         console.error('[Plans] GET plan error:', err);
         res.status(500).json({ error: err.message || 'Failed to fetch plan' });
     }
 });
+
+
+router.use('/:id/bring', planBringRoutes);
 
 export default router;

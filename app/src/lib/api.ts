@@ -613,3 +613,46 @@ export const fetchUnreadNotificationCount = async () => {
     const response = await axios.get(`${API_URL}/notifications/unread-count`, { headers });
     return response.data.count;
 };
+
+// --- BRING TAB API ---
+export const fetchBringItems = async (planId: string): Promise<{ items: import('../types/plans').BringItem[] }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/plans/${planId}/bring`, { headers });
+    return response.data;
+};
+
+export const addBringItem = async (planId: string, payload: { name: string; autoClaim?: boolean }): Promise<{ item: import('../types/plans').BringItem }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/plans/${planId}/bring`, payload, { headers });
+    return response.data;
+};
+
+export const claimBringItem = async (planId: string, itemId: string): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/plans/${planId}/bring/${itemId}/claim`, {}, { headers });
+    return response.data;
+};
+
+export const unclaimBringItem = async (planId: string, itemId: string): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.delete(`${API_URL}/plans/${planId}/bring/${itemId}/claim`, { headers });
+    return response.data;
+};
+
+export const toggleBringItemUpvote = async (planId: string, itemId: string): Promise<{ newCount: number; hasUpvoted: boolean }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/plans/${planId}/bring/${itemId}/upvote`, {}, { headers });
+    return response.data;
+};
+
+export const deleteBringItem = async (planId: string, itemId: string): Promise<any> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.delete(`${API_URL}/plans/${planId}/bring/${itemId}`, { headers });
+    return response.data;
+};
+
+export const pinBringItem = async (planId: string, itemId: string): Promise<{ isPinned: boolean }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/plans/${planId}/bring/${itemId}/pin`, {}, { headers });
+    return response.data;
+};

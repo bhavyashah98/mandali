@@ -11,11 +11,14 @@ export function usePlanRsvpActions(planId: string, isHost: boolean, hasRsvp: boo
     const [note, setNote] = useState('');
 
     const rsvpMutation = useMutation({
-        mutationFn: () => submitPlanRsvp(planId, { status: rsvp as PlanRsvpStatus, note: note.trim() || undefined }),
+        mutationFn: (variables?: { status: PlanRsvpStatus; note?: string }) =>
+            submitPlanRsvp(planId, {
+                status: variables?.status ?? (rsvp as PlanRsvpStatus),
+                note: variables?.note ?? (note.trim() || undefined)
+            }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['plan', planId] });
             queryClient.invalidateQueries({ queryKey: ['plans'] });
-            Alert.alert('RSVP saved', 'Your response has been recorded.');
         },
         onError: (err: any) => {
             Alert.alert('Error', err?.response?.data?.error || err?.message || 'Failed to save RSVP');
@@ -34,8 +37,16 @@ export function usePlanRsvpActions(planId: string, isHost: boolean, hasRsvp: boo
     });
 
     const handleSaveRsvp = () => {
-        if (hasRsvp) return;
         rsvpMutation.mutate();
+    };
+
+    const updateRsvpDirectly = (newStatus: UpcomingRsvp, newNote?: string) => {
+        setRsvp(newStatus);
+        const nextNote = newNote !== undefined ? newNote : note;
+        return rsvpMutation.mutate({
+            status: newStatus as PlanRsvpStatus,
+            note: nextNote.trim() || undefined
+        });
     };
 
     const handleCancelPlan = () => {
@@ -56,8 +67,9 @@ export function usePlanRsvpActions(planId: string, isHost: boolean, hasRsvp: boo
         setNote,
         handleSaveRsvp,
         handleCancelPlan,
+        updateRsvpDirectly,
         isSaving: rsvpMutation.isPending,
         isCanceling: cancelMutation.isPending,
-        rsvpLocked: hasRsvp && !isHost,
+        rsvpLocked: false,
     };
 }

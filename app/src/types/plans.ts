@@ -37,6 +37,7 @@ export interface Plan {
     isHost?: boolean;
     hasRsvp?: boolean;
     description?: string | null;
+    memberCount?: number;
 }
 
 export interface CreatePlanPayload {
@@ -54,4 +55,24 @@ export interface CreatePlanPayload {
 export interface SubmitPlanRsvpPayload {
     status: PlanRsvpStatus;
     note?: string;
+}
+
+export interface BringItem {
+    id: string;
+    planId: string;
+    name: string;
+    addedBy: string;
+    addedByName: string;
+    isPinned: boolean;
+    claimedBy: string | null;
+    claimedByName: string | null;
+    claimedByAvatar: string | null;
+    upvoteCount: number;
+    hasUpvoted: boolean;
+    createdAt: string;
+}
+
+export interface AddBringItemPayload {
+    name: string;
+    autoClaim?: boolean;
 }

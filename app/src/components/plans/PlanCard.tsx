@@ -33,6 +33,7 @@ export interface PlanCardPlan {
     daysLabel?: string;
     section?: string;
     description?: string | null;
+    memberCount?: number;
 }
 
 interface PlanCardProps {
