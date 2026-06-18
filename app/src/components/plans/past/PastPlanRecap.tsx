@@ -123,7 +123,7 @@ const PastPlanRecap = ({ plan }: { plan: PlanCardPlan }) => {
                     icon="photo-library"
                     title="Memories"
                     subtitle={`${recap.memoryCount} moment${recap.memoryCount === 1 ? '' : 's'} from this plan`}
-                    onPress={() => navigation.navigate('Memories', { screen: 'MemoriesHome', params: { groupId: plan.groupId, planId: plan.id, readOnly: true } })}
+                    onPress={() => navigation.navigate('Memories', { screen: 'MemoriesHome', params: { groupId: plan.groupId, planId: plan.id, readOnly: true, returnToPlanId: plan.id } })}
                 />
             ) : null}
 
@@ -133,7 +133,7 @@ const PastPlanRecap = ({ plan }: { plan: PlanCardPlan }) => {
                     title="Hisaab"
                     subtitle={`${recap.expenseCount} expense${recap.expenseCount === 1 ? '' : 's'} and ${recap.settlementCount} settlement${recap.settlementCount === 1 ? '' : 's'}`}
                     tone="#0057b3"
-                    onPress={() => navigation.navigate('Groups', { screen: 'GroupHisaab', params: { groupId: plan.groupId, groupName: plan.groupName, planId: plan.id, readOnly: true } })}
+                    onPress={() => navigation.navigate('Groups', { screen: 'GroupHisaab', params: { groupId: plan.groupId, groupName: plan.groupName, planId: plan.id, readOnly: true, returnToPlanId: plan.id } })}
                 />
             ) : null}
 
@@ -143,7 +143,7 @@ const PastPlanRecap = ({ plan }: { plan: PlanCardPlan }) => {
                     title="Housie"
                     subtitle={`${recap.housieGames.length} session${recap.housieGames.length === 1 ? '' : 's'} in this plan`}
                     tone="#7c3aed"
-                    onPress={() => navigation.navigate('Games', { screen: 'HousieLeaderboard', params: { groupId: plan.groupId, groupName: plan.groupName, planId: plan.id } })}
+                    onPress={() => navigation.navigate('Games', { screen: 'HousieLeaderboard', params: { groupId: plan.groupId, groupName: plan.groupName, planId: plan.id, returnToPlanId: plan.id } })}
                 />
             ) : null}
 
@@ -153,7 +153,7 @@ const PastPlanRecap = ({ plan }: { plan: PlanCardPlan }) => {
                     title="Blink"
                     subtitle={`${recap.blinkGames.length} match${recap.blinkGames.length === 1 ? '' : 'es'} in this plan`}
                     tone="#eab308"
-                    onPress={() => navigation.navigate('Games', { screen: 'BlinkLeaderboard', params: { groupId: plan.groupId, groupName: plan.groupName, planId: plan.id } })}
+                    onPress={() => navigation.navigate('Games', { screen: 'BlinkLeaderboard', params: { groupId: plan.groupId, groupName: plan.groupName, planId: plan.id, returnToPlanId: plan.id } })}
                 />
             ) : null}
         </View>

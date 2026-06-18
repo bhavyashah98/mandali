@@ -27,8 +27,8 @@ export function useBringActions(planId: string, currentUserId: string | null) {
 
     const updateCache = useCallback(
         (updater: (items: BringItem[]) => BringItem[]) => {
-            queryClient.setQueryData<BringItem[]>(queryKey, (old) =>
-                old ? sortItems(updater(old)) : old
+            queryClient.setQueryData<{ items: BringItem[] }>(queryKey, (old) =>
+                old ? { items: sortItems(updater(old.items)) } : old
             );
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -64,9 +64,11 @@ export function useBringActions(planId: string, currentUserId: string | null) {
                 prev.map((i) => (i.id === ctx?.tempId ? data.item : i))
             );
         },
-        onError: (_err, _vars, ctx) => {
+        onError: (err: any, _vars, ctx) => {
+            console.error('Error adding bring item:', err?.response?.data || err);
             updateCache((prev) => prev.filter((i) => i.id !== ctx?.tempId));
-            Alert.alert('Error', 'Could not add item. Please try again.');
+            const errorMessage = err?.response?.data?.error || err.message || 'Could not add item. Please try again.';
+            Alert.alert('Error', errorMessage);
         },
     });
 
@@ -74,7 +76,7 @@ export function useBringActions(planId: string, currentUserId: string | null) {
     const claimMutation = useMutation({
         mutationFn: (itemId: string) => claimBringItem(planId, itemId),
         onMutate: async (itemId) => {
-            const snapshot = queryClient.getQueryData<BringItem[]>(queryKey);
+            const snapshot = queryClient.getQueryData<{ items: BringItem[] }>(queryKey);
             updateCache((prev) =>
                 prev.map((i) =>
                     i.id === itemId
@@ -95,7 +97,7 @@ export function useBringActions(planId: string, currentUserId: string | null) {
     const unclaimMutation = useMutation({
         mutationFn: (itemId: string) => unclaimBringItem(planId, itemId),
         onMutate: async (itemId) => {
-            const snapshot = queryClient.getQueryData<BringItem[]>(queryKey);
+            const snapshot = queryClient.getQueryData<{ items: BringItem[] }>(queryKey);
             updateCache((prev) =>
                 prev.map((i) =>
                     i.id === itemId
@@ -115,7 +117,7 @@ export function useBringActions(planId: string, currentUserId: string | null) {
     const upvoteMutation = useMutation({
         mutationFn: (itemId: string) => toggleBringItemUpvote(planId, itemId),
         onMutate: async (itemId) => {
-            const snapshot = queryClient.getQueryData<BringItem[]>(queryKey);
+            const snapshot = queryClient.getQueryData<{ items: BringItem[] }>(queryKey);
             updateCache((prev) =>
                 prev.map((i) =>
                     i.id === itemId

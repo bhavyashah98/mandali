@@ -9,6 +9,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { API_URL, getAuthHeaders, getOptimizedImageUrl } from '../../lib/api';
 import MandaliCoin from '../../components/MandaliCoin';
 import axios from 'axios';
+import { goBackOrPlan } from '../../lib/planReturnNav';
 
 type Period = 'all_time' | 'this_month' | 'this_year';
 
@@ -31,7 +32,7 @@ const BlinkLeaderboardScreen = () => {
     const route = useRoute();
     const isTablet = useIsTablet();
     const { user } = useAuthStore();
-    const { groupId, groupName, planId } = (route.params as any) || {};
+    const { groupId, groupName, planId, returnToPlanId } = (route.params as any) || {};
     const [activePeriod, setActivePeriod] = useState<Period>('all_time');
     const primaryColor = '#b30069';
 
@@ -59,7 +60,7 @@ const BlinkLeaderboardScreen = () => {
             <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                 <View style={{ width: isTablet ? 64 : 44 }}>
                     <TouchableOpacity
-                        onPress={() => navigation.goBack()}
+                        onPress={() => goBackOrPlan(navigation, returnToPlanId)}
                         className={`items-center justify-center rounded-full bg-white border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                     >
                         <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 18} color={primaryColor} style={{ marginLeft: isTablet ? 12 : 4 }} />
@@ -227,7 +228,7 @@ const BlinkLeaderboardScreen = () => {
             {/* Bottom Actions */}
             <View className="px-6 py-6 border-t border-stone-100 bg-white" style={{ paddingBottom: Math.max(insets.bottom, 24) }}>
                 <TouchableOpacity
-                    onPress={() => navigation.goBack()}
+                    onPress={() => goBackOrPlan(navigation, returnToPlanId)}
                     style={{ backgroundColor: primaryColor }}
                     className="w-full rounded-[24px] py-5 items-center shadow-md shadow-pink-200"
                 >

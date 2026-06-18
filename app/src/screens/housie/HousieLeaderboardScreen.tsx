@@ -10,6 +10,7 @@ import MandaliCoin from '../../components/MandaliCoin';
 import { PlayerPrizesModal } from '../../components/housie/PlayerPrizesModal';
 import { API_URL, getAuthHeaders, getOptimizedImageUrl } from '../../lib/api';
 import axios from 'axios';
+import { goBackOrPlan } from '../../lib/planReturnNav';
 
 type Period = 'all_time' | 'this_month' | 'this_year';
 
@@ -32,7 +33,7 @@ const HousieLeaderboardScreen = () => {
     const route = useRoute();
     const { width } = useWindowDimensions();
     const isTablet = useIsTablet();
-    const { groupId, groupName, planId } = (route.params as any) || {};
+    const { groupId, groupName, planId, returnToPlanId } = (route.params as any) || {};
     const { user } = useAuthStore();
     const [activePeriod, setActivePeriod] = useState<Period>('all_time');
     const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
@@ -58,7 +59,7 @@ const HousieLeaderboardScreen = () => {
             <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                 <View style={{ width: isTablet ? 64 : 44 }}>
                     <TouchableOpacity
-                        onPress={() => navigation.goBack()}
+                        onPress={() => goBackOrPlan(navigation, returnToPlanId)}
                         style={{ elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }}
                         className={`items-center justify-center rounded-full bg-white border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                     >
@@ -271,7 +272,7 @@ const HousieLeaderboardScreen = () => {
                 }}
             >
                 <TouchableOpacity
-                    onPress={() => navigation.goBack()}
+                    onPress={() => goBackOrPlan(navigation, returnToPlanId)}
                     style={{ height: isTablet ? 100 : 60, elevation: 8, shadowColor: '#b30069', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 }}
                     className="bg-[#b30069] rounded-[32px] items-center justify-center"
                 >

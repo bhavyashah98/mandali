@@ -9,11 +9,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { GAME_REGISTRY } from '../../constants/gameRegistry';
 import { fetchGroupDetail } from '../../lib/api';
+import { goBackOrPlan, PlanReturnParams } from '../../lib/planReturnNav';
 
 const GameLobbyScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute();
-    const { groupId, gameType = 'housie', planId } = (route.params as { groupId: string; gameType: string; planId?: string }) || {};
+    const { groupId, gameType = 'housie', planId, returnToPlanId } = (route.params as { groupId: string; gameType: string; planId?: string } & PlanReturnParams) || {};
     const isTablet = useIsTablet();
     
     // Get config from registry
@@ -31,6 +32,10 @@ const GameLobbyScreen = () => {
 
     // Custom back navigation to guarantee stack resets to exactly [GameSelectGroup, GameSelection]
     const handleBack = () => {
+        if (returnToPlanId) {
+            goBackOrPlan(navigation, returnToPlanId);
+            return;
+        }
         navigation.reset({
             index: 1,
             routes: [
@@ -72,7 +77,7 @@ const GameLobbyScreen = () => {
 
                 <View style={{ width: isTablet ? 64 : 44 }} className="items-end">
                     <TouchableOpacity
-                        onPress={() => navigation.navigate(config.leaderboardScreen, { groupId, groupName, planId })}
+                        onPress={() => navigation.navigate(config.leaderboardScreen, { groupId, groupName, planId, returnToPlanId })}
                         className={`items-center justify-center rounded-full shadow-md ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                         style={{ backgroundColor: config.primaryColor }}
                     >
@@ -85,6 +90,7 @@ const GameLobbyScreen = () => {
             <ContentComponent 
                 groupId={groupId} 
                 planId={planId}
+                returnToPlanId={returnToPlanId}
                 isTablet={isTablet} 
                 primaryColor={config.primaryColor}
             />

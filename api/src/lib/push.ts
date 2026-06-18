@@ -1,6 +1,11 @@
 import axios from 'axios';
 import { supabase } from './supabase';
 
+const firstRelatedUser = (users: any) => {
+    if (Array.isArray(users)) return users[0] || null;
+    return users || null;
+};
+
 export const sendGroupPushNotification = async (
     groupId: string,
     senderUserId: string,
@@ -41,8 +46,9 @@ export const sendGroupPushNotification = async (
 
         members.forEach((member: any) => {
             const userId = member.user_id;
-            const token = member.users?.expo_push_token;
-            const name = member.users?.name || 'Unknown';
+            const relatedUser = firstRelatedUser(member.users);
+            const token = relatedUser?.expo_push_token;
+            const name = relatedUser?.name || 'Unknown';
 
             // 1. Exclude sender
             if (String(userId).toLowerCase() === String(senderUserId).toLowerCase()) {

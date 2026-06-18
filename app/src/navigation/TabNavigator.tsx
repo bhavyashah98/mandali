@@ -15,6 +15,13 @@ import { PlansNavigator } from './PlansNavigator';
 
 const Tab = createBottomTabNavigator();
 
+const resetTabTo = (tabName: string, screenName: string) => ({ navigation }: any) => ({
+    tabPress: (event: any) => {
+        event.preventDefault();
+        navigation.navigate(tabName, { screen: screenName, params: undefined });
+    },
+});
+
 export const TabNavigator = () => {
     const insets = useSafeAreaInsets();
     const isTablet = useIsTablet();
@@ -69,16 +76,17 @@ export const TabNavigator = () => {
                 },
             })}
         >
-            <Tab.Screen name="Groups" component={GroupNavigator} />
+            <Tab.Screen name="Groups" component={GroupNavigator} listeners={resetTabTo('Groups', 'GroupList')} />
             {
                 isPlansEnabled && (
                     <Tab.Screen name="Plans" component={PlansNavigator} />
                 )
             }
-            <Tab.Screen name="Games" component={GamesNavigator} />
+            <Tab.Screen name="Games" component={GamesNavigator} listeners={resetTabTo('Games', 'GameSelectGroup')} />
             <Tab.Screen
                 name="Memories"
                 component={MemoriesNavigator}
+                listeners={resetTabTo('Memories', 'MemoriesSelectGroup')}
                 options={totalUnseen > 0 ? { tabBarBadge: totalUnseen, tabBarBadgeStyle: { backgroundColor: '#b30069', fontSize: 10, minWidth: 18, height: 18 } } : {}}
             />
             <Tab.Screen name="Profile" component={ProfileNavigator} />

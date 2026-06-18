@@ -38,7 +38,7 @@ const HousieHostSettingsScreen = () => {
     const [gameStyle, setGameStyle] = useState('classic');
 
     // Host Tickets
-    const [hostTickets, setHostTickets] = useState(0);
+    const [hostTickets, setHostTickets] = useState(1);
     const [ticketDifficulty, setTicketDifficulty] = useState('easy');
 
     const [isLoading, setIsLoading] = useState(false);

@@ -12,6 +12,7 @@ import OnThisDaySection from '../../components/memories/OnThisDaySection';
 import SectionHeader from '../../components/memories/SectionHeader';
 import GridRow from '../../components/memories/GridRow';
 import { useMemorySelection } from '../../hooks/useMemorySelection';
+import { goBackOrPlan, PlanReturnParams } from '../../lib/planReturnNav';
 
 const MemoriesScreen = () => {
     const { width } = useWindowDimensions();
@@ -19,10 +20,11 @@ const MemoriesScreen = () => {
     const COLUMN_COUNT = isTablet ? 5 : 3;
     const navigation = useNavigation<any>();
     const route = useRoute();
-    const params = route.params as { groupId: string; planId?: string; initialMemoryId?: string; readOnly?: boolean } | undefined;
+    const params = route.params as ({ groupId: string; planId?: string; initialMemoryId?: string; readOnly?: boolean } & PlanReturnParams) | undefined;
     const groupId = params?.groupId;
     const planId = params?.planId;
     const readOnly = !!params?.readOnly;
+    const returnToPlanId = params?.returnToPlanId;
     const today = useMemo(() => new Date(), []);
     const queryClient = useQueryClient();
 
@@ -291,7 +293,7 @@ const MemoriesScreen = () => {
                 <View className={`flex-row items-center px-6 ${isTablet ? 'py-8' : 'py-4'}`}>
                     <View style={{ width: isTablet ? 64 : 44 }}>
                         <TouchableOpacity
-                            onPress={() => navigation.goBack()}
+                            onPress={() => goBackOrPlan(navigation, returnToPlanId)}
                             className={`items-center justify-center rounded-full bg-white shadow-sm border border-stone-100 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                         >
                             <MaterialIcons name="arrow-back-ios" size={isTablet ? 28 : 20} color="#b30069" style={{ marginLeft: isTablet ? 12 : 5 }} />
@@ -310,7 +312,7 @@ const MemoriesScreen = () => {
                     <View style={{ width: isTablet ? 64 : 44 }} className="items-end">
                         {!readOnly ? (
                             <TouchableOpacity
-                                onPress={() => navigation.navigate('CreateMemory', { groupId, planId })}
+                                onPress={() => navigation.navigate('CreateMemory', { groupId, planId, returnToPlanId })}
                                 className={`items-center justify-center rounded-full bg-[#b30069] shadow-md ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                             >
                                 <Ionicons name="add" size={isTablet ? 36 : 24} color="white" />
@@ -342,7 +344,7 @@ const MemoriesScreen = () => {
                         <Text className={`text-[#594048] font-headline-bold text-center mb-4 ${isTablet ? 'text-4xl' : 'text-xl'}`}>No moments captured yet</Text>
                         {!readOnly ? (
                             <TouchableOpacity
-                                onPress={() => navigation.navigate('CreateMemory', { groupId, planId })}
+                                onPress={() => navigation.navigate('CreateMemory', { groupId, planId, returnToPlanId })}
                                 className={`mt-10 bg-[#b30069] rounded-[32px] items-center justify-center shadow-xl shadow-primary/20 ${isTablet ? 'px-16 py-6' : 'px-8 py-4'}`}
                             >
                                 <Text className={`text-white font-headline-bold ${isTablet ? 'text-2xl' : 'text-base'}`}>Preserve a Moment</Text>

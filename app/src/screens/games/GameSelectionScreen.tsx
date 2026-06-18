@@ -7,11 +7,12 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchGroupDetail } from '../../lib/api';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { useConfig } from '../../context/ConfigContext';
+import { goBackOrPlan, PlanReturnParams } from '../../lib/planReturnNav';
 
 const GameSelectionScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
-    const { groupId, planId } = route.params;
+    const { groupId, planId, returnToPlanId } = route.params as { groupId: string; planId?: string } & PlanReturnParams;
     const isTablet = useIsTablet();
     const { availableGames } = useConfig();
     const primaryColor = '#b30069';
@@ -27,7 +28,7 @@ const GameSelectionScreen = () => {
         <TouchableOpacity
             key={game.id}
             onPress={() => {
-                navigation.navigate('GameLobby', { groupId, gameType: game.id, planId });
+                navigation.navigate('GameLobby', { groupId, gameType: game.id, planId, returnToPlanId });
             }}
             activeOpacity={0.85}
             style={{
@@ -73,7 +74,7 @@ const GameSelectionScreen = () => {
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top']}>
             <View className="flex-row items-center px-6 py-4">
                 <TouchableOpacity
-                    onPress={() => navigation.goBack()}
+                    onPress={() => goBackOrPlan(navigation, returnToPlanId)}
                     className={`rounded-full bg-white items-center justify-center border border-stone-200 z-10 ${isTablet ? 'w-16 h-16' : 'w-10 h-10'}`}
                 >
                     <MaterialIcons name="arrow-back" size={isTablet ? 28 : 20} color="#1c1c18" />

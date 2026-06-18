@@ -6,6 +6,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../../stores/authStore';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { useGroupHisaabData } from '../../hooks/hisaab/useGroupHisaabData';
+import type { PlanReturnParams } from '../../lib/planReturnNav';
 
 import GroupHisaabHeader from '../../components/hisaab/GroupHisaabHeader';
 import GroupHisaabSummary from '../../components/hisaab/GroupHisaabSummary';
@@ -15,7 +16,7 @@ const GroupHisaabScreen = () => {
     const route = useRoute<any>();
     const navigation = useNavigation<any>();
     const isTablet = useIsTablet();
-    const { groupId, groupName, planId, readOnly } = route.params;
+    const { groupId, groupName, planId, readOnly, returnToPlanId } = route.params as any & PlanReturnParams;
     const { user } = useAuthStore();
 
     const {
@@ -51,13 +52,14 @@ const GroupHisaabScreen = () => {
             groupName,
             planId,
             readOnly,
-            members: members()
+            members: members(),
+            returnToPlanId
         });
-    }, [navigation, groupId, groupName, planId, readOnly, members]);
+    }, [navigation, groupId, groupName, planId, readOnly, members, returnToPlanId]);
 
     return (
         <SafeAreaView className="flex-1 bg-[#fdf9f3]" edges={['top']}>
-            <GroupHisaabHeader groupName={groupName} onAddExpense={handleAddExpense} readOnly={readOnly} />
+            <GroupHisaabHeader groupName={groupName} onAddExpense={handleAddExpense} readOnly={readOnly} returnToPlanId={returnToPlanId} />
             <GroupHisaabSummary
                 groupBalance={groupBalance}
                 totalSpending={totalSpending}

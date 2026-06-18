@@ -12,6 +12,7 @@ import { sendPlanScheduledNotification } from '../services/planLifecycleCron';
 import { createGroupNotification } from '../services/notificationService';
 import { NOTIFICATION_TYPES } from '../types/notifications';
 import planBringRoutes from './planBringRoutes';
+import planHypeRoutes from './planHypeRoutes';
 
 const router = Router();
 
@@ -563,5 +564,6 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
 
 
 router.use('/:id/bring', planBringRoutes);
+router.use('/:id/hype', planHypeRoutes);
 
 export default router;

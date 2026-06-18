@@ -18,7 +18,10 @@ export const NOTIFICATION_TYPES = {
     // Games
     HOUSIE_CREATED: 'housie_created',
     BLINK_CREATED: 'blink_created',
+    // Birthdays
+    BIRTHDAY_WISH: 'birthday_wish',
+    BIRTHDAY_TODAY: 'birthday_today',
+    BIRTHDAY_UPCOMING: 'birthday_upcoming',
 } as const;
 
 export type NotificationType = typeof NOTIFICATION_TYPES[keyof typeof NOTIFICATION_TYPES];
-

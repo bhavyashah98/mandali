@@ -23,6 +23,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         io?.to(`group_${plan.group_id}`).emit('bring_item_added', { planId: req.params.id, item });
         res.status(201).json({ item });
     } catch (err: any) {
+        console.error('[Bring Items] Failed to add item:', err);
         res.status(err.status || 500).json({ error: err.message || 'Failed to add item' });
     }
 });

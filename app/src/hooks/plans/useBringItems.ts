@@ -37,8 +37,8 @@ export function useBringItems(planId: string) {
     // ── Real-time socket listeners ──────────────────────────────────────────
     const updateCache = useCallback(
         (updater: (items: BringItem[]) => BringItem[]) => {
-            queryClient.setQueryData<BringItem[]>(queryKey, (old) =>
-                old ? sortItems(updater(old)) : old
+            queryClient.setQueryData<{ items: BringItem[] }>(queryKey, (old) =>
+                old ? { items: sortItems(updater(old.items)) } : old
             );
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps

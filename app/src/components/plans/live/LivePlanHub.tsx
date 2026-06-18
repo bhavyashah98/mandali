@@ -11,6 +11,7 @@ import LiveAttendeesCard from './LiveAttendeesCard';
 import LivePlanActionsCard from './LivePlanActionsCard';
 import LivePlanHero from './LivePlanHero';
 import LivePlanInfoCard from './LivePlanInfoCard';
+import LiveNowBoard from './LiveNowBoard';
 
 const LivePlanHub = ({ plan }: { plan: PlanCardPlan }) => {
     const navigation = useNavigation<any>();
@@ -50,6 +51,7 @@ const LivePlanHub = ({ plan }: { plan: PlanCardPlan }) => {
                 showsVerticalScrollIndicator={false}
             >
                 <LivePlanHero plan={plan} onBack={() => navigation.goBack()} />
+                <LiveNowBoard plan={plan} going={going} />
                 <LivePlanInfoCard plan={plan} />
                 <LiveAttendeesCard going={going} />
                 <LivePlanActionsCard onActionPress={openAction} />

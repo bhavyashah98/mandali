@@ -64,6 +64,7 @@ export default function UpcomingBringTab({ plan }: Props) {
                     onUnclaim={unclaimItem}
                     onToggleUpvote={toggleUpvote}
                     onLongPress={handleLongPress}
+                    onDelete={deleteItem}
                 />
             ))}
 

@@ -3,14 +3,16 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { useNavigation } from '@react-navigation/native';
+import { goBackOrPlan } from '../../lib/planReturnNav';
 
 interface GroupHisaabHeaderProps {
     groupName: string;
     onAddExpense: () => void;
     readOnly?: boolean;
+    returnToPlanId?: string;
 }
 
-const GroupHisaabHeader = ({ groupName, onAddExpense, readOnly }: GroupHisaabHeaderProps) => {
+const GroupHisaabHeader = ({ groupName, onAddExpense, readOnly, returnToPlanId }: GroupHisaabHeaderProps) => {
     const isTablet = useIsTablet();
     const navigation = useNavigation();
 
@@ -18,7 +20,7 @@ const GroupHisaabHeader = ({ groupName, onAddExpense, readOnly }: GroupHisaabHea
         <View className={`px-6 py-4 flex-row items-center justify-between ${isTablet ? 'mt-8' : 'mt-2'}`}>
             <View className="flex-row items-center flex-1">
                 <TouchableOpacity 
-                    onPress={() => navigation.goBack()} 
+                    onPress={() => goBackOrPlan(navigation, returnToPlanId)}
                     className={`${isTablet ? 'w-16 h-16' : 'w-10 h-10'} bg-white rounded-full items-center justify-center shadow-sm border border-stone-100 mr-4`}
                 >
                     <MaterialIcons name="arrow-back-ios" size={isTablet ? 24 : 18} color="#b30069" style={{ marginLeft: 6 }} />

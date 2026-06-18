@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import type { BringItem } from '../../../../types/plans';
@@ -13,12 +13,24 @@ interface Props {
     onUnclaim: (id: string) => void;
     onToggleUpvote: (id: string) => void;
     onLongPress: (item: BringItem) => void;
+    onDelete: (id: string) => void;
 }
 
-export default function BringItemCard({ item, currentUserId, onClaim, onUnclaim, onToggleUpvote, onLongPress }: Props) {
+export default function BringItemCard({ item, currentUserId, onClaim, onUnclaim, onToggleUpvote, onLongPress, onDelete }: Props) {
     const isClaimedByMe = item.claimedBy === currentUserId;
     const isClaimedByOther = !!item.claimedBy && !isClaimedByMe;
     const hasUpvotes = item.upvoteCount > 0;
+
+    const handleDelete = () => {
+        Alert.alert(
+            'Remove Item',
+            'Are you sure you want to remove this item from the list?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Remove', style: 'destructive', onPress: () => onDelete(item.id) }
+            ]
+        );
+    };
 
     return (
         <TouchableOpacity
@@ -46,20 +58,20 @@ export default function BringItemCard({ item, currentUserId, onClaim, onUnclaim,
                 {isClaimedByMe && <Text className="font-body-medium text-[#10b981] text-xs mt-0.5">You are bringing this</Text>}
             </View>
 
-            {/* Right: Claim Action */}
-            <View className="ml-3">
+            {/* Right: Claim Action & Delete */}
+            <View className="ml-3 flex-row items-center">
                 {!item.claimedBy && (
-                    <TouchableOpacity onPress={() => onClaim(item.id)} className="border border-[#b30069] rounded-xl px-3 py-1.5" activeOpacity={0.7}>
+                    <TouchableOpacity onPress={() => onClaim(item.id)} className="border border-[#b30069] rounded-xl px-3 py-1.5 mr-2" activeOpacity={0.7}>
                         <Text className="font-body-bold text-[#b30069] text-xs">I'll bring</Text>
                     </TouchableOpacity>
                 )}
                 {isClaimedByMe && (
-                    <TouchableOpacity onPress={() => onUnclaim(item.id)} className="bg-[#10b981]/10 rounded-xl px-3 py-1.5" activeOpacity={0.7}>
+                    <TouchableOpacity onPress={() => onUnclaim(item.id)} className="bg-[#10b981]/10 rounded-xl px-3 py-1.5 mr-2" activeOpacity={0.7}>
                         <Text className="font-body-bold text-[#10b981] text-xs">You ✓</Text>
                     </TouchableOpacity>
                 )}
                 {isClaimedByOther && (
-                    <View className="w-8 h-8 rounded-full overflow-hidden bg-stone-100 border border-stone-200">
+                    <View className="w-8 h-8 rounded-full overflow-hidden bg-stone-100 border border-stone-200 mr-2">
                         {item.claimedByAvatar ? (
                             <Image source={{ uri: getOptimizedImageUrl(item.claimedByAvatar, 'w_100,q_auto') }} style={{ width: '100%', height: '100%' }} />
                         ) : (
@@ -69,6 +81,10 @@ export default function BringItemCard({ item, currentUserId, onClaim, onUnclaim,
                         )}
                     </View>
                 )}
+
+                <TouchableOpacity onPress={handleDelete} className="p-1.5 items-center justify-center" activeOpacity={0.7}>
+                    <MaterialIcons name="delete-outline" size={20} color="#d6d3d1" />
+                </TouchableOpacity>
             </View>
         </TouchableOpacity>
     );

@@ -50,7 +50,7 @@ const UpcomingPlanDetails = ({ plan }: { plan: PlanCardPlan }) => {
                 className="flex-1"
                 contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 12) + 112 }}
                 showsVerticalScrollIndicator={false}
-                stickyHeaderIndices={[3]}
+                stickyHeaderIndices={[2]}
             >
                 {/* 0. Hero */}
                 <UpcomingPlanHero plan={plan} onBack={() => navigation.goBack()} />
@@ -64,7 +64,7 @@ const UpcomingPlanDetails = ({ plan }: { plan: PlanCardPlan }) => {
                     isHost={isHost}
                 />
 
-                {/* 3. Sticky Tab Bar — matches PlansTabBar style with underline indicator */}
+                {/* 2. Sticky Tab Bar — matches PlansTabBar style with underline indicator */}
                 <View className="bg-[#fdf9f3] pt-4 px-6">
                     <View className="flex-row border-b border-stone-200/70">
                         {([
@@ -95,8 +95,8 @@ const UpcomingPlanDetails = ({ plan }: { plan: PlanCardPlan }) => {
                 </View>
 
                 {/* 4. Tab Content */}
-                <View className="flex-1 pb-10">
-                    {activeTab === 'hype' && <UpcomingHypeTab />}
+                <View className="pb-10">
+                    {activeTab === 'hype' && <UpcomingHypeTab plan={plan} />}
                     {activeTab === 'bring' && <UpcomingBringTab plan={plan} />}
                     {activeTab === 'details' && <UpcomingDetailsTab plan={plan} />}
                 </View>

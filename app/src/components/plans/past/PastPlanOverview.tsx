@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { resolvePlanGoing } from '../../../hooks/plans/planGoing';
 import type { PlanCardPlan } from '../PlanCard';
 import PastNote from './PastNote';
+import PastAfterglowCard from './PastAfterglowCard';
 import PastPlanHero from './PastPlanHero';
 import PastPlanMeta from './PastPlanMeta';
 import PastPlanPeople from './PastPlanPeople';
@@ -26,6 +27,7 @@ const PastPlanOverview = ({ plan }: { plan: PlanCardPlan }) => {
             >
                 <PastPlanHero plan={plan} onBack={() => navigation.goBack()} />
                 <PastPlanTitle plan={plan} />
+                <PastAfterglowCard plan={plan} goingCount={goingCount} />
                 <PastPlanMeta plan={plan} />
                 <PastPlanPeople going={going} />
                 <PastStatsCard plan={plan} goingCount={goingCount} />
