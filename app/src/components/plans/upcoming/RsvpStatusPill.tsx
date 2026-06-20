@@ -6,11 +6,10 @@ import type { PlanRsvpStatus } from '../../../types/plans';
 interface Props {
     isHost: boolean;
     status: PlanRsvpStatus | null;
-    lateTag: boolean;
     onEdit: () => void;
 }
 
-export default function RsvpStatusPill({ isHost, status, lateTag, onEdit }: Props) {
+export default function RsvpStatusPill({ isHost, status, onEdit }: Props) {
     if (isHost) {
         return (
             <View className="flex-row items-center justify-center rounded-2xl bg-[#b30069]/10 px-4 py-3">
@@ -28,7 +27,6 @@ export default function RsvpStatusPill({ isHost, status, lateTag, onEdit }: Prop
             <View className="flex-row items-center">
                 <Text className="text-sm">{icon}</Text>
                 <Text className={`ml-2 font-body-bold text-sm ${status === 'going' ? 'text-[#b30069]' : 'text-[#594048]'}`}>{label}</Text>
-                {lateTag && <Text className="ml-2 rounded-full bg-[#fff0f7] px-2 py-1 font-body-bold text-[10px] text-[#b30069]">fashionably late</Text>}
             </View>
             <TouchableOpacity onPress={onEdit}>
                 <Text className="font-body-bold text-xs uppercase tracking-wider text-[#b30069]/65 underline">Change mind?</Text>

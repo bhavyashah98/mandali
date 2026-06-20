@@ -1,5 +1,16 @@
-import React, { forwardRef, useState, useImperativeHandle } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Keyboard, Modal, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from 'react-native';
+import React, { forwardRef, useState, useImperativeHandle, useRef, useCallback } from 'react';
+import {
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    Keyboard,
+    Modal,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    ScrollView,
+} from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 export interface BringAddSheetRef {
@@ -16,36 +27,63 @@ const BringAddSheet = forwardRef<BringAddSheetRef, Props>(({ onSubmit, isAdding 
     const [visible, setVisible] = useState(false);
     const [name, setName] = useState('');
     const [autoClaim, setAutoClaim] = useState(false);
+    const submittingRef = useRef(false);
 
-    useImperativeHandle(ref, () => ({
-        expand: () => setVisible(true),
-        close: () => {
-            setVisible(false);
-            setName('');
-            setAutoClaim(false);
-        }
-    }));
-
-    const handleSubmit = () => {
-        if (!name.trim() || name.trim().length < 2) return;
-        onSubmit(name, autoClaim);
-        setVisible(false);
+    const resetForm = useCallback(() => {
         setName('');
         setAutoClaim(false);
+        submittingRef.current = false;
+    }, []);
+
+    useImperativeHandle(ref, () => ({
+        expand: () => {
+            submittingRef.current = false;
+            setVisible(true);
+        },
+        close: () => {
+            setVisible(false);
+            resetForm();
+        },
+    }));
+
+    const handleClose = useCallback(() => {
+        setVisible(false);
+        resetForm();
+    }, [resetForm]);
+
+    const handleSubmit = useCallback(() => {
+        const trimmed = name.trim();
+        if (trimmed.length < 2 || isAdding || submittingRef.current) return;
+
+        submittingRef.current = true;
         Keyboard.dismiss();
-    };
+        onSubmit(trimmed, autoClaim);
+        setVisible(false);
+        resetForm();
+    }, [name, autoClaim, isAdding, onSubmit, resetForm]);
+
+    const canSubmit = name.trim().length >= 2 && !isAdding;
 
     return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={() => setVisible(false)}>
+        <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-                <TouchableWithoutFeedback onPress={() => setVisible(false)}>
-                    <View className="flex-1 bg-black/40 justify-center px-4">
-                        <TouchableWithoutFeedback>
-                            <View className="bg-white rounded-3xl px-6 py-8 shadow-xl">
+                <Pressable className="flex-1 bg-black/40 justify-center px-4" onPress={handleClose}>
+                    <ScrollView
+                        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+                        keyboardShouldPersistTaps="handled"
+                        bounces={false}
+                    >
+                        <Pressable onPress={(e) => e.stopPropagation()}>
+                            <View
+                                className="bg-white rounded-3xl px-6 py-8 shadow-xl"
+                                onStartShouldSetResponder={() => true}
+                            >
                                 <Text className="font-headline-bold text-[#1c1c18] text-xl mb-6 text-center">Suggest Item</Text>
 
                                 <View className="bg-stone-100 rounded-2xl px-4 py-3 mb-6">
-                                    <Text className="font-body-medium text-stone-500 text-xs uppercase tracking-wider mb-1">What should someone bring?</Text>
+                                    <Text className="font-body-medium text-stone-500 text-xs uppercase tracking-wider mb-1">
+                                        What should someone bring?
+                                    </Text>
                                     <TextInput
                                         value={name}
                                         onChangeText={setName}
@@ -54,6 +92,8 @@ const BringAddSheet = forwardRef<BringAddSheetRef, Props>(({ onSubmit, isAdding 
                                         maxLength={40}
                                         className="font-body-bold text-[#1c1c18] text-base"
                                         autoFocus
+                                        returnKeyType="done"
+                                        onSubmitEditing={handleSubmit}
                                     />
                                 </View>
 
@@ -78,17 +118,18 @@ const BringAddSheet = forwardRef<BringAddSheetRef, Props>(({ onSubmit, isAdding 
 
                                 <TouchableOpacity
                                     onPress={handleSubmit}
-                                    disabled={!name.trim() || name.trim().length < 2 || isAdding}
-                                    className={`w-full py-4 rounded-2xl items-center ${!name.trim() || name.trim().length < 2 || isAdding ? 'bg-stone-200' : 'bg-[#b30069]'}`}
+                                    disabled={!canSubmit}
+                                    activeOpacity={0.85}
+                                    className={`w-full py-4 rounded-2xl items-center ${canSubmit ? 'bg-[#b30069]' : 'bg-stone-200'}`}
                                 >
-                                    <Text className={`font-body-bold text-base ${!name.trim() || name.trim().length < 2 || isAdding ? 'text-stone-400' : 'text-white'}`}>
+                                    <Text className={`font-body-bold text-base ${canSubmit ? 'text-white' : 'text-stone-400'}`}>
                                         {isAdding ? 'Adding...' : 'Add to List'}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
-                        </TouchableWithoutFeedback>
-                    </View>
-                </TouchableWithoutFeedback>
+                        </Pressable>
+                    </ScrollView>
+                </Pressable>
             </KeyboardAvoidingView>
         </Modal>
     );

@@ -24,7 +24,6 @@ export default function UpcomingBringTab({ plan }: Props) {
 
     const handleAdd = useCallback((name: string, autoClaim: boolean) => {
         addItem({ name, autoClaim });
-        sheetRef.current?.close();
     }, [addItem]);
 
     const handleLongPress = useCallback((item: BringItem) => {

@@ -6,12 +6,18 @@ import LivePlanHub from '../../components/plans/live/LivePlanHub';
 import PastPlanOverview from '../../components/plans/past/PastPlanOverview';
 import UpcomingPlanDetails from '../../components/plans/upcoming/UpcomingPlanDetails';
 import { usePlanDetails } from '../../hooks/plans/usePlanDetails';
+import { usePlanLiveSync } from '../../hooks/plans/usePlanLiveSync';
+import { useBringLiveSync } from '../../hooks/plans/useBringLiveSync';
+import { useSocketRoom } from '../../hooks/useSocketRoom';
 
 const PlanDetailsScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
     const planId = route.params?.planId as string | undefined;
     const { data: plan, isLoading, isError, refetch } = usePlanDetails(planId);
+    usePlanLiveSync(planId);
+    useBringLiveSync(planId);
+    useSocketRoom('join_group', plan?.groupId);
 
     useFocusEffect(
         useCallback(() => {

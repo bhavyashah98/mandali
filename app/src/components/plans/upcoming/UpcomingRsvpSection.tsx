@@ -33,7 +33,6 @@ const UpcomingRsvpSection = ({
     const goingCount = going.length;
     const creatorWaiting = plan.createdBy && !going.some((g) => g.userId === plan.createdBy);
     const keyWaitingName = creatorWaiting ? plan.creatorName || 'the host' : null;
-    const lateTag = myRsvpStatus === 'going' && goingCount >= 3 && !isHost;
 
     const showSelection = !isHost && (myRsvpStatus === null || isEditing);
 
@@ -58,7 +57,7 @@ const UpcomingRsvpSection = ({
                 ) : showSelection ? (
                     <RsvpChoiceButtons onSelect={handleSelectOption} />
                 ) : (
-                    <RsvpStatusPill isHost={isHost} status={myRsvpStatus} lateTag={lateTag} onEdit={() => setIsEditing(true)} />
+                    <RsvpStatusPill isHost={isHost} status={myRsvpStatus} onEdit={() => setIsEditing(true)} />
                 )}
             </View>
             <RsvpSocialModal

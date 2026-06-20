@@ -9,6 +9,7 @@ import PlansSectionList from '../../components/plans/list/PlansSectionList';
 import PlansTabBar from '../../components/plans/list/PlansTabBar';
 import { PlanTab } from '../../components/plans/list/planTabs';
 import { usePlanSections } from '../../components/plans/list/usePlanSections';
+import { usePlanLiveSync } from '../../hooks/plans/usePlanLiveSync';
 
 const PlansHomeScreen = () => {
     const navigation = useNavigation<any>();
@@ -16,6 +17,7 @@ const PlansHomeScreen = () => {
     const [activeTab, setActiveTab] = useState<PlanTab>('active');
     const { plans, isLoading, isRefetching, onRefresh, refetch } = usePlans(activeTab);
     const sections = usePlanSections(plans);
+    usePlanLiveSync();
 
     useFocusEffect(
         useCallback(() => {

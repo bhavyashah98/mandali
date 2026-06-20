@@ -3,19 +3,10 @@ import { supabase } from '../lib/supabase';
 // Helper functions for Group Pulse math and metrics
 export function getPulseRank(pulse: number): string {
     if (pulse >= 80) return 'On Fire';
-    if (pulse >= 60) return 'Buzzing';
+    if (pulse >= 60) return 'Vibing';
     if (pulse >= 40) return 'Active';
     if (pulse >= 20) return 'Warming Up';
-    return 'Dormant';
-}
-
-export function getPulseRankPercentile(pulse: number): string {
-    if (pulse >= 90) return '97%';
-    if (pulse >= 80) return '90%';
-    if (pulse >= 70) return '85%';
-    if (pulse >= 50) return '70%';
-    if (pulse >= 30) return '50%';
-    return '20%';
+    return 'Just Getting Started';
 }
 
 function getWeekMonday(dateStr: string): string {

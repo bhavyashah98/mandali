@@ -59,10 +59,13 @@ export function useBringActions(planId: string, currentUserId: string | null) {
             return { tempId };
         },
         onSuccess: (data, _vars, ctx) => {
-            // Replace temp item with real one from server
-            updateCache((prev) =>
-                prev.map((i) => (i.id === ctx?.tempId ? data.item : i))
-            );
+            const realItem = data.item;
+            updateCache((prev) => {
+                const withoutDupes = prev.filter(
+                    (i) => i.id !== realItem.id && i.id !== ctx?.tempId
+                );
+                return sortItems([...withoutDupes, realItem]);
+            });
         },
         onError: (err: any, _vars, ctx) => {
             console.error('Error adding bring item:', err?.response?.data || err);

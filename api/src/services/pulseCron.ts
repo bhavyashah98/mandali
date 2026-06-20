@@ -7,13 +7,14 @@ import { NOTIFICATION_TYPES } from '../types/notifications';
 
 // ─────────────────────────────────────────────────────────────
 // Pulse Cron Service
-// Runs daily at 12:00 AM IST (Asia/Kolkata)
+// Runs four times daily at 12:00 AM, 6:00 AM, 12:00 PM, and 6:00 PM IST.
 //
 // For every group that is:
 //   - At least 7 days old
 //   - Has more than 1 member
 //
-// Recalculates pulse_score, pulse_rank, and pulse_last_calculated_at.
+// Recalculates pulse_score, pulse_rank, pulse_delta, pulse_percentile,
+// pulse_leaderboard_rank, pulse_leaderboard_total, and pulse_last_calculated_at.
 //
 // Notification rules:
 //   - Score INCREASED → send push + in-app notification to all members
@@ -26,12 +27,12 @@ import { NOTIFICATION_TYPES } from '../types/notifications';
  */
 export const runPulseRecalculation = async () => {
     const startTime = Date.now();
-    console.log('[PulseCron] ─── Starting nightly pulse recalculation ───');
+    console.log('[PulseCron] ─── Starting scheduled pulse recalculation ───');
 
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    // 1. Fetch all groups that are at least 7 days old (include current pulse_score for comparison)
+    // 1. Fetch all groups that are at least 7 days old.
     const { data: groups, error: groupsError } = await supabase
         .from('groups')
         .select('id, name, pulse_score')
@@ -48,6 +49,13 @@ export const runPulseRecalculation = async () => {
     let skipped = 0;
     let notified = 0;
     let errors = 0;
+    const recalculatedGroups: Array<{
+        id: string;
+        name: string;
+        oldPulseScore: number;
+        newPulseScore: number;
+        newPulseRank: string;
+    }> = [];
 
     for (const group of groups) {
         try {
@@ -74,12 +82,13 @@ export const runPulseRecalculation = async () => {
             const newPulseRank = getPulseRank(newPulseScore);
             const oldPulseScore = group.pulse_score ?? 0;
 
-            // 4. Persist to database
+            // 4. Persist base pulse values. Percentile is updated after all eligible groups are scored.
             const { error: updateError } = await supabase
                 .from('groups')
                 .update({
                     pulse_score: newPulseScore,
                     pulse_rank: newPulseRank,
+                    pulse_delta: newPulseScore - oldPulseScore,
                     pulse_last_calculated_at: now.toISOString(),
                 })
                 .eq('id', group.id);
@@ -89,6 +98,14 @@ export const runPulseRecalculation = async () => {
                 errors++;
                 continue;
             }
+
+            recalculatedGroups.push({
+                id: group.id,
+                name: group.name,
+                oldPulseScore,
+                newPulseScore,
+                newPulseRank,
+            });
 
             console.log(`[PulseCron] ✅ ${group.name} → ${oldPulseScore} → ${newPulseScore} (${newPulseRank})`);
             processed++;
@@ -127,20 +144,56 @@ export const runPulseRecalculation = async () => {
         }
     }
 
+    if (recalculatedGroups.length > 0) {
+        const allScores = recalculatedGroups.map(group => group.newPulseScore);
+        const rankedScores = [...new Set(allScores)].sort((a, b) => b - a);
+        const scoredGroups = recalculatedGroups.map(group => ({
+            ...group,
+            pulsePercentile: calculatePulsePercentile(group.newPulseScore, allScores),
+            leaderboardRank: rankedScores.indexOf(group.newPulseScore) + 1,
+            leaderboardTotal: recalculatedGroups.length,
+        }));
+
+        const percentileUpdates = scoredGroups.map(group =>
+            supabase
+                .from('groups')
+                .update({
+                    pulse_percentile: group.pulsePercentile,
+                    pulse_leaderboard_rank: group.leaderboardRank,
+                    pulse_leaderboard_total: group.leaderboardTotal,
+                })
+                .eq('id', group.id)
+        );
+
+        const percentileResults = await Promise.all(percentileUpdates);
+        percentileResults.forEach((result, index) => {
+            if (result.error) {
+                console.error(`[PulseCron] Failed to update percentile for group ${scoredGroups[index].id}:`, result.error);
+                errors++;
+            }
+        });
+    }
+
     const elapsed = Date.now() - startTime;
     console.log(`[PulseCron] ─── Completed in ${elapsed}ms | processed=${processed} notified=${notified} skipped=${skipped} errors=${errors} ───`);
 
     return { processed, notified, skipped, errors, elapsedMs: elapsed };
 };
 
+const calculatePulsePercentile = (pulseScore: number, allScores: number[]) => {
+    if (allScores.length <= 1) return 0;
+
+    const lowerScoreCount = allScores.filter(score => score < pulseScore).length;
+    return Math.round((lowerScoreCount / (allScores.length - 1)) * 100);
+};
+
 /**
  * Initialize the pulse cron job.
- * Scheduled to run daily at 12:00 AM IST (Asia/Kolkata timezone).
+ * Scheduled to run four times daily in the Asia/Kolkata timezone.
  */
 export const initPulseCron = () => {
-    // '0 0 * * *' = minute 0, hour 0 (midnight), every day
-    cron.schedule('0 0 * * *', async () => {
-        console.log('[PulseCron] ⏰ Cron triggered at midnight IST');
+    cron.schedule('0 0,6,12,18 * * *', async () => {
+        console.log('[PulseCron] ⏰ Cron triggered for scheduled IST pulse refresh');
         try {
             await runPulseRecalculation();
         } catch (err) {
@@ -150,5 +203,5 @@ export const initPulseCron = () => {
         timezone: 'Asia/Kolkata',
     });
 
-    console.log('[PulseCron] ✅ Scheduled: Daily at 12:00 AM IST (Asia/Kolkata)');
+    console.log('[PulseCron] ✅ Scheduled: 12:00 AM, 6:00 AM, 12:00 PM, and 6:00 PM IST (Asia/Kolkata)');
 };

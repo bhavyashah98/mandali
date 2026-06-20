@@ -30,15 +30,15 @@ const getPulseStyle = (rank: string) => {
     switch (rank) {
         case 'On Fire':
             return { color: '#ea580c', icon: '🔥' };
-        case 'Buzzing':
-            return { color: '#eab308', icon: '🐝' };
+        case 'Vibing':
+            return { color: '#b30069', icon: '✨' };
         case 'Active':
-            return { color: '#16a34a', icon: '🟢' };
+            return { color: '#16a34a', icon: '⚡' };
         case 'Warming Up':
-            return { color: '#ca8a04', icon: '📈' };
-        case 'Dormant':
+            return { color: '#ca8a04', icon: '☀️' };
+        case 'Just Getting Started':
         default:
-            return { color: '#9ca3af', icon: '💤' };
+            return { color: '#64748b', icon: '🌱' };
     }
 };
 
@@ -56,7 +56,7 @@ export const MandaliCard: React.FC<MandaliCardProps> = ({
     const id = item.id || item.groupId || '';
     const avatarUrl = item.cover_photo_url || item.avatar;
     const pulseScore = item.pulseScore ?? 0;
-    const pulseRank = item.pulseRank ?? 'Dormant';
+    const pulseRank = item.pulseRank ?? 'Just Getting Started';
 
     const pulseStyle = getPulseStyle(pulseRank);
 

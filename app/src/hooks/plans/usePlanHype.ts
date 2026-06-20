@@ -1,18 +1,11 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchPlanHype } from '../../lib/planHypeApi';
-
-function getSocket(): any | null {
-    try {
-        // @ts-ignore
-        return global.__socket__ ?? null;
-    } catch {
-        return null;
-    }
-}
+import { useSocket } from '../useSocket';
 
 export function usePlanHype(planId: string) {
     const queryClient = useQueryClient();
+    const socket = useSocket();
     const queryKey = ['plan-hype', planId];
     const query = useQuery({
         queryKey,
@@ -21,14 +14,13 @@ export function usePlanHype(planId: string) {
     });
 
     useEffect(() => {
-        const socket = getSocket();
         if (!socket) return;
         const onUpdated = (payload: { planId: string }) => {
             if (payload.planId === planId) queryClient.invalidateQueries({ queryKey });
         };
         socket.on('plan_hype_updated', onUpdated);
         return () => socket.off('plan_hype_updated', onUpdated);
-    }, [planId, queryClient]);
+    }, [planId, queryClient, socket]);
 
     return query;
 }

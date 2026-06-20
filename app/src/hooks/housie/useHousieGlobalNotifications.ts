@@ -31,7 +31,14 @@ export const useHousieGlobalNotifications = () => {
             }
         };
 
-        joinGroupRooms();
+        const onConnect = () => {
+            joinGroupRooms();
+        };
+
+        if (socket.connected) {
+            onConnect();
+        }
+        socket.on('connect', onConnect);
 
         const shouldNotify = (gameCode: string) => {
             if (!gameCode) return false;
@@ -91,6 +98,7 @@ export const useHousieGlobalNotifications = () => {
         socket.on('game_starting', onGameStarting);
 
         return () => {
+            socket.off('connect', onConnect);
             socket.off('game_opened', onGameOpened);
             socket.off('game_starting', onGameStarting);
         };

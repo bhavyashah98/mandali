@@ -38,7 +38,7 @@ export default function RsvpSocialModal({ visible, going, goingCount, totalMembe
                         </View>
                     )}
                     <ScrollView showsVerticalScrollIndicator={false}>
-                        {going.map((person, index) => (
+                        {going.map((person) => (
                             <View key={person.userId} className="mb-3 flex-row items-center rounded-2xl bg-[#fdf9f3] px-4 py-3">
                                 <View className="mr-3 h-11 w-11 items-center justify-center rounded-2xl bg-[#b30069]/10">
                                     <Text className="font-headline-bold text-lg text-[#b30069]">{person.name.charAt(0).toUpperCase()}</Text>
@@ -47,11 +47,6 @@ export default function RsvpSocialModal({ visible, going, goingCount, totalMembe
                                     <Text className="font-body-bold text-sm text-[#1c1c18]">{person.name}</Text>
                                     <Text className="mt-0.5 font-body-medium text-xs text-[#8a7a80]">{statusLine(person)}</Text>
                                 </View>
-                                {index >= 3 && (
-                                    <View className="rounded-full bg-[#fff0f7] px-3 py-1">
-                                        <Text className="font-body-bold text-[10px] text-[#b30069]">fashionably late</Text>
-                                    </View>
-                                )}
                             </View>
                         ))}
                     </ScrollView>

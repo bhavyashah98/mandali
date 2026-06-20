@@ -98,8 +98,7 @@ const GroupPulseScreen = () => {
         plansCreated,
         totalMemories,
         gamesPlayed,
-        hisaabSettled,
-        activeMembersLast30d
+        hisaabSettled
     } = pulseData;
 
     // SVG Circular Gauge Calculations (CX=130, CY=120, R=90)
@@ -222,10 +221,11 @@ const GroupPulseScreen = () => {
                         </Text>
                         {(() => {
                             const getPulseStatus = (score: number) => {
-                                if (score >= 80) return { label: 'Highly Active', emoji: '⚡', color: '#ea580c', bg: '#fff2e8' };
-                                if (score >= 50) return { label: 'Moderately Active', emoji: '🔥', color: '#b30069', bg: '#fdf0f5' };
-                                if (score >= 20) return { label: 'Active', emoji: '✨', color: '#7828c8', bg: '#fbf7ff' };
-                                return { label: 'Calm', emoji: '💤', color: '#594048', bg: '#f5ebe0' };
+                                if (score >= 80) return { label: 'On Fire', emoji: '🔥', color: '#ea580c', bg: '#fff2e8' };
+                                if (score >= 60) return { label: 'Vibing', emoji: '✨', color: '#b30069', bg: '#fdf0f5' };
+                                if (score >= 40) return { label: 'Active', emoji: '⚡', color: '#16a34a', bg: '#ecfdf3' };
+                                if (score >= 20) return { label: 'Warming Up', emoji: '☀️', color: '#ca8a04', bg: '#fffbeb' };
+                                return { label: 'Just Getting Started', emoji: '🌱', color: '#64748b', bg: '#f1f5f9' };
                             };
                             const status = getPulseStatus(pulseScore);
                             return (

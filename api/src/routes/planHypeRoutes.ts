@@ -6,6 +6,7 @@ const router = Router({ mergeParams: true });
 
 function emit(req: AuthRequest, groupId: string) {
     req.app.get('io')?.to(`group_${groupId}`).emit('plan_hype_updated', { planId: req.params.id });
+    req.app.get('io')?.to(`group_${groupId}`).emit('plan_updated', { planId: req.params.id, action: 'hype' });
 }
 const planId = (req: AuthRequest) => req.params.id as string;
 

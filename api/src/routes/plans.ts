@@ -18,6 +18,12 @@ const router = Router();
 
 const PLAN_DURATION_MS = 3 * 60 * 60 * 1000;
 
+function emitPlanUpdated(req: AuthRequest, groupId: string, planId: string, action: string) {
+    const io = req.app.get('io');
+    io?.to(`group_${groupId}`).emit('plan_updated', { planId, action });
+    if (action === 'rsvp') io?.to(`group_${groupId}`).emit('plan_hype_updated', { planId });
+}
+
 async function assertGroupMember(groupId: string, userId: string): Promise<boolean> {
     const { data } = await supabase
         .from('group_members')
@@ -255,6 +261,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
             userId,
             plan.id
         );
+        emitPlanUpdated(req, groupId, plan.id, 'created');
 
         const status = resolvePlanStatus(plan);
         const rsvpsMap = await loadRsvpsByPlanIds([plan.id]);
@@ -410,6 +417,8 @@ router.post('/:id/rsvp', authMiddleware, async (req: AuthRequest, res) => {
             .select('*', { count: 'exact', head: true })
             .eq('group_id', plan.group_id);
 
+        emitPlanUpdated(req, plan.group_id, id as string, 'rsvp');
+
         res.json({
             plan: formatPlanPayload(fullRow || plan, planStatus, userId, rsvpsMap[id as string], myRsvp, memberCount),
         });
@@ -458,6 +467,7 @@ router.post('/:id/close', authMiddleware, async (req: AuthRequest, res) => {
             .single();
 
         if (updateError) throw updateError;
+        emitPlanUpdated(req, plan.group_id, id as string, 'closed');
 
         const rsvpsMap = await loadRsvpsByPlanIds([id as string]);
         const myRsvp = await loadMyRsvp(id as string, userId);
@@ -496,6 +506,7 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
         const { error: deleteError } = await supabase.from('plans').delete().eq('id', id);
 
         if (deleteError) throw deleteError;
+        emitPlanUpdated(req, plan.group_id, id as string, 'deleted');
 
         const { data: creator } = await supabase.from('users').select('name').eq('id', userId).single();
         const creatorName = creator?.name || 'The host';

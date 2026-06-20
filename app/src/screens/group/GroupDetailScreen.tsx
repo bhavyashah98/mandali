@@ -30,7 +30,7 @@ interface GroupPulseCardProps {
 const GroupPulseCard: React.FC<GroupPulseCardProps> = ({
     isTablet,
     pulseScore = 0,
-    pulseRank = 'Dormant',
+    pulseRank = 'Just Getting Started',
     pulseDelta = 0,
     activeText,
     planText,
@@ -39,11 +39,11 @@ const GroupPulseCard: React.FC<GroupPulseCardProps> = ({
     const getPulseStyle = (rank: string) => {
         switch (rank) {
             case 'On Fire': return { color: '#ea580c', icon: '🔥' };
-            case 'Buzzing': return { color: '#eab308', icon: '🐝' };
-            case 'Active': return { color: '#16a34a', icon: '🟢' };
-            case 'Warming Up': return { color: '#ca8a04', icon: '📈' };
-            case 'Dormant':
-            default: return { color: '#9ca3af', icon: '💤' };
+            case 'Vibing': return { color: '#b30069', icon: '✨' };
+            case 'Active': return { color: '#16a34a', icon: '⚡' };
+            case 'Warming Up': return { color: '#ca8a04', icon: '☀️' };
+            case 'Just Getting Started':
+            default: return { color: '#64748b', icon: '🌱' };
         }
     };
 
@@ -152,6 +152,53 @@ const GroupPulseCard: React.FC<GroupPulseCardProps> = ({
             </View>
         </TouchableOpacity>
     );
+};
+
+const getPulseHypeText = (pulseData: any) => {
+    if (!pulseData) return undefined;
+
+    const score = Number(pulseData.pulseScore ?? 0);
+    const percentile = Number(pulseData.pulsePercentile ?? 0);
+    const rank = pulseData.pulseLeaderboardRank ? Number(pulseData.pulseLeaderboardRank) : null;
+    const total = Number(pulseData.pulseLeaderboardTotal ?? 0);
+
+    if (total <= 1) {
+        return 'Set the pace: every plan, game, and memory lifts your Pulse.';
+    }
+
+    if (rank === 1 && score >= 20) {
+        return `#1 of ${total} Mandalis right now. Keep the streak alive.`;
+    }
+
+    if (rank === 2 && score >= 20) {
+        return `#2 on the Pulse board. One great plan could take the top spot.`;
+    }
+
+    if (rank === 3 && score >= 20) {
+        return `Top 3 of ${total} Mandalis. Keep pushing the energy up.`;
+    }
+
+    if (score < 20) {
+        return 'Fresh start: make a plan, play a game, or share a memory to spark the Pulse.';
+    }
+
+    if (percentile <= 0) {
+        return 'The climb starts here. One active week can move this Mandali up fast.';
+    }
+
+    if (percentile < 50) {
+        return `Building momentum. You are ahead of ${percentile}% of Mandalis.`;
+    }
+
+    if (percentile < 80) {
+        return `Nice rhythm. You are ahead of ${percentile}% of Mandalis.`;
+    }
+
+    if (percentile < 95) {
+        return `High-energy Mandali. Ahead of ${percentile}% and still climbing.`;
+    }
+
+    return `Elite Pulse. Ahead of ${percentile}% of Mandalis.`;
 };
 
 const GroupDetailScreen = () => {
@@ -435,9 +482,9 @@ const GroupDetailScreen = () => {
                     <GroupPulseCard
                         isTablet={isTablet}
                         pulseScore={pulseData?.pulseScore ?? group.pulse_score ?? 0}
-                        pulseRank={pulseData?.pulseRank ?? group.pulse_rank ?? 'Dormant'}
+                        pulseRank={pulseData?.pulseRank ?? group.pulse_rank ?? 'Just Getting Started'}
                         pulseDelta={pulseData?.pulseDelta ?? 0}
-                        activeText={pulseData ? `More active than ${pulseData.pulsePercentile} of Mandalis` : undefined}
+                        activeText={getPulseHypeText(pulseData)}
                         planText={pulseData ? `${pulseData.joinedMembers} of ${pulseData.totalMembers} members joined recent plans` : undefined}
                         onPress={() => navigation.navigate('GroupPulse', { groupId })}
                     />
