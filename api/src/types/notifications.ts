@@ -22,6 +22,8 @@ export const NOTIFICATION_TYPES = {
     BIRTHDAY_WISH: 'birthday_wish',
     BIRTHDAY_TODAY: 'birthday_today',
     BIRTHDAY_UPCOMING: 'birthday_upcoming',
+    // Moderation
+    CONTENT_REMOVED: 'content_removed',
 } as const;
 
 export type NotificationType = typeof NOTIFICATION_TYPES[keyof typeof NOTIFICATION_TYPES];

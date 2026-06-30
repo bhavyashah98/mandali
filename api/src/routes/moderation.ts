@@ -1,8 +1,28 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { createNotification } from '../services/notificationService';
+import { sendUserPushNotification } from '../lib/push';
+import { NOTIFICATION_TYPES } from '../types/notifications';
+import axios from 'axios';
 
 const router = Router();
+
+// Helper to notify developer instantly of abuse reports/blocks
+const notifyDeveloper = async (action: string, data: any) => {
+    try {
+        console.warn(`[DEVELOPER_ALERT] Action: ${action} | Data:`, data);
+        
+        // If an admin webhook is configured (e.g. Slack/Discord), send it instantly
+        if (process.env.ADMIN_WEBHOOK_URL) {
+            await axios.post(process.env.ADMIN_WEBHOOK_URL, {
+                content: `🚨 **Moderation Alert**: ${action}\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\``
+            }).catch(() => {});
+        }
+    } catch (err) {
+        console.error('Failed to notify developer:', err);
+    }
+};
 
 // Require authentication for all moderation routes
 router.use(authMiddleware);
@@ -41,6 +61,9 @@ router.post('/report', async (req: AuthRequest, res) => {
 
         if (reportError) throw reportError;
 
+        // Instantly notify developer of the report
+        notifyDeveloper('NEW_REPORT', { reporterId, contentId, groupId, contentType, reason });
+
         // 2. Check threshold logic
         // Get total group members
         const { count: totalMembers } = await supabase
@@ -71,6 +94,31 @@ router.post('/report', async (req: AuthRequest, res) => {
             }
             
             console.log(`[Moderation] Content ${contentId} (${contentType}) hidden due to high report count (${reportCount}/${totalMembers})`);
+            
+            // Notify the content owner
+            if (contentOwnerId) {
+                const title = 'Content Removed';
+                const body = 'Your recent post has been removed as it was flagged by multiple members of your group for violating community guidelines.';
+                
+                await createNotification(
+                    contentOwnerId,
+                    NOTIFICATION_TYPES.CONTENT_REMOVED,
+                    title,
+                    body,
+                    groupId,
+                    reporterId,
+                    contentId
+                );
+
+                sendUserPushNotification(
+                    contentOwnerId,
+                    {
+                        title,
+                        body,
+                        data: { type: NOTIFICATION_TYPES.CONTENT_REMOVED, contentId, groupId }
+                    }
+                ).catch((err: any) => console.error('[Push Failed]:', err));
+            }
         }
 
         res.json({ success: true, message: 'Report submitted. Thank you for keeping Mandali safe.' });
@@ -106,6 +154,9 @@ router.post('/block', async (req: AuthRequest, res) => {
             }, { onConflict: 'blocker_id,blocked_id' });
 
         if (error) throw error;
+
+        // Instantly notify developer of the block
+        notifyDeveloper('USER_BLOCKED', { blockerId, blockedId });
 
         res.json({ success: true, message: 'User blocked. You will no longer see their content.' });
     } catch (error: any) {
