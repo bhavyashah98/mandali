@@ -112,11 +112,9 @@ router.post('/report', async (req: AuthRequest, res) => {
 
                 sendUserPushNotification(
                     contentOwnerId,
-                    {
-                        title,
-                        body,
-                        data: { type: NOTIFICATION_TYPES.CONTENT_REMOVED, contentId, groupId }
-                    }
+                    title,
+                    body,
+                    { type: NOTIFICATION_TYPES.CONTENT_REMOVED, contentId, groupId }
                 ).catch((err: any) => console.error('[Push Failed]:', err));
             }
         }
