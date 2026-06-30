@@ -7,7 +7,7 @@ const router = express.Router();
 
 // Handle OTP Verification - Login or Signup
 router.post('/verify', async (req, res) => {
-    const { firebaseToken, phone } = req.body;
+    const { firebaseToken, phone, termsAccepted, acceptedAt, termsVersion } = req.body;
 
     try {
         // Step 1 — Verify Firebase token
@@ -24,6 +24,10 @@ router.post('/verify', async (req, res) => {
             .eq('phone', phone)
             .single();
 
+        if (user && (user.status === 'banned' || user.status === 'suspended')) {
+            return res.status(403).json({ error: 'Your account has been suspended for violating Community Guidelines.' });
+        }
+
         const isNewUser = !user;
 
         if (!user) {
@@ -31,7 +35,14 @@ router.post('/verify', async (req, res) => {
             // First time registration
             const { data: newUser, error: createError } = await supabase
                 .from('users')
-                .insert({ phone, name: '' })
+                .insert({
+                    phone,
+                    name: '',
+                    terms_accepted: termsAccepted || false,
+                    accepted_at: acceptedAt || new Date().toISOString(),
+                    terms_version: termsVersion || '1.0',
+                    status: 'active'
+                })
                 .select()
                 .single();
             
@@ -40,6 +51,24 @@ router.post('/verify', async (req, res) => {
                 throw createError;
             }
             user = newUser;
+        } else {
+            // Update terms if provided and newer
+            if (termsAccepted && (!user.terms_version || user.terms_version !== termsVersion)) {
+                const { data: updatedUser, error: updateTermsError } = await supabase
+                    .from('users')
+                    .update({
+                        terms_accepted: termsAccepted,
+                        accepted_at: acceptedAt || new Date().toISOString(),
+                        terms_version: termsVersion
+                    })
+                    .eq('id', user.id)
+                    .select()
+                    .single();
+                
+                if (!updateTermsError && updatedUser) {
+                    user = updatedUser;
+                }
+            }
         }
 
         // Step 3 — Issue Mandali JWT
@@ -103,7 +132,7 @@ router.get('/me', async (req, res) => {
 
 // Update Profile - Used during onboarding
 router.patch('/profile', async (req, res) => {
-    const { name, birthday, avatar_url } = req.body;
+    const { name, birthday, avatar_url, terms_accepted, accepted_at, terms_version } = req.body;
     const authHeader = req.headers.authorization;
     
     if (!authHeader) return res.status(401).json({ error: 'No authorization token provided' });
@@ -113,12 +142,23 @@ router.patch('/profile', async (req, res) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
         const userId = decoded.userId;
 
+        // Content Filtering for name (username)
+        if (name) {
+            const { containsObjectionableContent } = require('../utils/moderationFilter');
+            if (containsObjectionableContent(name)) {
+                return res.status(400).json({ error: 'Your content appears to violate our Community Guidelines. Please edit and try again.' });
+            }
+        }
+
         console.log(`[ProfileUpdate] Updating profile for user: ${userId}`);
 
-        const updateData: any = { name, birthday };
-        if (avatar_url) {
-            updateData.avatar_url = avatar_url;
-        }
+        const updateData: any = {};
+        if (name !== undefined) updateData.name = name;
+        if (birthday !== undefined) updateData.birthday = birthday;
+        if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
+        if (terms_accepted !== undefined) updateData.terms_accepted = terms_accepted;
+        if (accepted_at !== undefined) updateData.accepted_at = accepted_at;
+        if (terms_version !== undefined) updateData.terms_version = terms_version;
 
         const { data: updatedUser, error: updateError } = await supabase
             .from('users')

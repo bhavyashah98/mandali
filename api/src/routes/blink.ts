@@ -248,10 +248,22 @@ router.get('/:gameCode/player', authMiddleware, async (req: AuthRequest, res) =>
             currentCardSymbols = card.symbols;
         }
 
+        // Check if player has won/completed the game
+        const { data: result } = await supabase
+            .from('game_results')
+            .select('prize_name, prize_amount')
+            .eq('game_id', game.id)
+            .eq('user_id', userId)
+            .maybeSingle();
+
         res.json({
             player: {
                 ...player,
-                currentCardSymbols
+                currentCardSymbols,
+                prize: result ? {
+                    prizeName: result.prize_name,
+                    prizeAmount: result.prize_amount
+                } : null
             }
         });
     } catch (error: any) {

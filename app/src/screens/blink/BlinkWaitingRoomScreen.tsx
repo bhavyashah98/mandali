@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -39,14 +39,18 @@ const BlinkWaitingRoomScreen = () => {
         isParticipant
     });
 
+    const [isStarting, setIsStarting] = useState(false);
+
     const handleStartGame = useCallback(async () => {
-        if (!gameCode) return;
+        if (!gameCode || isStarting) return;
+        setIsStarting(true);
         try {
             await startBlinkGame(gameCode);
         } catch (err: any) {
             Alert.alert('Error', err.message || 'Failed to start game');
+            setIsStarting(false);
         }
-    }, [gameCode]);
+    }, [gameCode, isStarting]);
 
     const handleCancelGame = async () => {
         if (!gameCode) return;
@@ -183,19 +187,28 @@ const BlinkWaitingRoomScreen = () => {
                     <View className="w-full">
                         <TouchableOpacity
                             onPress={handleStartGame}
-                            className="w-full bg-[#b30069] rounded-[32px] items-center justify-center"
+                            disabled={isStarting || game?.status === 'starting'}
+                            className={`w-full rounded-[32px] items-center justify-center ${
+                                isStarting || game?.status === 'starting' ? 'bg-stone-300' : 'bg-[#b30069]'
+                            }`}
                             style={{
                                 height: 64,
-                                shadowColor: primaryColor,
+                                shadowColor: isStarting || game?.status === 'starting' ? undefined : primaryColor,
                                 shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: 0.3,
+                                shadowOpacity: isStarting || game?.status === 'starting' ? 0 : 0.3,
                                 shadowRadius: 8,
-                                elevation: 4
+                                elevation: isStarting || game?.status === 'starting' ? 0 : 4
                             }}
                         >
                             <View className="flex-row items-center">
-                                <FontAwesome5 name="play" size={16} color="white" />
-                                <Text className="text-white font-headline-bold text-xl ml-3">Start Match</Text>
+                                {isStarting || game?.status === 'starting' ? (
+                                    <ActivityIndicator color="white" size="small" />
+                                ) : (
+                                    <>
+                                        <FontAwesome5 name="play" size={16} color="white" />
+                                        <Text className="text-white font-headline-bold text-xl ml-3">Start Match</Text>
+                                    </>
+                                )}
                             </View>
                         </TouchableOpacity>
                     </View>

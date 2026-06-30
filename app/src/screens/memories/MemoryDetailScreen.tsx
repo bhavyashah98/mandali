@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import {
     View,
     Text,
@@ -6,11 +6,6 @@ import {
     useWindowDimensions,
     ActivityIndicator,
     Alert,
-    Modal,
-    TextInput,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet
 } from 'react-native';
 import { FlashList, FlashListRef } from '@shopify/flash-list';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -55,7 +50,12 @@ const MemoryDetailScreen = () => {
     const [activeCommentMemoryId, setActiveCommentMemoryId] = useState<string | null>(null);
     const [activeReactionsMemoryId, setActiveReactionsMemoryId] = useState<string | null>(null);
     const [reportModalVisible, setReportModalVisible] = useState(false);
-    const [reportingTarget, setReportingTarget] = useState<{ id: string; groupId: string } | null>(null);
+    const [reportingTarget, setReportingTarget] = useState<{ 
+        id: string; 
+        groupId: string; 
+        contentType?: string; 
+        contentOwnerId?: string;
+    } | null>(null);
 
     const scrollRef = useRef<FlashListRef<any>>(null);
 
@@ -113,8 +113,8 @@ const MemoryDetailScreen = () => {
     );
 
     // Submit report API call
-    const handleReportMemory = useCallback((memoryId: string, gId: string) => {
-        setReportingTarget({ id: memoryId, groupId: gId });
+    const handleReportMemory = useCallback((memoryId: string, gId: string, contentType: string, contentOwnerId: string) => {
+        setReportingTarget({ id: memoryId, groupId: gId, contentType, contentOwnerId });
         setReportModalVisible(true);
     }, []);
 
@@ -136,7 +136,7 @@ const MemoryDetailScreen = () => {
         );
     }, [handleDeleteMemory, handleReportMemory, user, isTablet, initialMemoryId, initialPhotoUrl, readOnly]);
 
-    const keyExtractor = useCallback((item) => item.id.toString(), []);
+    const keyExtractor = useCallback((item: any) => item.id.toString(), []);
 
     return (
         <View className="flex-1 bg-white">
@@ -184,6 +184,7 @@ const MemoryDetailScreen = () => {
             {/* Comments Modal */}
             <CommentsModal
                 memoryId={activeCommentMemoryId}
+                groupId={groupId!}
                 onClose={() => setActiveCommentMemoryId(null)}
             />
 
@@ -198,6 +199,22 @@ const MemoryDetailScreen = () => {
                 visible={reportModalVisible}
                 reportingTarget={reportingTarget}
                 onClose={() => setReportModalVisible(false)}
+                onSuccess={() => {
+                    if (reportingTarget && (!reportingTarget.contentType || reportingTarget.contentType === 'memory')) {
+                        const reportedId = reportingTarget.id;
+                        // Optimistically remove the reported memory from the query cache
+                        queryClient.setQueriesData({ queryKey: ['memories'] }, (oldData: any) => {
+                            if (!oldData) return oldData;
+                            return {
+                                ...oldData,
+                                pages: oldData.pages.map((page: any) => ({
+                                    ...page,
+                                    memories: page.memories.filter((m: any) => m.id !== reportedId)
+                                }))
+                            };
+                        });
+                    }
+                }}
             />
         </View>
     );

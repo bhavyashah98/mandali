@@ -86,6 +86,15 @@ const CreateMemoryScreen = () => {
             return;
         }
 
+        const { containsObjectionableContent } = require('../../utils/moderationFilter');
+        if (containsObjectionableContent(story)) {
+            Alert.alert(
+                'Community Guidelines',
+                'Your caption appears to violate our Community Guidelines. Please edit and try again.'
+            );
+            return;
+        }
+
         setIsUploading(true);
         try {
             // 0. Auto-compress images aggressively to ensure they are well under 1MB

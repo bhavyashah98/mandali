@@ -1,9 +1,29 @@
 import axios from 'axios';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAppVersionHeaders } from './appVersion';
 import type { CreatePlanPayload, Plan, PlanActivity, PlanStatus, SubmitPlanRsvpPayload } from '../types/plans';
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+// Global interceptor for User Suspension / Ban enforcement
+axios.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        if (error.response) {
+            const { status, data } = error.response;
+            if ((status === 401 || status === 403) && data?.error?.includes('violating Community Guidelines')) {
+                const { useAuthStore } = require('../stores/authStore');
+                const store = useAuthStore.getState();
+                if (store.isAuthenticated) {
+                    await store.logout();
+                    Alert.alert('Account Suspended', data.error);
+                }
+            }
+        }
+        return Promise.reject(error);
+    }
+);
 
 export interface AppVersionStatus {
     success: boolean;
@@ -388,7 +408,14 @@ export const toggleMemoryReaction = async (memoryId: string, reaction: string) =
 };
 
 // --- MODERATION API ---
-export const reportContent = async (reportData: { contentId: string, groupId: string, reason?: string, contentType?: string }) => {
+export const reportContent = async (reportData: { 
+    contentId: string; 
+    groupId: string; 
+    reason?: string; 
+    contentType?: string; 
+    contentOwnerId?: string;
+    additionalNotes?: string;
+}) => {
     const headers = await getAuthHeaders();
     const response = await axios.post(`${API_URL}/moderation/report`, reportData, { headers });
     return response.data;

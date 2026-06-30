@@ -16,6 +16,15 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     try {
+        // Get blocked users (two-way)
+        const { data: blockedData } = await supabase
+            .from('blocked_users')
+            .select('blocked_id, blocker_id')
+            .or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
+        const blockedUserIds = blockedData 
+            ? Array.from(new Set(blockedData.flatMap(b => [b.blocked_id, b.blocker_id]))).filter(id => id !== userId) 
+            : [];
+
         let query = supabase
             .from('notifications')
             .select('*, group:group_id(name)')
@@ -25,6 +34,10 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
 
         if (groupId) {
             query = query.eq('group_id', groupId);
+        }
+
+        if (blockedUserIds.length > 0) {
+            query = query.or(`actor_id.is.null,actor_id.not.in.(${blockedUserIds.join(',')})`);
         }
 
         const { data, error } = await query;

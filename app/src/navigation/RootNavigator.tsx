@@ -13,14 +13,58 @@ import { fetchCurrentUser } from '../lib/api';
 import { socketService } from '../lib/socketService';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 import { HousieGlobalNotificationsManager } from '../components/housie/notifications/HousieGlobalNotificationsManager';
+import TermsScreen from '../screens/auth/TermsScreen';
 
 const Stack = createStackNavigator();
 
 export const RootNavigator = () => {
     const { isAuthenticated, setAuthenticated, setUser, user, setToken, setAuth } = useAuthStore();
     const [isAppReady, setIsAppReady] = useState(false);
+    // null = still reading from AsyncStorage, true/false = resolved
+    const [eulaAcceptedOnDevice, setEulaAcceptedOnDevice] = useState<boolean | null>(null);
     const navigationRef = useRef<NavigationContainerRef<any>>(null);
     const isProfileIncomplete = isAuthenticated && (!user?.name || user?.name.trim() === '');
+
+    // Read once on mount: has this device ever accepted the EULA?
+    useEffect(() => {
+        AsyncStorage.getItem('mandali_eula_accepted').then(val => {
+            setEulaAcceptedOnDevice(val === 'true');
+        });
+    }, []);
+
+    const handleAcceptTerms = async () => {
+        const timestamp = new Date().toISOString();
+
+        // Always persist on-device so EULA is not shown again after app kill / reinstall check
+        await AsyncStorage.setItem('mandali_eula_accepted', 'true');
+        setEulaAcceptedOnDevice(true);
+
+        if (isAuthenticated && user) {
+            // Also sync acceptance to the DB for cross-device / backend enforcement
+            try {
+                const axios = require('axios').default;
+                const { getAuthHeaders, API_URL } = require('../lib/api');
+                const headers = await getAuthHeaders();
+                await axios.patch(`${API_URL}/auth/profile`, {
+                    terms_accepted: true,
+                    accepted_at: timestamp,
+                    terms_version: '1.0'
+                }, { headers });
+
+                const updatedUser = { ...user, terms_accepted: true, accepted_at: timestamp, terms_version: '1.0' };
+                await AsyncStorage.setItem('mandali_user', JSON.stringify(updatedUser));
+                setUser(updatedUser);
+            } catch (err) {
+                console.error('[RootNavigator] Failed to sync terms to DB:', err);
+                throw err; // Surface error in TermsScreen
+            }
+        }
+        // Pre-login path: DB will receive terms_accepted=true during /auth/verify
+    };
+
+    // Terms gate logic (two layers):
+    // 1. Pre-login  → AsyncStorage flag (first time per device install)
+    // 2. Post-login → DB user.terms_accepted (cross-device source of truth)
 
     const navigateToFeature = (feature: string, params: any) => {
         if (!navigationRef.current || !navigationRef.current.isReady()) {
@@ -215,7 +259,18 @@ export const RootNavigator = () => {
         processPendingLink();
     }, [isAppReady, isAuthenticated, isProfileIncomplete]);
 
-    if (!isAppReady) return null;
+    // Wait for both the Firebase auth state AND the AsyncStorage EULA check to resolve
+    if (!isAppReady || eulaAcceptedOnDevice === null) return null;
+
+    // Layer 1 – device-level gate (pre-login, first time only)
+    // Layer 2 – DB gate (post-login, cross-device source of truth)
+    const termsAccepted = isAuthenticated
+        ? user?.terms_accepted === true   // DB wins for logged-in users
+        : eulaAcceptedOnDevice;            // AsyncStorage for anonymous users
+
+    if (!termsAccepted) {
+        return <TermsScreen onAccept={handleAcceptTerms} />;
+    }
 
     return (
         <NavigationContainer ref={navigationRef}>

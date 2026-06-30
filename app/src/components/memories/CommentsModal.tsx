@@ -25,18 +25,27 @@ import {
     getOptimizedImageUrl
 } from '../../lib/api';
 import { formatCommentTime } from '../../utils/formatCommentTime';
+import ReportModal from './ReportModal';
 
 interface CommentsModalProps {
     memoryId: string | null;
+    groupId: string;
     onClose: () => void;
 }
 
-const CommentsModal: React.FC<CommentsModalProps> = ({ memoryId, onClose }) => {
+const CommentsModal: React.FC<CommentsModalProps> = ({ memoryId, groupId, onClose }) => {
     const insets = useSafeAreaInsets();
     const { height } = useWindowDimensions();
     const queryClient = useQueryClient();
     const { user } = useAuthStore();
     const [newCommentText, setNewCommentText] = useState('');
+    const [reportModalVisible, setReportModalVisible] = useState(false);
+    const [reportingTarget, setReportingTarget] = useState<{ id: string; groupId: string; contentType: string; contentOwnerId: string } | null>(null);
+
+    const handleReportComment = useCallback((commentId: string, commentOwnerId: string) => {
+        setReportingTarget({ id: commentId, groupId, contentType: 'comment', contentOwnerId: commentOwnerId });
+        setReportModalVisible(true);
+    }, [groupId]);
 
     const { data: activeComments = [], isLoading: isActiveCommentsLoading } = useQuery({
         queryKey: ['memoryComments', memoryId],
@@ -67,6 +76,16 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ memoryId, onClose }) => {
 
     const handleSendComment = useCallback(() => {
         if (!newCommentText.trim()) return;
+
+        const { containsObjectionableContent } = require('../../utils/moderationFilter');
+        if (containsObjectionableContent(newCommentText)) {
+            Alert.alert(
+                'Community Guidelines',
+                'Your content appears to violate our Community Guidelines. Please edit and try again.'
+            );
+            return;
+        }
+
         addCommentMutation.mutate(newCommentText);
     }, [addCommentMutation, newCommentText]);
 
@@ -82,12 +101,13 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ memoryId, onClose }) => {
     }, [deleteCommentMutation]);
 
     return (
-        <Modal
-            visible={!!memoryId}
-            animationType="slide"
-            transparent
-            onRequestClose={onClose}
-        >
+        <>
+            <Modal
+                visible={!!memoryId}
+                animationType="slide"
+                transparent
+                onRequestClose={onClose}
+            >
             <TouchableOpacity
                 activeOpacity={1}
                 onPress={onClose}
@@ -152,12 +172,19 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ memoryId, onClose }) => {
                                                             </Text>
                                                         )}
                                                     </View>
-                                                    {isCommentOwner && (
+                                                    {isCommentOwner ? (
                                                         <TouchableOpacity
                                                             onPress={() => handleDeleteComment(item.id)}
                                                             className="p-1"
                                                         >
                                                             <Ionicons name="trash-outline" size={14} color="#ef4444" />
+                                                        </TouchableOpacity>
+                                                    ) : (
+                                                        <TouchableOpacity
+                                                            onPress={() => handleReportComment(item.id, item.user_id)}
+                                                            className="p-1"
+                                                        >
+                                                            <Ionicons name="flag-outline" size={14} color="#b30069" opacity={0.6} />
                                                         </TouchableOpacity>
                                                     )}
                                                 </View>
@@ -209,7 +236,25 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ memoryId, onClose }) => {
                     </TouchableOpacity>
                 </KeyboardAvoidingView>
             </TouchableOpacity>
-        </Modal>
+            </Modal>
+
+            {/* Report Comment Modal — must be outside parent Modal to render correctly on iOS */}
+            <ReportModal
+                visible={reportModalVisible}
+                reportingTarget={reportingTarget}
+                onClose={() => setReportModalVisible(false)}
+                onSuccess={() => {
+                    if (reportingTarget && reportingTarget.contentType === 'comment') {
+                        const reportedCommentId = reportingTarget.id;
+                        // Optimistically remove the reported comment from the query cache
+                        queryClient.setQueryData(['memoryComments', memoryId], (oldData: any) => {
+                            if (!oldData) return oldData;
+                            return oldData.filter((c: any) => c.id !== reportedCommentId);
+                        });
+                    }
+                }}
+            />
+        </>
     );
 };
 

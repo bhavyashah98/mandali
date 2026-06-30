@@ -22,10 +22,18 @@ export const verifyOTP = async (
     // Get Firebase ID token
     const firebaseToken = await result.user.getIdToken();
 
+    // Retrieve terms acceptance state from local storage
+    const termsAccepted = await AsyncStorage.getItem('mandali_terms_accepted') === 'true';
+    const acceptedAt = await AsyncStorage.getItem('mandali_terms_accepted_at');
+    const termsVersion = await AsyncStorage.getItem('mandali_terms_version') || '1.0';
+
     // Step 3 — Send to backend
     const response = await axios.post(`${API_URL}/auth/verify`, {
         firebaseToken,
         phone: result.user.phoneNumber,
+        termsAccepted,
+        acceptedAt,
+        termsVersion
     }, {
         headers: getAppVersionHeaders(),
     });

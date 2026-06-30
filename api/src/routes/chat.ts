@@ -28,6 +28,15 @@ router.get('/:groupId/messages', async (req: AuthRequest, res) => {
             return res.status(403).json({ error: 'You are not a member of this group' });
         }
 
+        // Get blocked users (two-way)
+        const { data: blockedData } = await supabase
+            .from('blocked_users')
+            .select('blocked_id, blocker_id')
+            .or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
+        const blockedUserIds = blockedData 
+            ? Array.from(new Set(blockedData.flatMap(b => [b.blocked_id, b.blocker_id]))).filter(id => id !== userId) 
+            : [];
+
         // 2. Build query
         let query = supabase
             .from('messages')
@@ -40,6 +49,10 @@ router.get('/:groupId/messages', async (req: AuthRequest, res) => {
             .eq('group_id', groupId)
             .order('created_at', { ascending: false })
             .limit(Number(limit));
+
+        if (blockedUserIds.length > 0) {
+            query = query.not('sender_id', 'in', `(${blockedUserIds.join(',')})`);
+        }
 
         // Cursor-based pagination (using created_at)
         if (cursor) {

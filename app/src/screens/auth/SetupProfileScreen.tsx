@@ -76,6 +76,15 @@ const SetupProfileScreen = () => {
             return;
         }
 
+        const { containsObjectionableContent } = require('../../utils/moderationFilter');
+        if (containsObjectionableContent(name)) {
+            Alert.alert(
+                'Community Guidelines',
+                'Your name appears to violate our Community Guidelines. Please choose a different name.'
+            );
+            return;
+        }
+
         const y = birthday.getFullYear();
         const m = birthday.getMonth() + 1;
         const d = birthday.getDate();

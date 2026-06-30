@@ -22,12 +22,14 @@ router.get('/group/:groupId', authMiddleware, async (req: AuthRequest, res) => {
         const from = page * limit;
         const to = from + limit - 1;
 
-        // 1. Get blocked users
+        // 1. Get blocked users (two-way)
         const { data: blockedData } = await supabase
             .from('blocked_users')
-            .select('blocked_id')
-            .eq('blocker_id', userId);
-        const blockedUserIds = blockedData?.map(b => b.blocked_id) || [];
+            .select('blocked_id, blocker_id')
+            .or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
+        const blockedUserIds = blockedData 
+            ? Array.from(new Set(blockedData.flatMap(b => [b.blocked_id, b.blocker_id]))).filter(id => id !== userId) 
+            : [];
 
         // 2. Get content reported by this user
         const { data: reportedData } = await supabase
@@ -124,6 +126,13 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
 
         if (!groupId || !imageUrls || imageUrls.length === 0) {
             return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        if (story) {
+            const { containsObjectionableContent } = require('../utils/moderationFilter');
+            if (containsObjectionableContent(story)) {
+                return res.status(400).json({ error: 'Your content appears to violate our Community Guidelines. Please edit and try again.' });
+            }
         }
 
         // Final check for image limit before creating memory
@@ -227,17 +236,35 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/:id/comments', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
-        const { data, error } = await supabase
+        const userId = req.userId;
+
+        // Get blocked users (two-way)
+        const { data: blockedData } = await supabase
+            .from('blocked_users')
+            .select('blocked_id, blocker_id')
+            .or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
+        const blockedUserIds = blockedData 
+            ? Array.from(new Set(blockedData.flatMap(b => [b.blocked_id, b.blocker_id]))).filter(uid => uid !== userId) 
+            : [];
+
+        let query = supabase
             .from('memory_comments')
             .select(`
                 *,
                 user:user_id(name, avatar_url)
             `)
             .eq('memory_id', id)
+            .eq('is_hidden', false)
             .order('created_at', { ascending: true });
 
+        if (blockedUserIds.length > 0) {
+            query = query.not('user_id', 'in', `(${blockedUserIds.join(',')})`);
+        }
+
+        const { data, error } = await query;
+
         if (error) throw error;
-        res.json({ comments: data });
+        res.json({ comments: data || [] });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -255,6 +282,13 @@ router.post('/:id/comments', authMiddleware, async (req: AuthRequest, res) => {
 
         if (!comment || comment.trim() === '') {
             return res.status(400).json({ error: 'Comment content cannot be empty' });
+        }
+
+        if (comment) {
+            const { containsObjectionableContent } = require('../utils/moderationFilter');
+            if (containsObjectionableContent(comment)) {
+                return res.status(400).json({ error: 'Your content appears to violate our Community Guidelines. Please edit and try again.' });
+            }
         }
 
         const { data, error } = await supabase

@@ -11,7 +11,8 @@ import { Image } from 'expo-image';
 //hooks
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchGroupDetail, leaveGroup, deleteGroup, transferOwnership, fetchBlockedUsers, blockUser, unblockUser, getOptimizedImageUrl, fetchGroupPulse } from '../../lib/api';
+import { fetchGroupDetail, leaveGroup, deleteGroup, transferOwnership, fetchBlockedUsers, blockUser, unblockUser, getOptimizedImageUrl, fetchGroupPulse, reportContent } from '../../lib/api';
+import ReportModal from '../../components/memories/ReportModal';
 import { useAuthStore } from '../../stores/authStore';
 import { useSocket } from '../../hooks/useSocket';
 import { useSocketRoom } from '../../hooks/useSocketRoom';
@@ -215,6 +216,8 @@ const GroupDetailScreen = () => {
     const [modTargetUser, setModTargetUser] = useState<{ id: string, name: string, isBlocked: boolean } | null>(null);
     const [profileTargetUser, setProfileTargetUser] = useState<{ name: string, phone: string, avatar_url: string } | null>(null);
     const [showCoverModal, setShowCoverModal] = useState(false);
+    const [reportModalVisible, setReportModalVisible] = useState(false);
+    const [reportingTarget, setReportingTarget] = useState<{ id: string; groupId: string; contentType?: string; contentOwnerId?: string } | null>(null);
 
     const { data, isLoading, isRefetching, error, refetch } = useQuery({
         queryKey: ['group', groupId],
@@ -291,14 +294,14 @@ const GroupDetailScreen = () => {
 
     const toggleBlock = async (memberId: string, name: string, currentlyBlocked: boolean) => {
         Alert.alert(
-            currentlyBlocked ? 'Unblock User' : 'Block User',
+            currentlyBlocked ? 'Unblock User' : 'Block this user?',
             currentlyBlocked
-                ? `Do you want to see photos from ${name} again?`
-                : `Are you sure you want to block ${name}? You will no longer see their photos in any shared group gallery.`,
+                ? `Allow ${name}'s content back into your feed?`
+                : 'You will no longer see their content. They will not be notified.',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
-                    text: currentlyBlocked ? 'Unblock' : 'Block User',
+                    text: currentlyBlocked ? 'Unblock' : 'Block',
                     style: currentlyBlocked ? 'default' : 'destructive',
                     onPress: async () => {
                         try {
@@ -307,9 +310,12 @@ const GroupDetailScreen = () => {
                             } else {
                                 await blockUser(memberId);
                             }
+                            // Immediately purge blocked user's content from all caches
                             queryClient.invalidateQueries({ queryKey: ['blockedUsers'] });
                             queryClient.invalidateQueries({ queryKey: ['memories'] });
-                            Alert.alert('Success', `User ${currentlyBlocked ? 'unblocked' : 'blocked'} successfully.`);
+                            queryClient.invalidateQueries({ queryKey: ['memoryComments'] });
+                            queryClient.invalidateQueries({ queryKey: ['messages'] });
+                            queryClient.invalidateQueries({ queryKey: ['notifications'] });
                         } catch (err: any) {
                             Alert.alert('Error', 'Failed to update block status.');
                         }
@@ -627,6 +633,7 @@ const GroupDetailScreen = () => {
                                 <Text className="text-stone-400 font-body-medium">Mandali Member Safety Options</Text>
                             </View>
 
+                            {/* Block / Unblock */}
                             <TouchableOpacity
                                 onPress={() => {
                                     setShowModMenu(false);
@@ -634,7 +641,7 @@ const GroupDetailScreen = () => {
                                         toggleBlock(modTargetUser.id, modTargetUser.name, modTargetUser.isBlocked);
                                     }
                                 }}
-                                className={`flex-row items-center p-5 rounded-3xl border border-stone-100 mb-4 ${modTargetUser?.isBlocked ? 'bg-primary/5' : 'bg-red-50'}`}
+                                className={`flex-row items-center p-5 rounded-3xl border border-stone-100 mb-3 ${modTargetUser?.isBlocked ? 'bg-primary/5' : 'bg-red-50'}`}
                             >
                                 <View className={`w-12 h-12 rounded-full items-center justify-center mr-4 ${modTargetUser?.isBlocked ? 'bg-primary/10' : 'bg-red-100'}`}>
                                     <Ionicons
@@ -648,10 +655,39 @@ const GroupDetailScreen = () => {
                                         {modTargetUser?.isBlocked ? 'Unblock User' : 'Block User'}
                                     </Text>
                                     <Text className="text-stone-400 text-xs font-body-medium">
-                                        {modTargetUser?.isBlocked ? "Allow their photos back into your gallery" : "Hide their photos from your group gallery"}
+                                        {modTargetUser?.isBlocked
+                                            ? 'Allow their content back into your feed'
+                                            : 'You will no longer see their content. They will not be notified.'}
                                     </Text>
                                 </View>
                             </TouchableOpacity>
+
+                            {/* Report Profile */}
+                            {!modTargetUser?.isBlocked && (
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        setShowModMenu(false);
+                                        if (modTargetUser) {
+                                            setReportingTarget({
+                                                id: modTargetUser.id,
+                                                groupId,
+                                                contentType: 'profile',
+                                                contentOwnerId: modTargetUser.id
+                                            });
+                                            setReportModalVisible(true);
+                                        }
+                                    }}
+                                    className="flex-row items-center p-5 rounded-3xl border border-stone-100 mb-3 bg-orange-50"
+                                >
+                                    <View className="w-12 h-12 rounded-full bg-orange-100 items-center justify-center mr-4">
+                                        <Ionicons name="flag-outline" size={22} color="#ea580c" />
+                                    </View>
+                                    <View className="flex-1">
+                                        <Text className="font-headline-bold text-lg text-orange-600">Report Profile</Text>
+                                        <Text className="text-stone-400 text-xs font-body-medium">Report this user to Mandali moderators</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            )}
 
                             <TouchableOpacity onPress={() => setShowModMenu(false)} className="mt-4 p-4 items-center">
                                 <Text className="text-stone-300 font-headline-bold uppercase tracking-widest text-xs">Cancel</Text>
@@ -659,6 +695,13 @@ const GroupDetailScreen = () => {
                         </Pressable>
                     </Pressable>
                 </Modal>
+
+                {/* REPORT PROFILE MODAL */}
+                <ReportModal
+                    visible={reportModalVisible}
+                    reportingTarget={reportingTarget}
+                    onClose={() => setReportModalVisible(false)}
+                />
 
                 {/* USER PROFILE MODAL */}
                 <Modal

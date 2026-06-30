@@ -37,7 +37,7 @@ interface InstagramPostCardProps {
     onOpenComments: (id: string) => void;
     onOpenReactions: (id: string) => void;
     onDelete: (id: string) => void;
-    onReport: (id: string, groupId: string) => void;
+    onReport: (id: string, groupId: string, contentType: string, contentOwnerId: string) => void;
     readOnly?: boolean;
 }
 
@@ -267,7 +267,7 @@ const InstagramPostCard: React.FC<InstagramPostCardProps> = ({
                 ]
                 : [
                     { text: 'Cancel', style: 'cancel' },
-                    { text: 'Report Memory', style: 'destructive', onPress: () => onReport(memory.id, memory.group_id) }
+                    { text: 'Report Memory', style: 'destructive', onPress: () => onReport(memory.id, memory.group_id, 'memory', memory.user_id) }
                 ]
         );
     };

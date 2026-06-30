@@ -13,11 +13,15 @@ router.use(authMiddleware);
  */
 router.post('/report', async (req: AuthRequest, res) => {
     try {
-        const { contentId, groupId, reason, contentType = 'memory' } = req.body;
+        const { contentId, groupId, reason, contentType = 'memory', contentOwnerId, additionalNotes } = req.body;
         const reporterId = req.userId;
 
         if (!contentId || !groupId) {
             return res.status(400).json({ error: 'Content ID and Group ID are required' });
+        }
+
+        if (reporterId === contentOwnerId) {
+            return res.status(400).json({ error: 'You cannot report your own content' });
         }
 
         // 1. Log the report
@@ -29,6 +33,9 @@ router.post('/report', async (req: AuthRequest, res) => {
                 group_id: groupId,
                 content_type: contentType,
                 reason: reason || 'Unspecified',
+                content_owner_id: contentOwnerId || null,
+                additional_notes: additionalNotes || null,
+                status: 'pending',
                 created_at: new Date()
             }, { onConflict: 'reporter_id,content_id' });
 
@@ -51,12 +58,19 @@ router.post('/report', async (req: AuthRequest, res) => {
 
         if ((reportCount || 0) >= threshold) {
             // Flag content as hidden
-            await supabase
-                .from('memories')
-                .update({ is_hidden: true })
-                .eq('id', contentId);
+            if (contentType === 'comment') {
+                await supabase
+                    .from('memory_comments')
+                    .update({ is_hidden: true })
+                    .eq('id', contentId);
+            } else {
+                await supabase
+                    .from('memories')
+                    .update({ is_hidden: true })
+                    .eq('id', contentId);
+            }
             
-            console.log(`[Moderation] Content ${contentId} hidden due to high report count (${reportCount}/${totalMembers})`);
+            console.log(`[Moderation] Content ${contentId} (${contentType}) hidden due to high report count (${reportCount}/${totalMembers})`);
         }
 
         res.json({ success: true, message: 'Report submitted. Thank you for keeping Mandali safe.' });
@@ -138,6 +152,141 @@ router.delete('/block/:blockedId', authMiddleware, async (req: AuthRequest, res)
         if (error) throw error;
 
         res.json({ success: true, message: 'User unblocked' });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * --- ADMIN MODERATION ENDPOINTS ---
+ */
+
+// Middleware to verify app-level admin access
+const adminGuard = async (req: AuthRequest, res: any, next: any) => {
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('is_admin')
+            .eq('id', req.userId)
+            .single();
+
+        if (error || !user || !user.is_admin) {
+            return res.status(403).json({ error: 'Forbidden: Admin access required' });
+        }
+        next();
+    } catch (err) {
+        return res.status(500).json({ error: 'Failed to authenticate admin' });
+    }
+};
+
+// GET /moderation/admin/reports - List all reports
+router.get('/admin/reports', adminGuard, async (req: AuthRequest, res) => {
+    try {
+        const { status } = req.query;
+        let query = supabase
+            .from('reports')
+            .select('*, reporter:reporter_id(name, phone), content_owner:content_owner_id(name, phone)')
+            .order('created_at', { ascending: false });
+
+        if (status) {
+            query = query.eq('status', status);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        res.json({ reports: data || [] });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /moderation/admin/users/:id/status - Update user status & disconnect sockets
+router.post('/admin/users/:id/status', adminGuard, async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body; // 'active', 'suspended', 'banned'
+
+        if (!['active', 'suspended', 'banned'].includes(status)) {
+            return res.status(400).json({ error: 'Invalid user status' });
+        }
+
+        const { error } = await supabase
+            .from('users')
+            .update({ status })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        // Immediately disconnect user sockets if suspended/banned
+        if (status === 'suspended' || status === 'banned') {
+            const io = req.app.get('io');
+            if (io) {
+                console.log(`[Admin] Disconnecting active sockets for user ${id}`);
+                io.to(`user_${id}`).disconnectSockets(true);
+            }
+        }
+
+        res.json({ success: true, message: `User status successfully updated to ${status}` });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// DELETE /moderation/admin/memories/:id - Admin force remove post
+router.delete('/admin/memories/:id', adminGuard, async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await supabase
+            .from('memories')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        res.json({ success: true, message: 'Memory successfully deleted by admin' });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// DELETE /moderation/admin/comments/:id - Admin force delete comment
+router.delete('/admin/comments/:id', adminGuard, async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await supabase
+            .from('memory_comments')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        res.json({ success: true, message: 'Comment successfully deleted by admin' });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /moderation/admin/reports/:id/resolve - Resolve a report
+router.post('/admin/reports/:id/resolve', adminGuard, async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const { resolution } = req.body; // 'dismissed', 'resolved'
+
+        if (!['dismissed', 'resolved'].includes(resolution)) {
+            return res.status(400).json({ error: 'Invalid resolution status' });
+        }
+
+        const { error } = await supabase
+            .from('reports')
+            .update({ 
+                status: resolution,
+                reviewed_at: new Date().toISOString()
+            })
+            .eq('id', id);
+
+        if (error) throw error;
+        res.json({ success: true, message: `Report successfully resolved as ${resolution}` });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

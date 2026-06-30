@@ -56,6 +56,16 @@ export const useBlinkGameEngine = (gameCode: string, groupId?: string, planId?: 
 
         if (isParticipant && playerData?.player) {
             setMySymbols(playerData.player.currentCardSymbols);
+            if (playerData.player.prize) {
+                const prizeName = playerData.player.prize.prizeName;
+                const match = /\d+/.exec(prizeName);
+                const rank = match ? parseInt(match[0]) : 1;
+                setMyPrize({
+                    rank,
+                    prizeName,
+                    prizeAmount: playerData.player.prize.prizeAmount
+                });
+            }
         }
 
     }, [gameData, playerData, userId, isGameLoading, isPlayerLoading, isParticipant]);
