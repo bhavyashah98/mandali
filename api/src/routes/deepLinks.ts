@@ -1,6 +1,11 @@
 import express from 'express';
 const router = express.Router();
 
+const packageId = 'com.mandaliapp.mandali';
+const appStoreUrl = 'https://apps.apple.com/in/app/mandali-group-companion/id6780851347';
+const playStoreUrl = `https://play.google.com/store/apps/details?id=${packageId}`;
+const playStoreMarketUrl = `market://details?id=${packageId}`;
+
 /**
  * Landing page for group invitation links
  * If the app doesn't intercept the Universal/App Link, the user lands here.
@@ -12,11 +17,6 @@ router.get(['/join/:id', '/housie/:id', '/memories/:id', '/hisaab/:id', '/plans/
     
     const isAndroid = /Android/i.test(userAgent);
     const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
-
-    const packageId = "com.mandaliapp.mandali";
-    const playStoreUrl = `https://play.google.com/store/apps/details?id=${packageId}`;
-    const playStoreMarketUrl = `market://details?id=${packageId}`;
-    const appStoreUrl = `https://apps.apple.com/app/mandali`; 
 
     let title = "You're Invited!";
     let subtitle = "You've been invited to join a private circle on Mandali.";
@@ -31,8 +31,9 @@ router.get(['/join/:id', '/housie/:id', '/memories/:id', '/hisaab/:id', '/plans/
 
     const redirectUrl = isAndroid ? androidIntent : appUrl;
     
-    // For the manual "Download" link, we use market:// on Android to force the Play Store app
+    // For the manual "Download" link, use store-app friendly URLs where possible.
     const storeUrl = isAndroid ? playStoreMarketUrl : (isIOS ? appStoreUrl : playStoreUrl);
+    const storeLabel = isIOS ? 'Download from the App Store' : (isAndroid ? 'Download from Google Play' : 'Download from the Store');
 
     if (type === 'housie') {
         title = "Housie Game Started!";
@@ -119,7 +120,7 @@ router.get(['/join/:id', '/housie/:id', '/memories/:id', '/hisaab/:id', '/plans/
             
             <div class="store-text">
                 Don't have the Mandali app yet? <br>
-                <a href="${storeUrl}" class="store-link">Download from the Store</a>
+                <a href="${storeUrl}" class="store-link">${storeLabel}</a>
             </div>
         </div>
 

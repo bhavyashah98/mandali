@@ -20,7 +20,7 @@ const REQUIRED_PRODUCTION_ENVS = [
 ] as const;
 
 const DEFAULT_ANDROID_STORE_URL = 'market://details?id=com.mandaliapp.mandali';
-const DEFAULT_IOS_STORE_URL = 'https://apps.apple.com/app/mandali';
+const IOS_APP_STORE_URL = 'https://apps.apple.com/in/app/mandali-group-companion/id6780851347';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -65,7 +65,7 @@ const getVersionPolicy = (platform: SupportedPlatform): VersionPolicy => {
         latestBuild: Math.max(latestBuild, minimumSupportedBuild),
         minimumSupportedVersion: process.env.MIN_SUPPORTED_IOS_VERSION || '',
         latestVersion: process.env.LATEST_IOS_VERSION || '',
-        storeUrl: process.env.IOS_APP_STORE_URL || DEFAULT_IOS_STORE_URL,
+        storeUrl: IOS_APP_STORE_URL,
     };
 };
 
