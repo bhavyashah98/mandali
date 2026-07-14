@@ -64,6 +64,43 @@ function resolvePlanStatus(row: any, now = new Date()): PlanStatus {
     return computePlanStatus(new Date(row.starts_at), new Date(row.ends_at), now);
 }
 
+async function deletePlanDependents(planId: string) {
+    const { data: bringItems, error: bringItemsError } = await supabase
+        .from('plan_bring_items')
+        .select('id')
+        .eq('plan_id', planId);
+
+    if (bringItemsError) throw bringItemsError;
+
+    const bringItemIds = (bringItems || []).map((item) => item.id);
+    if (bringItemIds.length > 0) {
+        const { error: upvoteDeleteError } = await supabase
+            .from('plan_bring_item_upvotes')
+            .delete()
+            .in('item_id', bringItemIds);
+
+        if (upvoteDeleteError) throw upvoteDeleteError;
+    }
+
+    const cleanupOperations = [
+        supabase.from('plan_hype_shoutout_reactions').delete().eq('plan_id', planId),
+        supabase.from('plan_hype_shoutouts').delete().eq('plan_id', planId),
+        supabase.from('plan_hype_prediction_votes').delete().eq('plan_id', planId),
+        supabase.from('plan_hype_show_votes').delete().eq('plan_id', planId),
+        supabase.from('plan_hype_cancel_bets').delete().eq('plan_id', planId),
+        supabase.from('plan_hype_outfits').delete().eq('plan_id', planId),
+        supabase.from('plan_hype_settings').delete().eq('plan_id', planId),
+        supabase.from('plan_bring_items').delete().eq('plan_id', planId),
+        supabase.from('plan_rsvps').delete().eq('plan_id', planId),
+        supabase.from('housie_games').update({ plan_id: null }).eq('plan_id', planId),
+        supabase.from('blink_games').update({ plan_id: null }).eq('plan_id', planId),
+    ];
+
+    const cleanupResults = await Promise.all(cleanupOperations);
+    const cleanupError = cleanupResults.find((result) => result.error)?.error;
+    if (cleanupError) throw cleanupError;
+}
+
 async function findOrCreateActivity(
     groupId: string,
     userId: string,
@@ -491,17 +528,24 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
 
         const { data: plan, error: planError } = await supabase
             .from('plans')
-            .select('id, title, created_by, group_id')
+            .select('id, activity_label, created_by, group_id')
             .eq('id', id)
-            .single();
+            .maybeSingle();
 
-        if (planError || !plan) {
+        if (planError) {
+            console.error('[Plans] DELETE plan lookup error:', planError);
+            throw planError;
+        }
+
+        if (!plan) {
             return res.status(404).json({ error: 'Plan not found' });
         }
 
         if (plan.created_by !== userId) {
             return res.status(403).json({ error: 'Only the plan host can cancel this plan.' });
         }
+
+        await deletePlanDependents(id as string);
 
         const { error: deleteError } = await supabase.from('plans').delete().eq('id', id);
 
@@ -514,7 +558,7 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
         createGroupNotification(
             plan.group_id,
             NOTIFICATION_TYPES.PLAN_CANCELLED,
-            `Plan Cancelled: ${plan.title || 'Plan'}`,
+            `Plan Cancelled: ${plan.activity_label || 'Plan'}`,
             `${creatorName} cancelled the plan`,
             userId,
             userId,
