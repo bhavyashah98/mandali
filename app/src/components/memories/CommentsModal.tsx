@@ -3,6 +3,7 @@ import {
     View,
     Text,
     TouchableOpacity,
+    Pressable,
     FlatList,
     useWindowDimensions,
     ActivityIndicator,
@@ -108,17 +109,16 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ memoryId, groupId, onClos
                 transparent
                 onRequestClose={onClose}
             >
-            <TouchableOpacity
-                activeOpacity={1}
-                onPress={onClose}
-                className="flex-1 bg-black/5 justify-end"
-            >
+            <View className="flex-1 bg-black/5 justify-end">
+                <Pressable
+                    onPress={onClose}
+                    className="absolute inset-0"
+                />
                 <KeyboardAvoidingView
                     behavior="padding"
-                    className="w-full"
+                    className="w-full justify-end"
                 >
-                    <TouchableOpacity
-                        activeOpacity={1}
+                    <View
                         className="bg-white border-t border-stone-200 rounded-t-[30px] px-5 pt-4"
                         style={{
                             height: height * 0.5,
@@ -137,7 +137,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ memoryId, groupId, onClos
                         </View>
 
                         {isActiveCommentsLoading ? (
-                            <View className="py-20 justify-center items-center">
+                            <View className="flex-1 justify-center items-center">
                                 <ActivityIndicator size="large" color="#b30069" />
                             </View>
                         ) : (
@@ -146,6 +146,9 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ memoryId, groupId, onClos
                                 keyExtractor={(item, index) => item.id || index.toString()}
                                 style={{ flex: 1 }}
                                 contentContainerStyle={{ paddingVertical: 12 }}
+                                keyboardShouldPersistTaps="handled"
+                                nestedScrollEnabled
+                                showsVerticalScrollIndicator
                                 renderItem={({ item }) => {
                                     const isCommentOwner = user?.id === item.user_id;
                                     return (
@@ -233,9 +236,9 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ memoryId, groupId, onClos
                                 )}
                             </TouchableOpacity>
                         </View>
-                    </TouchableOpacity>
+                    </View>
                 </KeyboardAvoidingView>
-            </TouchableOpacity>
+            </View>
             </Modal>
 
             {/* Report Comment Modal — must be outside parent Modal to render correctly on iOS */}
