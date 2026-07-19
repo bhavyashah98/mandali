@@ -1,11 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useIsTablet } from '../../hooks/useIsTablet';
 import {
     View, Text, ScrollView, ActivityIndicator, useWindowDimensions, Image, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
@@ -41,7 +41,6 @@ const HousieSpectatorScreen = () => {
         enabled: !!groupId,
     });
 
-    // Fetch game state
     const { data: game, isLoading, refetch: refetchGame } = useQuery({
         queryKey: ['housieGame', gameCode],
         queryFn: () => fetchHousieGame(gameCode),
@@ -50,9 +49,14 @@ const HousieSpectatorScreen = () => {
         refetchOnWindowFocus: false,
     });
 
-    useSocketRoom('join_game', gameCode, () => {
-        refetchGame();
-    });
+    // Refresh data when screen regains focus (e.g. navigating back from another screen)
+    useFocusEffect(
+        useCallback(() => {
+            refetchGame();
+        }, [refetchGame])
+    );
+
+    useSocketRoom('join_game', gameCode, refetchGame);
 
     // Socket — listen for numbers and game end
     useEffect(() => {

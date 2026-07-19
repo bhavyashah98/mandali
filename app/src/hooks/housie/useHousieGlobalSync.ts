@@ -4,7 +4,7 @@ import { useHousieStore } from '../../stores/housieStore';
 import { useQueryClient } from '@tanstack/react-query';
 
 export const useHousieGlobalSync = () => {
-    const { activeGameCode, addCalledNumber, setGameEnded, addClaimingPlayer, removeClaimingPlayer, reset } = useHousieStore();
+    const { activeGameCode, addCalledNumber, setGameEnded, addClaimingPlayer, removeClaimingPlayer } = useHousieStore();
     const socket = useSocket();
     const queryClient = useQueryClient();
 

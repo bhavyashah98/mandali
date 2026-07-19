@@ -9,7 +9,7 @@ export const useHousieTicketData = (gameCode: string) => {
         enabled: !!gameCode && gameCode.length >= 6,
         staleTime: 30_000,
         refetchOnMount: 'always',
-        refetchOnWindowFocus: false
+        refetchOnWindowFocus: false,
     });
 
     // 2. Fetch User's Tickets
