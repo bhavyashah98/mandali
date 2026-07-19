@@ -108,7 +108,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
             `${creatorName} is hosting a new match!`,
             userId,
             userId,
-            game.id
+            game.id,
+            { gameCode }
         );
 
         res.status(201).json({ game, message: 'Game created successfully' });
@@ -205,7 +206,8 @@ router.post('/schedule', authMiddleware, async (req: AuthRequest, res) => {
             `${creatorName} scheduled a match for ${istTime}`,
             userId,
             userId,
-            game.id
+            game.id,
+            { gameCode }
         );
 
         res.status(201).json({ game, message: 'Game scheduled successfully' });

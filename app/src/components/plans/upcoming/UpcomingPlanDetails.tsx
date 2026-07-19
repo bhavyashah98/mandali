@@ -53,7 +53,11 @@ const UpcomingPlanDetails = ({ plan }: { plan: PlanCardPlan }) => {
                 stickyHeaderIndices={[2]}
             >
                 {/* 0. Hero */}
-                <UpcomingPlanHero plan={plan} onBack={() => navigation.goBack()} />
+                <UpcomingPlanHero
+                    plan={plan}
+                    onBack={() => navigation.goBack()}
+                    onEdit={isHost ? () => navigation.navigate('CreatePlan', { editingPlan: plan }) : undefined}
+                />
 
                 <UpcomingRsvpSection
                     plan={plan}

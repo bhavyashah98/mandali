@@ -84,15 +84,21 @@ const fetchUserGroups = async (userId: string): Promise<string[]> => {
     return (memberships || []).map((m: any) => m.group_id);
 };
 
+interface UniqueMemberWithGroup {
+    userId: string;
+    groupId: string;
+}
+
 /**
  * Fetch unique member IDs across multiple groups, excluding the birthday person.
+ * Returns each unique member with one of the shared group IDs they belong to.
  */
-const fetchUniqueGroupMembers = async (groupIds: string[], excludeUserId: string): Promise<string[]> => {
+const fetchUniqueGroupMembers = async (groupIds: string[], excludeUserId: string): Promise<UniqueMemberWithGroup[]> => {
     if (groupIds.length === 0) return [];
 
     const { data: memberships, error } = await supabase
         .from('group_members')
-        .select('user_id')
+        .select('user_id, group_id')
         .in('group_id', groupIds)
         .neq('user_id', excludeUserId);
 
@@ -101,10 +107,18 @@ const fetchUniqueGroupMembers = async (groupIds: string[], excludeUserId: string
         return [];
     }
 
-    // Deduplicate user IDs in-memory
-    const seen = new Set<string>();
-    for (const m of memberships) seen.add(m.user_id);
-    return Array.from(seen);
+    // Keep only the first group_id for each unique user_id
+    const seen = new Map<string, string>();
+    for (const m of memberships) {
+        if (!seen.has(m.user_id)) {
+            seen.set(m.user_id, m.group_id);
+        }
+    }
+
+    return Array.from(seen.entries()).map(([userId, groupId]) => ({
+        userId,
+        groupId,
+    }));
 };
 
 /**
@@ -142,21 +156,21 @@ const notifyUniqueGroupMembersForBirthday = async (
     console.log(`[BirthdayCron]   → Unique members to notify: ${uniqueMembers.length} (across ${groupIds.length} groups)`);
 
     const notified: string[] = [];
-    for (const userId of uniqueMembers) {
-        const alreadySent = await hasBirthdayNotificationForPerson(userId, type, runDate, birthdayPersonId);
+    for (const member of uniqueMembers) {
+        const alreadySent = await hasBirthdayNotificationForPerson(member.userId, type, runDate, birthdayPersonId);
         if (alreadySent) continue;
 
         await createNotification(
-            userId,
+            member.userId,
             type,
             title,
             body,
-            undefined,           // no group_id — this is a cross-group notification
+            member.groupId,      // associate with the shared group_id
             birthdayPersonId,
             birthdayPersonId,
-            { ...metadata, birthdayRunDate: runDate, birthdayPersonId }
+            { ...metadata, birthdayRunDate: runDate, birthdayPersonId, groupId: member.groupId }
         );
-        notified.push(userId);
+        notified.push(member.userId);
     }
     return notified;
 };
@@ -326,17 +340,7 @@ export const runBirthdayChecks = async (baseDate?: Date) => {
     };
 };
 
-/**
- * Initialize the birthday cron job.
- * Scheduled to run daily at 12:00 AM IST (Asia/Kolkata timezone).
- */
 export const initBirthdayCron = () => {
-    setTimeout(() => {
-        runBirthdayChecks().catch((err) => {
-            console.error('[BirthdayCron] Startup catch-up failed:', err);
-        });
-    }, 10_000);
-
     // '0 0 * * *' = at minute 0, hour 0 (midnight), every day
     // timezone: 'Asia/Kolkata' ensures this fires at 12:00 AM IST
     cron.schedule('0 0 * * *', async () => {

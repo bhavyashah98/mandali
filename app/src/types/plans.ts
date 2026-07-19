@@ -52,6 +52,8 @@ export interface CreatePlanPayload {
     description?: string;
 }
 
+export type UpdatePlanPayload = Omit<CreatePlanPayload, 'groupId'>;
+
 export interface SubmitPlanRsvpPayload {
     status: PlanRsvpStatus;
     note?: string;

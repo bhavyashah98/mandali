@@ -198,7 +198,8 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res) => {
             scheduledAt ? `${creatorName} scheduled a game` : `${creatorName} is hosting a new game!`,
             userId,
             userId,
-            data.id
+            data.id,
+            { gameCode }
         );
 
         res.json({ success: true, game: data });

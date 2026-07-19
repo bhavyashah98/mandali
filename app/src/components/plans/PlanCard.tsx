@@ -11,9 +11,11 @@ import PlanCardMeta from './card/PlanCardMeta';
 export interface PlanCardPlan {
     id: string;
     groupId: string;
+    activityId: string;
     activityLabel: string;
     activityIcon?: keyof typeof MaterialIcons.glyphMap;
     startsAt: string;
+    endsAt?: string | null;
     location?: string | null;
     locationDetail?: string | null;
     placeId?: string | null;

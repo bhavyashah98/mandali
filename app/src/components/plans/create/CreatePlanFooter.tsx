@@ -7,9 +7,10 @@ interface CreatePlanFooterProps {
     isTablet: boolean;
     bottomPad: number;
     onCreate: () => void;
+    label?: string;
 }
 
-const CreatePlanFooter = ({ isPending, isTablet, bottomPad, onCreate }: CreatePlanFooterProps) => (
+const CreatePlanFooter = ({ isPending, isTablet, bottomPad, onCreate, label = 'Create Plan' }: CreatePlanFooterProps) => (
     <View
         className="absolute left-0 right-0 bg-[#fdf9f3] border-t border-stone-100/80 px-6 pt-3"
         style={{ bottom: 0, paddingBottom: bottomPad, ...createPlanFooterShadow }}
@@ -24,7 +25,7 @@ const CreatePlanFooter = ({ isPending, isTablet, bottomPad, onCreate }: CreatePl
             {isPending ? (
                 <ActivityIndicator color="#fff" />
             ) : (
-                <Text className="font-headline-bold text-white text-lg">Create Plan</Text>
+                <Text className="font-headline-bold text-white text-lg">{label}</Text>
             )}
         </TouchableOpacity>
     </View>

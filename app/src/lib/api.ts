@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAppVersionHeaders } from './appVersion';
-import type { CreatePlanPayload, Plan, PlanActivity, PlanStatus, SubmitPlanRsvpPayload } from '../types/plans';
+import type { CreatePlanPayload, Plan, PlanActivity, PlanStatus, SubmitPlanRsvpPayload, UpdatePlanPayload } from '../types/plans';
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -627,6 +627,12 @@ export const createPlanActivity = async (groupId: string, name: string): Promise
 export const createPlan = async (payload: CreatePlanPayload): Promise<{ plan: Plan }> => {
     const headers = await getAuthHeaders();
     const response = await axios.post(`${API_URL}/plans`, payload, { headers });
+    return response.data;
+};
+
+export const updatePlan = async (planId: string, payload: UpdatePlanPayload): Promise<{ plan: Plan }> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.patch(`${API_URL}/plans/${planId}`, payload, { headers });
     return response.data;
 };
 

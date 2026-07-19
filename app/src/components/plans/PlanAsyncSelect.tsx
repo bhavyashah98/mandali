@@ -272,7 +272,19 @@ const PlanAsyncSelect = ({
 
                     <View style={{ flex: 1, justifyContent: 'center', minHeight: iconSize }}>
                         {disabled ? (
-                            <Text className="font-body-medium text-stone-400 text-base">{disabledHint}</Text>
+                            <View>
+                                <Text
+                                    className={`font-headline-bold ${selected ? 'text-[#1c1c18]' : 'text-stone-400'} ${isTablet ? 'text-xl' : 'text-lg'}`}
+                                    numberOfLines={2}
+                                >
+                                    {selected ? selected.name : disabledHint}
+                                </Text>
+                                {!!selected && (
+                                    <Text className="font-body-bold text-stone-400 text-[10px] uppercase tracking-widest mt-1">
+                                        {disabledHint}
+                                    </Text>
+                                )}
+                            </View>
                         ) : open ? (
                             <TextInput
                                 ref={inputRef}

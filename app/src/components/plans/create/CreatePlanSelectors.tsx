@@ -10,6 +10,7 @@ interface CreatePlanSelectorsProps {
     onGroupSelect: (group: AsyncSelectItem | null) => void;
     onActivitySelect: (activity: SelectedPlanActivity | null) => void;
     isTablet: boolean;
+    lockGroup?: boolean;
 }
 
 const CreatePlanSelectors = ({
@@ -18,10 +19,17 @@ const CreatePlanSelectors = ({
     onGroupSelect,
     onActivitySelect,
     isTablet,
+    lockGroup,
 }: CreatePlanSelectorsProps) => (
     <>
         <View className="mb-5">
-            <PlanGroupSelector selected={selectedGroup} onSelect={onGroupSelect} isTablet={isTablet} />
+            <PlanGroupSelector
+                selected={selectedGroup}
+                onSelect={onGroupSelect}
+                isTablet={isTablet}
+                disabled={lockGroup}
+                disabledHint="Mandali locked for edit"
+            />
         </View>
         <View className="mb-5">
             <PlanActivitySelector

@@ -7,9 +7,11 @@ interface PlanGroupSelectorProps {
     selected: AsyncSelectItem | null;
     onSelect: (group: AsyncSelectItem | null) => void;
     isTablet: boolean;
+    disabled?: boolean;
+    disabledHint?: string;
 }
 
-const PlanGroupSelector = ({ selected, onSelect, isTablet }: PlanGroupSelectorProps) => {
+const PlanGroupSelector = ({ selected, onSelect, isTablet, disabled, disabledHint }: PlanGroupSelectorProps) => {
     const [search, setSearch] = useState('');
 
     const { data: groups = [], isLoading, isFetching } = useQuery({
@@ -42,6 +44,8 @@ const PlanGroupSelector = ({ selected, onSelect, isTablet }: PlanGroupSelectorPr
             isLoading={isLoading}
             isFetching={isFetching}
             isTablet={isTablet}
+            disabled={disabled}
+            disabledHint={disabledHint}
         />
     );
 };

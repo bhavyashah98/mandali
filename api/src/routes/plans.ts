@@ -366,6 +366,128 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
 });
 
 /**
+ * PATCH /plans/:id — creator edits an upcoming plan
+ */
+router.patch('/:id', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.userId!;
+        const { id } = req.params;
+        const { activityId, activityLabel, activityName, startsAt, endsAt, location, placeId, placePhotoUrl, description } =
+            req.body;
+
+        const { data: existing, error: existingError } = await supabase
+            .from('plans')
+            .select('id, group_id, created_by, status, starts_at, ends_at')
+            .eq('id', id)
+            .single();
+
+        if (existingError || !existing) {
+            return res.status(404).json({ error: 'Plan not found' });
+        }
+
+        if (existing.created_by !== userId) {
+            return res.status(403).json({ error: 'Only the plan creator can edit this plan.' });
+        }
+
+        if (!(await assertGroupMember(existing.group_id, userId))) {
+            return res.status(403).json({ error: 'You are not a member of this group.' });
+        }
+
+        if (resolvePlanStatus(existing) !== 'upcoming') {
+            return res.status(400).json({ error: 'Only upcoming plans can be edited.' });
+        }
+
+        const starts = startsAt ? new Date(startsAt) : new Date(existing.starts_at);
+        if (Number.isNaN(starts.getTime())) {
+            return res.status(400).json({ error: 'Invalid startsAt' });
+        }
+        if (starts <= new Date()) {
+            return res.status(400).json({ error: 'Plan start time must be later than now.' });
+        }
+
+        const ends = resolveEndsAt(starts, endsAt ?? existing.ends_at);
+        if (Number.isNaN(ends.getTime()) || ends <= starts) {
+            return res.status(400).json({ error: 'Plan end time must be after the start time.' });
+        }
+
+        let resolvedActivityId = activityId as string | undefined;
+        let label = typeof activityLabel === 'string' ? activityLabel.trim() : '';
+        const nameFromBody = typeof activityName === 'string' ? activityName.trim() : '';
+
+        if (!resolvedActivityId && nameFromBody) {
+            const created = await findOrCreateActivity(existing.group_id, userId, nameFromBody);
+            resolvedActivityId = created.id;
+            label = created.name;
+        }
+
+        if (!resolvedActivityId) {
+            return res.status(400).json({ error: 'activityId or activityName is required' });
+        }
+
+        const { data: activityRow, error: activityError } = await supabase
+            .from('plan_activities')
+            .select('id, name, group_id')
+            .eq('id', resolvedActivityId)
+            .eq('group_id', existing.group_id)
+            .single();
+
+        if (activityError || !activityRow) {
+            return res.status(400).json({ error: 'Activity not found for this group' });
+        }
+
+        if (!label) label = activityRow.name;
+
+        const updatePayload: Record<string, unknown> = {
+            activity_id: resolvedActivityId,
+            activity_label: label,
+            starts_at: starts.toISOString(),
+            ends_at: ends.toISOString(),
+            location: location ? String(location).trim() : null,
+            status: computePlanStatus(starts, ends),
+            place_id: placeId ? String(placeId) : null,
+            place_photo_url: placePhotoUrl ? String(placePhotoUrl) : null,
+            description: description ? String(description).trim() : null,
+        };
+
+        const { data: updated, error: updateError } = await supabase
+            .from('plans')
+            .update(updatePayload)
+            .eq('id', id)
+            .select(`
+                *,
+                group:group_id(id, name, description, cover_photo_url),
+                creator:created_by(name, avatar_url)
+            `)
+            .single();
+
+        if (updateError) throw updateError;
+
+        const timeStr = starts.toLocaleString('en-US', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+        createGroupNotification(
+            existing.group_id,
+            NOTIFICATION_TYPES.PLAN_UPDATED,
+            `Plan Updated: ${label}`,
+            timeStr,
+            userId,
+            userId,
+            id as string
+        );
+        emitPlanUpdated(req, existing.group_id, id as string, 'updated');
+
+        const status = resolvePlanStatus(updated);
+        const rsvpsMap = await loadRsvpsByPlanIds([id as string]);
+        const myRsvp = await loadMyRsvp(id as string, userId);
+
+        res.json({
+            plan: formatPlanPayload(updated, status, userId, rsvpsMap[id as string], myRsvp),
+        });
+    } catch (err: any) {
+        console.error('[Plans] PATCH plan error:', err);
+        res.status(500).json({ error: err.message || 'Failed to update plan' });
+    }
+});
+
+/**
  * POST /plans/:id/rsvp — one RSVP per member (cannot change after submit)
  */
 router.post('/:id/rsvp', authMiddleware, async (req: AuthRequest, res) => {

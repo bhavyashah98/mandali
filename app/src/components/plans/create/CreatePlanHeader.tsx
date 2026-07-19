@@ -6,9 +6,11 @@ import { createPlanHeaderBackShadow } from './createPlanStyles';
 interface CreatePlanHeaderProps {
     isTablet: boolean;
     onBack: () => void;
+    title?: string;
+    subtitle?: string;
 }
 
-const CreatePlanHeader = ({ isTablet, onBack }: CreatePlanHeaderProps) => (
+const CreatePlanHeader = ({ isTablet, onBack, title = 'Create a Plan', subtitle = "Let's plan something awesome!" }: CreatePlanHeaderProps) => (
     <View className={`flex-row items-center px-6 ${isTablet ? 'py-6' : 'py-3'}`}>
         <View style={{ width: isTablet ? 64 : 44 }}>
             <TouchableOpacity
@@ -26,10 +28,10 @@ const CreatePlanHeader = ({ isTablet, onBack }: CreatePlanHeaderProps) => (
         </View>
         <View className="flex-1 items-center px-2">
             <Text className="font-headline-bold text-[#1c1c18] text-center" style={{ fontSize: isTablet ? 32 : 20 }} numberOfLines={1}>
-                Create a Plan
+                {title}
             </Text>
             <Text className="font-body-bold text-[#b30069] text-center uppercase tracking-widest" style={{ fontSize: isTablet ? 14 : 9, marginTop: 2 }}>
-                Let&apos;s plan something awesome!
+                {subtitle}
             </Text>
         </View>
         <View style={{ width: isTablet ? 64 : 44 }} />

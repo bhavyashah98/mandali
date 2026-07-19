@@ -28,7 +28,7 @@ function getCountdownText(targetDateStr: string) {
     return `${m}m left`;
 }
 
-const UpcomingPlanHero = ({ plan, onBack }: { plan: PlanCardPlan; onBack: () => void }) => {
+const UpcomingPlanHero = ({ plan, onBack, onEdit }: { plan: PlanCardPlan; onBack: () => void; onEdit?: () => void }) => {
     const heroUri = plan.placePhotoUrl || PLAN_HERO_FALLBACK_URI;
     const [countdown, setCountdown] = useState(() => getCountdownText(plan.startsAt));
 
@@ -48,9 +48,21 @@ const UpcomingPlanHero = ({ plan, onBack }: { plan: PlanCardPlan; onBack: () => 
                 <TouchableOpacity onPress={onBack} className="w-11 h-11 rounded-full bg-white/90 items-center justify-center shadow-md">
                     <MaterialIcons name="arrow-back" size={24} color="#1c1c18" />
                 </TouchableOpacity>
-                <View className="bg-black/50 px-4 py-2 rounded-full flex-row items-center border border-white/20 shadow-lg">
-                    <MaterialIcons name="schedule" size={14} color="#ffffff" />
-                    <Text className="text-white font-body-bold text-[11px] ml-1.5 uppercase tracking-wider">{countdown}</Text>
+                <View className="flex-row items-center">
+                    {onEdit ? (
+                        <TouchableOpacity
+                            onPress={onEdit}
+                            activeOpacity={0.85}
+                            className="bg-white/90 px-4 py-2 rounded-full flex-row items-center border border-white/30 shadow-lg mr-2"
+                        >
+                            <MaterialIcons name="edit" size={14} color="#b30069" />
+                            <Text className="text-[#b30069] font-body-bold text-[11px] ml-1.5 uppercase tracking-wider">Edit</Text>
+                        </TouchableOpacity>
+                    ) : null}
+                    <View className="bg-black/50 px-4 py-2 rounded-full flex-row items-center border border-white/20 shadow-lg">
+                        <MaterialIcons name="schedule" size={14} color="#ffffff" />
+                        <Text className="text-white font-body-bold text-[11px] ml-1.5 uppercase tracking-wider">{countdown}</Text>
+                    </View>
                 </View>
             </View>
             <View className="absolute left-6 bottom-4 right-6">

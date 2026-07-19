@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
@@ -40,6 +40,53 @@ const NotificationScreen = () => {
             });
         }
     }, [notifications.length]);
+
+    const handleNotificationPress = useCallback((item: any) => {
+        const type = item.notification_type;
+        const groupId = item.group_id;
+        const entityId = item.entity_id;
+        const gameCode = item.metadata?.gameCode;
+
+        if (['plan_created', 'plan_updated', 'plan_rsvp'].includes(type) && entityId) {
+            navigation.navigate('Plans', { screen: 'PlanDetails', params: { planId: entityId } });
+            return;
+        }
+
+        if (type === 'memory_added' && groupId) {
+            navigation.navigate('Memories', { screen: 'MemoriesHome', params: { groupId, initialMemoryId: entityId } });
+            return;
+        }
+
+        if (type === 'hisaab_added' && entityId) {
+            navigation.navigate('ExpenseDetail', { expenseId: entityId, isFromDeepLink: true });
+            return;
+        }
+
+        if (type === 'hisaab_settled' && groupId) {
+            navigation.navigate('GroupHisaab', { groupId, groupName: item.group?.name });
+            return;
+        }
+
+        if (type === 'housie_created' && groupId) {
+            navigation.navigate('Games', {
+                screen: gameCode ? 'HousieWaitingRoom' : 'HousieLobby',
+                params: gameCode ? { gameCode, groupId } : { groupId },
+            });
+            return;
+        }
+
+        if (type === 'blink_created' && groupId) {
+            navigation.navigate('Games', {
+                screen: gameCode ? 'BlinkWaitingRoom' : 'BlinkLobby',
+                params: gameCode ? { gameCode, groupId } : { groupId },
+            });
+            return;
+        }
+
+        if (groupId) {
+            navigation.navigate('GroupDetail', { groupId });
+        }
+    }, [navigation]);
 
     const getIconDetails = (type: string) => {
         switch (type) {
@@ -115,8 +162,10 @@ const NotificationScreen = () => {
                         const isUnread = !item.is_read;
 
                         return (
-                            <View
+                            <TouchableOpacity
                                 key={item.id}
+                                activeOpacity={0.85}
+                                onPress={() => handleNotificationPress(item)}
                                 className={`bg-white rounded-[24px] border shadow-sm flex-row ${isTablet ? 'p-6' : 'p-4'} ${isUnread ? 'border-[#b30069]/20' : 'border-stone-100'}`}
                                 style={{ elevation: isUnread ? 3 : 2 }}
                             >
@@ -189,7 +238,7 @@ const NotificationScreen = () => {
                                         </View>
                                     )}
                                 </View>
-                            </View>
+                            </TouchableOpacity>
                         );
                     })}
                 </View>

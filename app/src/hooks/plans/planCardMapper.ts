@@ -43,9 +43,11 @@ export function mapPlanToCardPlan(plan: Plan): PlanCardPlan {
     return {
         id: plan.id,
         groupId: plan.groupId,
+        activityId: plan.activityId,
         activityLabel: plan.activityLabel,
         activityIcon: getActivityIcon(plan.activityLabel),
         startsAt: plan.startsAt,
+        endsAt: plan.endsAt,
         location: plan.location,
         locationDetail: plan.location ?? undefined,
         placeId: plan.placeId ?? null,
