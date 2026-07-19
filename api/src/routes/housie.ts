@@ -7,6 +7,7 @@ import { sendGroupPushNotification } from '../lib/push';
 import { checkPrize } from '../utils/tambola';
 
 import { startAutoHost, pauseAutoHost, resumeAutoHost, stopAutoHost } from '../services/housieAutoHost';
+import { checkEngineStatus } from '../services/housieEngine';
 import { createGroupNotification } from '../services/notificationService';
 import { NOTIFICATION_TYPES } from '../types/notifications';
 
@@ -388,6 +389,10 @@ router.patch('/:gameCode/activate', authMiddleware, async (req: AuthRequest, res
                 status: 'starting'
             });
         }
+
+        checkEngineStatus().catch((err) => {
+            console.error(`[Housie] Failed to wake engine after activating ${gameCode}:`, err);
+        });
 
         res.json(updatedGame);
     } catch (error: any) {

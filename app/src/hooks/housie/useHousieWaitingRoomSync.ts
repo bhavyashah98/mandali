@@ -77,16 +77,16 @@ export const useHousieWaitingRoomSync = ({
         if (game.status === 'starting') {
             navigation.replace('HousieStarting', { gameCode, groupId, planId });
         } else if (game.status === 'active') {
-            if (hasTickets) {
+            if (isHost && game.settings?.callingMode !== 'auto') {
+                navigation.replace('HousieGame', { gameCode, groupId, planId });
+            } else if (hasTickets) {
                 navigation.replace('HousieTicket', { gameCode, groupId, planId });
-            } else if (isHost) {
-                navigation.navigate('HousieGame', { gameCode, groupId, planId });
             } else {
-                navigation.navigate('HousieTicket', { gameCode, groupId, planId });
+                navigation.replace('HousieSpectator', { gameCode, groupId, planId });
             }
         } else if (game.status === 'ended') {
             Alert.alert('Game Over', 'This game has already ended.');
             navigation.goBack();
         }
-    }, [game?.status, isHost, navigation, gameCode, groupId, planId]);
+    }, [game?.status, game?.settings?.callingMode, hasTickets, isHost, navigation, gameCode, groupId, planId]);
 };

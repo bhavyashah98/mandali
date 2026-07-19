@@ -496,6 +496,47 @@ const GroupDetailScreen = () => {
                     />
                 )}
 
+                {/* Group Timeline Entry */}
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('GroupTimeline', { groupId: group.id, groupName: group.name })}
+                    activeOpacity={0.9}
+                    className={`bg-[#1c1c18] rounded-[40px] overflow-hidden shadow-lg shadow-black/10 ${isTablet ? 'mb-12 p-10' : 'mb-8 p-6'}`}
+                >
+                    <LinearGradient
+                        colors={['rgba(179,0,105,0.22)', 'rgba(234,88,12,0.10)', 'transparent']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                    />
+                    <View className="flex-row items-center">
+                        <View className={`bg-white/10 rounded-[28px] items-center justify-center mr-5 border border-white/10 ${isTablet ? 'w-24 h-24' : 'w-14 h-14'}`}>
+                            <Ionicons name="albums" size={isTablet ? 48 : 26} color="white" />
+                        </View>
+                        <View className="flex-1">
+                            <View className="flex-row items-center mb-1.5">
+                                <Ionicons name="sparkles" size={isTablet ? 20 : 12} color="#f97316" />
+                                <Text className={`font-body-bold text-[#f97316] uppercase tracking-widest ml-1.5 ${isTablet ? 'text-lg' : 'text-[10px]'}`}>
+                                    Living Archive
+                                </Text>
+                            </View>
+                            <Text
+                                className="font-headline-bold text-white"
+                                style={{ fontSize: isTablet ? 38 : 20 }}
+                                adjustsFontSizeToFit
+                                numberOfLines={1}
+                            >
+                                Mandali Timeline
+                            </Text>
+                            <Text className={`font-body-medium text-white/60 mt-1 ${isTablet ? 'text-xl' : 'text-xs'}`} numberOfLines={2}>
+                                Plans, memories, Hisaab, games, and milestones in one story.
+                            </Text>
+                        </View>
+                        <View className={`bg-white/10 rounded-full items-center justify-center ml-4 ${isTablet ? 'w-14 h-14' : 'w-9 h-9'}`}>
+                            <MaterialIcons name="chevron-right" size={isTablet ? 34 : 20} color="white" />
+                        </View>
+                    </View>
+                </TouchableOpacity>
+
                 {/* Group Info Card */}
                 {group.description && (
                     <View className={`bg-stone-50 rounded-[48px] mb-12 border border-stone-100 ${isTablet ? 'p-16' : 'p-6'}`}>

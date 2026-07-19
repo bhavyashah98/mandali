@@ -86,6 +86,45 @@ export const fetchGroupPulse = async (groupId: string) => {
     return response.data;
 };
 
+export type GroupTimelineItemType =
+    | 'plan'
+    | 'memory'
+    | 'expense'
+    | 'settlement'
+    | 'housie_result'
+    | 'blink_result'
+    | 'milestone';
+
+export interface GroupTimelineItem {
+    id: string;
+    type: GroupTimelineItemType;
+    occurredAt: string;
+    title: string;
+    subtitle?: string | null;
+    groupId: string;
+    actor?: {
+        id: string;
+        name: string;
+        avatarUrl?: string | null;
+    } | null;
+    metadata: Record<string, any>;
+}
+
+export interface GroupTimelineResponse {
+    items: GroupTimelineItem[];
+    page: number;
+    hasMore: boolean;
+}
+
+export const fetchGroupTimeline = async (groupId: string, page = 0, limit = 20): Promise<GroupTimelineResponse> => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/groups/${groupId}/timeline`, {
+        headers,
+        params: { page, limit },
+    });
+    return response.data;
+};
+
 export const createGroup = async (groupData: any) => {
     const headers = await getAuthHeaders();
     const response = await axios.post(`${API_URL}/groups`, groupData, { headers });

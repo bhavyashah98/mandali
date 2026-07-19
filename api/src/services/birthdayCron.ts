@@ -84,6 +84,83 @@ const fetchUserGroups = async (userId: string): Promise<string[]> => {
     return (memberships || []).map((m: any) => m.group_id);
 };
 
+/**
+ * Fetch unique member IDs across multiple groups, excluding the birthday person.
+ */
+const fetchUniqueGroupMembers = async (groupIds: string[], excludeUserId: string): Promise<string[]> => {
+    if (groupIds.length === 0) return [];
+
+    const { data: memberships, error } = await supabase
+        .from('group_members')
+        .select('user_id')
+        .in('group_id', groupIds)
+        .neq('user_id', excludeUserId);
+
+    if (error || !memberships) {
+        console.error('[BirthdayCron] Error fetching unique group members:', error);
+        return [];
+    }
+
+    // Deduplicate user IDs in-memory
+    const seen = new Set<string>();
+    for (const m of memberships) seen.add(m.user_id);
+    return Array.from(seen);
+};
+
+/**
+ * Check if a user has already received a birthday notification for a specific birthday person today.
+ * Uses birthdayPersonId in metadata as the dedup key (not groupId) so members in multiple shared
+ * groups only receive one notification per birthday person per day.
+ */
+const hasBirthdayNotificationForPerson = async (userId: string, type: string, runDate: string, birthdayPersonId: string): Promise<boolean> => {
+    const { data } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('notification_type', type)
+        .eq('metadata->>birthdayRunDate', runDate)
+        .eq('metadata->>birthdayPersonId', birthdayPersonId)
+        .limit(1);
+    return !!data?.length;
+};
+
+/**
+ * Notify unique members across all of a birthday person's groups — each recipient gets exactly
+ * ONE notification regardless of how many groups they share with the birthday person.
+ * Returns the list of user IDs that were newly notified (for push notification batching).
+ */
+const notifyUniqueGroupMembersForBirthday = async (
+    groupIds: string[],
+    birthdayPersonId: string,
+    type: any,
+    title: string,
+    body: string,
+    runDate: string,
+    metadata: any
+): Promise<string[]> => {
+    const uniqueMembers = await fetchUniqueGroupMembers(groupIds, birthdayPersonId);
+    console.log(`[BirthdayCron]   → Unique members to notify: ${uniqueMembers.length} (across ${groupIds.length} groups)`);
+
+    const notified: string[] = [];
+    for (const userId of uniqueMembers) {
+        const alreadySent = await hasBirthdayNotificationForPerson(userId, type, runDate, birthdayPersonId);
+        if (alreadySent) continue;
+
+        await createNotification(
+            userId,
+            type,
+            title,
+            body,
+            undefined,           // no group_id — this is a cross-group notification
+            birthdayPersonId,
+            birthdayPersonId,
+            { ...metadata, birthdayRunDate: runDate, birthdayPersonId }
+        );
+        notified.push(userId);
+    }
+    return notified;
+};
+
 const birthdayRunKey = (baseDate?: Date) => {
     const now = baseDate || new Date();
     return new Intl.DateTimeFormat('en-CA', {
@@ -132,36 +209,6 @@ const createOnce = async (input: {
     return true;
 };
 
-const createGroupBirthdayNotifications = async (groupId: string, excludeUserId: string, type: any, title: string, body: string, runDate: string, metadata: any) => {
-    const { data: members, error } = await supabase
-        .from('group_members')
-        .select('user_id')
-        .eq('group_id', groupId);
-
-    if (error || !members) {
-        console.error('[BirthdayCron] Error fetching group members for birthday notification:', error);
-        return 0;
-    }
-
-    let created = 0;
-    for (const member of members) {
-        if (member.user_id === excludeUserId) continue;
-        const didCreate = await createOnce({
-            userId: member.user_id,
-            type,
-            title,
-            body,
-            runDate,
-            groupId,
-            actorId: excludeUserId,
-            entityId: excludeUserId,
-            metadata,
-        });
-        if (didCreate) created += 1;
-    }
-    return created;
-};
-
 /**
  * Main birthday check logic.
  * @param baseDate Optional date override for testing (defaults to current time)
@@ -202,31 +249,34 @@ export const runBirthdayChecks = async (baseDate?: Date) => {
             );
         }
 
-        // Notify all groups the user belongs to (excluding the birthday person)
+        // Collect all groups and notify UNIQUE members across all groups — one notification each
         const groupIds = await fetchUserGroups(user.id);
         console.log(`[BirthdayCron]   → Found ${groupIds.length} groups for ${user.name}`);
 
-        for (const groupId of groupIds) {
-            const createdCount = await createGroupBirthdayNotifications(
-                groupId,
-                user.id,
-                NOTIFICATION_TYPES.BIRTHDAY_TODAY,
+        const notifiedUserIds = await notifyUniqueGroupMembersForBirthday(
+            groupIds,
+            user.id,
+            NOTIFICATION_TYPES.BIRTHDAY_TODAY,
+            '🎂 Birthday Alert!',
+            `It's ${user.name}'s birthday today! Send them some love! 🎉❤️`,
+            runDate,
+            { type: 'birthday_today', userId: user.id }
+        );
+
+        // Send push to each newly-notified user individually
+        for (const recipientId of notifiedUserIds) {
+            await sendUserPushNotification(
+                recipientId,
                 '🎂 Birthday Alert!',
                 `It's ${user.name}'s birthday today! Send them some love! 🎉❤️`,
-                runDate,
-                { type: 'birthday_today', userId: user.id, groupId }
+                { type: 'birthday_today', userId: user.id }
             );
-            if (createdCount > 0) {
-                await sendGroupPushNotification(
-                    groupId,
-                    user.id,
-                    '🎂 Birthday Alert!',
-                    `It's ${user.name}'s birthday today! Send them some love! 🎉❤️`,
-                    { type: 'birthday_today', userId: user.id, groupId }
-                );
-            } else {
-                console.log(`[BirthdayCron]   → Birthday today already notified for group ${groupId}; skipping duplicate push.`);
-            }
+        }
+
+        if (notifiedUserIds.length === 0) {
+            console.log(`[BirthdayCron]   → All members already notified for ${user.name}'s birthday; skipping.`);
+        } else {
+            console.log(`[BirthdayCron]   → Notified ${notifiedUserIds.length} unique member(s) for ${user.name}'s birthday.`);
         }
     }
 
@@ -237,31 +287,32 @@ export const runBirthdayChecks = async (baseDate?: Date) => {
     for (const user of upcomingUsers) {
         console.log(`[BirthdayCron] 🎁 Upcoming Birthday: ${user.name} (${user.id})`);
 
-        // Notify all groups (exclude the birthday person so it's a surprise)
         const groupIds = await fetchUserGroups(user.id);
         console.log(`[BirthdayCron]   → Found ${groupIds.length} groups for ${user.name}`);
 
-        for (const groupId of groupIds) {
-            const createdCount = await createGroupBirthdayNotifications(
-                groupId,
-                user.id,
-                NOTIFICATION_TYPES.BIRTHDAY_UPCOMING,
+        const notifiedUserIds = await notifyUniqueGroupMembersForBirthday(
+            groupIds,
+            user.id,
+            NOTIFICATION_TYPES.BIRTHDAY_UPCOMING,
+            '🎁 Birthday Coming Up!',
+            `${user.name}'s birthday is in 3 days! Time to plan something special! 🎊`,
+            runDate,
+            { type: 'birthday_upcoming', userId: user.id }
+        );
+
+        for (const recipientId of notifiedUserIds) {
+            await sendUserPushNotification(
+                recipientId,
                 '🎁 Birthday Coming Up!',
                 `${user.name}'s birthday is in 3 days! Time to plan something special! 🎊`,
-                runDate,
-                { type: 'birthday_upcoming', userId: user.id, groupId }
+                { type: 'birthday_upcoming', userId: user.id }
             );
-            if (createdCount > 0) {
-                await sendGroupPushNotification(
-                    groupId,
-                    user.id,
-                    '🎁 Birthday Coming Up!',
-                    `${user.name}'s birthday is in 3 days! Time to plan something special! 🎊`,
-                    { type: 'birthday_upcoming', userId: user.id, groupId }
-                );
-            } else {
-                console.log(`[BirthdayCron]   → Upcoming birthday already notified for group ${groupId}; skipping duplicate push.`);
-            }
+        }
+
+        if (notifiedUserIds.length === 0) {
+            console.log(`[BirthdayCron]   → All members already notified for ${user.name}'s upcoming birthday; skipping.`);
+        } else {
+            console.log(`[BirthdayCron]   → Notified ${notifiedUserIds.length} unique member(s) for ${user.name}'s upcoming birthday.`);
         }
     }
 

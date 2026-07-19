@@ -43,6 +43,15 @@ const HousieHostSettingsScreen = () => {
 
     const [isLoading, setIsLoading] = useState(false);
 
+    const handleCallingModeChange = useCallback((mode: 'manual' | 'auto') => {
+        setCallingMode(mode);
+        if (mode === 'manual') {
+            setHostTickets(0);
+        } else {
+            setHostTickets(1);
+        }
+    }, []);
+
     const handleConfirmDate = (selectedDate: Date) => {
         setShowDatePicker(false);
         const newDate = new Date(scheduledAt);
@@ -133,7 +142,7 @@ const HousieHostSettingsScreen = () => {
 
                 <CallingModeSection
                     callingMode={callingMode}
-                    setCallingMode={setCallingMode}
+                    setCallingMode={handleCallingModeChange}
                     autoCallSeconds={autoCallSeconds}
                     setAutoCallSeconds={setAutoCallSeconds}
                     isTablet={isTablet}

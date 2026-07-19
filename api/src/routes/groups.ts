@@ -4,33 +4,21 @@ import { supabase } from '../lib/supabase';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { emitGroupEvent, GroupEventType } from '../sockets/groupEvents';
 import { calculateMeetupStreak } from '../utils/pulse';
+import { TimelineItem, TimelineItemType } from '../types/timeline';
+import { sanitizeImageUrl } from '../utils/image';
+import {
+    actorFromUser,
+    buildMilestoneItems,
+    formatCurrency,
+    getPrimaryImageUrl,
+    getTimelineSubtitle,
+    toTimelineItemType,
+} from '../utils/timeline';
 
 const router = express.Router();
 
 // All group routes require authentication
 router.use(authMiddleware);
-
-// Helper to sanitize incoming image URLs (handles legacy client objects/strings)
-const sanitizeImageUrl = (url: any) => {
-    if (!url) return null;
-    // If it's the full Cloudinary object { url, publicId }
-    if (typeof url === 'object' && url.url) return url.url;
-    // If it's a string (could be a plain URL or a stringified JSON)
-    if (typeof url === 'string') {
-        if (url === '[object Object]') return null;
-        try {
-            // Check if it's a stringified JSON object
-            if (url.startsWith('{')) {
-                const parsed = JSON.parse(url);
-                if (parsed.url) return parsed.url;
-            }
-        } catch (e) {
-            // Not JSON, treat as plain string
-        }
-        return url;
-    }
-    return null;
-};
 
 // ──────────────────────────────────────────────
 // POST /groups — Create a new group
@@ -230,6 +218,389 @@ router.get('/:id', async (req: AuthRequest, res) => {
     } catch (err) {
         console.error('[Groups] Unexpected error:', err);
         res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ──────────────────────────────────────────────
+// GET /groups/:id/timeline — Unified group history feed
+// ──────────────────────────────────────────────
+router.get('/:id/timeline', async (req: AuthRequest, res) => {
+    try {
+        const id = req.params.id as string;
+        const userId = req.userId!;
+        const page = Math.max(0, parseInt(req.query.page as string, 10) || 0);
+        const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string, 10) || 20));
+        const sliceStart = page * limit;
+        const sliceEnd = sliceStart + limit;
+        const fetchLimit = Math.min(120, sliceEnd + 30);
+
+        const { data: membership } = await supabase
+            .from('group_members')
+            .select('id')
+            .eq('group_id', id)
+            .eq('user_id', userId)
+            .single();
+
+        if (!membership) {
+            return res.status(403).json({ error: 'You are not a member of this group' });
+        }
+
+        const { data: group, error: groupError } = await supabase
+            .from('groups')
+            .select('id, name, created_at')
+            .eq('id', id)
+            .single();
+
+        if (groupError || !group) {
+            return res.status(404).json({ error: 'Group not found' });
+        }
+
+        const [{ data: blockedData }, { data: reportedData }] = await Promise.all([
+            supabase
+                .from('blocked_users')
+                .select('blocked_id, blocker_id')
+                .or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`),
+            supabase
+                .from('reports')
+                .select('content_id')
+                .eq('reporter_id', userId),
+        ]);
+
+        const blockedUserIds = blockedData
+            ? Array.from(new Set(blockedData.flatMap((b: any) => [b.blocked_id, b.blocker_id]))).filter((uid) => uid !== userId)
+            : [];
+        const reportedContentIds = reportedData?.map((r: any) => r.content_id) || [];
+
+        let memoriesQuery = supabase
+            .from('memories')
+            .select('id, group_id, user_id, image_urls, story, memory_date, created_at, plan_id, user:users!user_id(id, name, avatar_url)')
+            .eq('group_id', id)
+            .eq('is_hidden', false)
+            .order('memory_date', { ascending: false })
+            .limit(fetchLimit);
+
+        if (blockedUserIds.length > 0) {
+            memoriesQuery = memoriesQuery.not('user_id', 'in', `(${blockedUserIds.join(',')})`);
+        }
+
+        if (reportedContentIds.length > 0) {
+            memoriesQuery = memoriesQuery.not('id', 'in', `(${reportedContentIds.join(',')})`);
+        }
+
+        const [
+            timelineEventsRes,
+            plansRes,
+            memoriesRes,
+            expensesRes,
+            settlementsRes,
+            gameResultsRes,
+            housieGamesRes,
+            blinkGamesRes,
+            milestonePlansRes,
+            milestoneExpensesRes,
+            milestoneMemoriesRes,
+            milestoneHousieGamesRes,
+            milestoneBlinkGamesRes,
+        ] = await Promise.all([
+            supabase
+                .from('group_timeline_events')
+                .select('id, source_type, source_id, occurred_at, title, subtitle, actor_id, metadata')
+                .eq('group_id', id)
+                .order('occurred_at', { ascending: false })
+                .limit(fetchLimit),
+            supabase
+                .from('plans')
+                .select('id, group_id, created_by, activity_label, status, starts_at, ends_at, created_at, location, place_photo_url, description, creator:users!created_by(id, name, avatar_url)')
+                .eq('group_id', id)
+                .order('starts_at', { ascending: false })
+                .limit(fetchLimit),
+            memoriesQuery,
+            supabase
+                .from('expenses')
+                .select('id, group_id, description, amount, paid_by, added_by, expense_type, plan_id, created_at, payer:users!paid_by(id, name, avatar_url), adder:users!added_by(id, name, avatar_url), expense_participants(id, user_id, amount)')
+                .eq('group_id', id)
+                .order('created_at', { ascending: false })
+                .limit(fetchLimit),
+            supabase
+                .from('settlements')
+                .select('id, group_id, amount, from_user_id, to_user_id, plan_id, created_at, from:users!from_user_id(id, name, avatar_url), to:users!to_user_id(id, name, avatar_url)')
+                .eq('group_id', id)
+                .order('created_at', { ascending: false })
+                .limit(fetchLimit),
+            supabase
+                .from('game_results')
+                .select('id, game_id, group_id, user_id, prize_name, prize_amount, won_at, user:users!user_id(id, name, avatar_url)')
+                .eq('group_id', id)
+                .order('won_at', { ascending: false })
+                .limit(fetchLimit),
+            supabase
+                .from('housie_games')
+                .select('id, game_code, title, status, scheduled_at, created_at, group_id')
+                .eq('group_id', id)
+                .order('created_at', { ascending: false })
+                .limit(fetchLimit),
+            supabase
+                .from('blink_games')
+                .select('id, game_code, title, status, scheduled_at, created_at, group_id')
+                .eq('group_id', id)
+                .order('created_at', { ascending: false })
+                .limit(fetchLimit),
+            supabase
+                .from('plans')
+                .select('id, status, starts_at, ends_at, created_at')
+                .eq('group_id', id)
+                .order('starts_at', { ascending: true })
+                .limit(500),
+            supabase
+                .from('expenses')
+                .select('id, amount, created_at')
+                .eq('group_id', id)
+                .order('created_at', { ascending: true })
+                .limit(1000),
+            supabase
+                .from('memories')
+                .select('id, user_id, memory_date, created_at')
+                .eq('group_id', id)
+                .eq('is_hidden', false)
+                .order('memory_date', { ascending: true })
+                .limit(1000),
+            supabase
+                .from('housie_games')
+                .select('id, scheduled_at, created_at')
+                .eq('group_id', id)
+                .order('created_at', { ascending: true })
+                .limit(500),
+            supabase
+                .from('blink_games')
+                .select('id, scheduled_at, created_at')
+                .eq('group_id', id)
+                .order('created_at', { ascending: true })
+                .limit(500),
+        ]);
+
+        const sourceError = [
+            timelineEventsRes.error,
+            plansRes.error,
+            memoriesRes.error,
+            expensesRes.error,
+            settlementsRes.error,
+            gameResultsRes.error,
+            housieGamesRes.error,
+            blinkGamesRes.error,
+            milestonePlansRes.error,
+            milestoneExpensesRes.error,
+            milestoneMemoriesRes.error,
+            milestoneHousieGamesRes.error,
+            milestoneBlinkGamesRes.error,
+        ].find(Boolean);
+
+        if (sourceError) throw sourceError;
+
+        const planIds = (plansRes.data || []).map((plan: any) => plan.id);
+        const { data: planRsvps, error: planRsvpsError } = planIds.length > 0
+            ? await supabase
+                .from('plan_rsvps')
+                .select('plan_id, user_id, status, note, created_at, user:users!user_id(id, name, avatar_url)')
+                .in('plan_id', planIds)
+            : { data: [], error: null };
+
+        if (planRsvpsError) throw planRsvpsError;
+
+        const rsvpsByPlanId = (planRsvps || []).reduce((acc: Record<string, any[]>, rsvp: any) => {
+            if (!acc[rsvp.plan_id]) acc[rsvp.plan_id] = [];
+            acc[rsvp.plan_id].push(rsvp);
+            return acc;
+        }, {});
+
+        const housieById = new Map((housieGamesRes.data || []).map((game: any) => [game.id, game]));
+        const blinkById = new Map((blinkGamesRes.data || []).map((game: any) => [game.id, game]));
+
+        const persistedItems: TimelineItem[] = (timelineEventsRes.data || []).flatMap((event: any) => {
+            const type = toTimelineItemType(event.source_type);
+            if (!type) return [];
+
+            return [{
+                id: event.id,
+                type,
+                occurredAt: event.occurred_at,
+                title: event.title,
+                subtitle: event.subtitle,
+                groupId: id,
+                actor: event.actor_id ? { id: event.actor_id, name: 'Member', avatarUrl: null } : null,
+                metadata: {
+                    ...(event.metadata || {}),
+                    sourceId: event.source_id,
+                    persisted: true,
+                },
+            }];
+        });
+
+        const planItems: TimelineItem[] = (plansRes.data || []).map((plan: any) => {
+            const rsvps = rsvpsByPlanId[plan.id] || [];
+            const going = rsvps.filter((rsvp) => rsvp.status === 'going');
+            const occurredAt = plan.starts_at || plan.created_at;
+            return {
+                id: `plan:${plan.id}`,
+                type: 'plan',
+                occurredAt,
+                title: plan.status === 'past' ? `${plan.activity_label || 'Plan'} happened` : `${plan.activity_label || 'Plan'} planned`,
+                subtitle: getTimelineSubtitle([
+                    going.length > 0 ? `${going.length} going` : null,
+                    plan.location,
+                    plan.status,
+                ]),
+                groupId: id,
+                actor: actorFromUser(plan.created_by, plan.creator),
+                metadata: {
+                    planId: plan.id,
+                    status: plan.status,
+                    startsAt: plan.starts_at,
+                    endsAt: plan.ends_at,
+                    location: plan.location,
+                    placePhotoUrl: plan.place_photo_url,
+                    description: plan.description,
+                    goingCount: going.length,
+                    rsvpCount: rsvps.length,
+                    going: going.slice(0, 8).map((rsvp: any) => ({
+                        userId: rsvp.user_id,
+                        name: rsvp.user?.name || 'Member',
+                        avatarUrl: rsvp.user?.avatar_url ?? null,
+                    })),
+                },
+            };
+        });
+
+        const memoryItems: TimelineItem[] = (memoriesRes.data || []).map((memory: any) => {
+            const imageCount = Array.isArray(memory.image_urls) ? memory.image_urls.length : 0;
+            return {
+                id: `memory:${memory.id}`,
+                type: 'memory',
+                occurredAt: memory.memory_date || memory.created_at,
+                title: imageCount > 1 ? `${imageCount} memories added` : 'Memory added',
+                subtitle: memory.story || `${memory.user?.name || 'A member'} shared a moment`,
+                groupId: id,
+                actor: actorFromUser(memory.user_id, memory.user),
+                metadata: {
+                    memoryId: memory.id,
+                    planId: memory.plan_id,
+                    imageUrls: memory.image_urls || [],
+                    thumbnailUrl: getPrimaryImageUrl(memory.image_urls),
+                    imageCount,
+                    story: memory.story,
+                },
+            };
+        });
+
+        const expenseItems: TimelineItem[] = (expensesRes.data || []).map((expense: any) => {
+            const participantCount = Array.isArray(expense.expense_participants) ? expense.expense_participants.length : 0;
+            return {
+                id: `expense:${expense.id}`,
+                type: 'expense',
+                occurredAt: expense.created_at,
+                title: `${formatCurrency(expense.amount)} split`,
+                subtitle: getTimelineSubtitle([
+                    expense.description || 'Hisaab expense',
+                    participantCount > 0 ? `${participantCount} members` : null,
+                ]),
+                groupId: id,
+                actor: actorFromUser(expense.added_by || expense.paid_by, expense.adder || expense.payer),
+                metadata: {
+                    expenseId: expense.id,
+                    planId: expense.plan_id,
+                    description: expense.description,
+                    amount: Number(expense.amount || 0),
+                    paidBy: expense.paid_by,
+                    paidByName: expense.payer?.name || 'Member',
+                    participantCount,
+                    expenseType: expense.expense_type,
+                },
+            };
+        });
+
+        const settlementItems: TimelineItem[] = (settlementsRes.data || []).map((settlement: any) => ({
+            id: `settlement:${settlement.id}`,
+            type: 'settlement',
+            occurredAt: settlement.created_at,
+            title: `${formatCurrency(settlement.amount)} settled`,
+            subtitle: `${settlement.from?.name || 'A member'} paid ${settlement.to?.name || 'a member'}`,
+            groupId: id,
+            actor: actorFromUser(settlement.from_user_id, settlement.from),
+            metadata: {
+                settlementId: settlement.id,
+                planId: settlement.plan_id,
+                amount: Number(settlement.amount || 0),
+                fromUserId: settlement.from_user_id,
+                fromName: settlement.from?.name || 'Member',
+                toUserId: settlement.to_user_id,
+                toName: settlement.to?.name || 'Member',
+            },
+        }));
+
+        const gameResultItems: TimelineItem[] = (gameResultsRes.data || []).map((result: any) => {
+            const housieGame = housieById.get(result.game_id) as any;
+            const blinkGame = blinkById.get(result.game_id) as any;
+            const game = housieGame || blinkGame;
+            const type: TimelineItemType = blinkGame ? 'blink_result' : 'housie_result';
+            const gameName = blinkGame ? 'Blink' : 'Housie';
+            return {
+                id: `${type}:${result.id}`,
+                type,
+                occurredAt: result.won_at,
+                title: `${result.user?.name || 'A member'} won ${result.prize_name || gameName}`,
+                subtitle: getTimelineSubtitle([
+                    game?.title || gameName,
+                    Number(result.prize_amount || 0) > 0 ? `${formatCurrency(result.prize_amount)} prize` : null,
+                ]),
+                groupId: id,
+                actor: actorFromUser(result.user_id, result.user),
+                metadata: {
+                    resultId: result.id,
+                    gameId: result.game_id,
+                    gameCode: game?.game_code,
+                    gameTitle: game?.title,
+                    gameType: blinkGame ? 'blink' : 'housie',
+                    prizeName: result.prize_name,
+                    prizeAmount: Number(result.prize_amount || 0),
+                },
+            };
+        });
+
+        const completedPlans = (milestonePlansRes.data || []).filter((plan: any) => {
+            const planTime = new Date(plan.ends_at || plan.starts_at || plan.created_at).getTime();
+            return plan.status === 'past' || planTime < Date.now();
+        });
+        const injectedMilestones = buildMilestoneItems(id, group, {
+            completedPlans,
+            expenses: milestoneExpensesRes.data || [],
+            memories: milestoneMemoriesRes.data || [],
+            games: [
+                ...(milestoneHousieGamesRes.data || []),
+                ...(milestoneBlinkGamesRes.data || []),
+            ],
+        });
+
+        const items = [
+            ...persistedItems,
+            ...planItems,
+            ...memoryItems,
+            ...expenseItems,
+            ...settlementItems,
+            ...gameResultItems,
+            ...injectedMilestones,
+        ]
+            .filter((item) => item.occurredAt)
+            .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
+
+        const pageItems = items.slice(sliceStart, sliceEnd);
+
+        res.json({
+            items: pageItems,
+            page,
+            hasMore: items.length > sliceEnd,
+        });
+    } catch (err: any) {
+        console.error('[Groups] Timeline error:', err);
+        res.status(500).json({ error: err.message || 'Failed to fetch group timeline' });
     }
 });
 
@@ -678,7 +1049,5 @@ router.get('/:id/pulse', async (req: AuthRequest, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
-
-
 
 export default router;
